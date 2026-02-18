@@ -1,0 +1,62 @@
+<!-- ==========================================================================
+     templates/entregas/atribuir.html - Atribuir entregador a uma entrega
+     ========================================================================== -->
+{% extends 'painel/base_painel.html' %}
+
+{% block title %}Atribuir Entregador - {{ restaurante.nome }}{% endblock %}
+
+{% block painel_content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h2"><i class="bi bi-person-plus"></i> Atribuir Entregador</h1>
+    <a href="{% url 'painel_entregas' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header"><h6 class="mb-0">Dados do Pedido</h6></div>
+            <div class="card-body">
+                <p><strong>Pedido:</strong> #{{ entrega.pedido.id }}</p>
+                <p><strong>Cliente:</strong> {{ entrega.pedido.cliente_nome }}</p>
+                <p><strong>Telefone:</strong> {{ entrega.pedido.cliente_telefone }}</p>
+                <p><strong>Endereço:</strong> {{ entrega.pedido.endereco_entrega|default:"Retirada" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header"><h6 class="mb-0">Selecionar Entregador</h6></div>
+            <div class="card-body">
+                {% if entregadores %}
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="list-group mb-3">
+                        {% for e in entregadores %}
+                        <label class="list-group-item list-group-item-action d-flex align-items-center">
+                            <input type="radio" name="entregador_id"
+                                   value="{{ e.id }}" class="form-check-input me-2" required>
+                            <div>
+                                <strong>{{ e.nome }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    {{ e.get_veiculo_display }} | {{ e.telefone }}
+                                </small>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check-lg"></i> Atribuir Entregador
+                    </button>
+                </form>
+                {% else %}
+                <p class="text-muted">Nenhum entregador disponível no momento.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

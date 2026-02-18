@@ -1,0 +1,326 @@
+<!-- carrinho.html - Shopping cart page for the cardapio-online project.
+     Displays cart items with quantity controls, removal options, and an order summary
+     with subtotal, delivery fee, tax, and total. Provides navigation to continue
+     shopping or proceed to checkout. -->
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Carrinho de Compras - {{ restaurante.nome }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">
+        <i class="bi bi-cart3 me-2"></i>Carrinho de Compras
+    </h1>
+
+    {% if itens_removidos %}
+    <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <strong>Alguns itens foram removidos do seu carrinho</strong> porque não estão mais disponíveis:
+        <ul class="mb-0 mt-1">
+            {% for nome in itens_removidos %}
+            <li>{{ nome }}</li>
+            {% endfor %}
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+    {% endif %}
+
+    {% if itens %}
+    <div class="row g-4">
+        <!-- Cart Items -->
+        <div class="col-lg-8">
+            <!-- Desktop Table View -->
+            <div class="card shadow-sm d-none d-md-block">
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" style="width: 80px;">Imagem</th>
+                                <th scope="col">Produto</th>
+                                <th scope="col" style="width: 130px;">Quantidade</th>
+                                <th scope="col" style="width: 120px;">Preço Unit.</th>
+                                <th scope="col" style="width: 120px;">Subtotal</th>
+                                <th scope="col" style="width: 60px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in itens %}
+                            <tr>
+                                <td>
+                                    {% if item.produto.imagem %}
+                                    <img src="{{ item.produto.imagem.url }}" alt="{{ item.produto.nome }}"
+                                         class="rounded" width="60" height="60"
+                                         style="object-fit: cover;">
+                                    {% else %}
+                                    <div class="bg-light rounded d-flex align-items-center justify-content-center"
+                                         style="width: 60px; height: 60px;">
+                                        <i class="bi bi-image text-muted"></i>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <h6 class="mb-0">{{ item.produto.nome }}</h6>
+                                    {% if item.tamanho_nome %}
+                                    <small class="text-muted d-block">
+                                        <i class="bi bi-rulers me-1"></i>{{ item.tamanho_nome }}
+                                    </small>
+                                    {% endif %}
+                                    {% if item.sabores_nomes %}
+                                    <small class="text-muted d-block">
+                                        <i class="bi bi-ui-checks me-1"></i>{{ item.sabores_nomes|join:", " }}
+                                    </small>
+                                    {% endif %}
+                                    {% if item.adicional_sabores and item.adicional_sabores > 0 %}
+                                    <small class="text-muted d-block">
+                                        <i class="bi bi-plus-circle me-1"></i>Adicional sabores: R$ {{ item.adicional_sabores|floatformat:2 }}
+                                    </small>
+                                    {% endif %}
+                                    {% if item.observacao %}
+                                    <small class="text-muted">
+                                        <i class="bi bi-chat-left-text me-1"></i>{{ item.observacao }}
+                                    </small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="post" action="{% url 'atualizar_carrinho' %}" class="d-flex align-items-center">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="item_key" value="{{ item.item_key }}">
+                                        <input type="hidden" name="produto_id" value="{{ item.produto.id }}">
+                                        <input type="number" name="quantidade" value="{{ item.quantidade }}"
+                                               min="1" max="99" class="form-control form-control-sm text-center"
+                                               style="width: 70px;"
+                                               onchange="this.form.submit()">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary ms-1" title="Atualizar">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                                <td class="text-nowrap">R$ {{ item.preco_unitario|floatformat:2 }}</td>
+                                <td class="text-nowrap fw-semibold">R$ {{ item.subtotal|floatformat:2 }}</td>
+                                <td>
+                                    <form method="post" action="{% url 'remover_do_carrinho' %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="item_key" value="{{ item.item_key }}">
+                                        <input type="hidden" name="produto_id" value="{{ item.produto.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Remover">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mobile Card View -->
+            <div class="d-md-none">
+                {% for item in itens %}
+                <div class="card shadow-sm mb-3">
+                    <div class="card-body">
+                        <div class="d-flex gap-3">
+                            {% if item.produto.imagem %}
+                            <img src="{{ item.produto.imagem.url }}" alt="{{ item.produto.nome }}"
+                                 class="rounded flex-shrink-0" width="70" height="70"
+                                 style="object-fit: cover;">
+                            {% else %}
+                            <div class="bg-light rounded d-flex align-items-center justify-content-center flex-shrink-0"
+                                 style="width: 70px; height: 70px;">
+                                <i class="bi bi-image text-muted fs-4"></i>
+                            </div>
+                            {% endif %}
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ item.produto.nome }}</h6>
+                                <p class="text-muted small mb-1">R$ {{ item.preco_unitario|floatformat:2 }} cada</p>
+                                {% if item.tamanho_nome %}
+                                <p class="text-muted small mb-1">
+                                    <i class="bi bi-rulers me-1"></i>{{ item.tamanho_nome }}
+                                </p>
+                                {% endif %}
+                                {% if item.sabores_nomes %}
+                                <p class="text-muted small mb-1">
+                                    <i class="bi bi-ui-checks me-1"></i>{{ item.sabores_nomes|join:", " }}
+                                </p>
+                                {% endif %}
+                                {% if item.adicional_sabores and item.adicional_sabores > 0 %}
+                                <p class="text-muted small mb-1">
+                                    <i class="bi bi-plus-circle me-1"></i>Adicional sabores: R$ {{ item.adicional_sabores|floatformat:2 }}
+                                </p>
+                                {% endif %}
+                                {% if item.observacao %}
+                                <p class="text-muted small mb-1">
+                                    <i class="bi bi-chat-left-text me-1"></i>{{ item.observacao }}
+                                </p>
+                                {% endif %}
+                                <p class="fw-semibold mb-0 text-success">R$ {{ item.subtotal|floatformat:2 }}</p>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <form method="post" action="{% url 'atualizar_carrinho' %}" class="d-flex align-items-center">
+                                {% csrf_token %}
+                                <input type="hidden" name="item_key" value="{{ item.item_key }}">
+                                <input type="hidden" name="produto_id" value="{{ item.produto.id }}">
+                                <label class="form-label mb-0 me-2 small text-muted">Qtd:</label>
+                                <input type="number" name="quantidade" value="{{ item.quantidade }}"
+                                       min="1" max="99" class="form-control form-control-sm text-center"
+                                       style="width: 65px;">
+                                <button type="submit" class="btn btn-sm btn-outline-primary ms-1" title="Atualizar">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                            </form>
+                            <form method="post" action="{% url 'remover_do_carrinho' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="item_key" value="{{ item.item_key }}">
+                                <input type="hidden" name="produto_id" value="{{ item.produto.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash me-1"></i>Remover
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm sticky-lg-top" style="top: 1rem;">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-receipt me-2"></i>Resumo do Pedido
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="mb-2">
+                            <i class="bi bi-truck me-1"></i>Entrega
+                        </h6>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tipo_entrega_carrinho"
+                                   id="carrinho-delivery" value="delivery" checked>
+                            <label class="form-check-label" for="carrinho-delivery">
+                                Entrega no endereço
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tipo_entrega_carrinho"
+                                   id="carrinho-retirada" value="retirada">
+                            <label class="form-check-label" for="carrinho-retirada">
+                                Retirada no local
+                            </label>
+                        </div>
+                        <div class="alert alert-info py-2 mt-2 mb-0 small" id="aviso-tempo">
+                            <i class="bi bi-clock me-1"></i>Entrega estimada em {{ restaurante.tempo_entrega_min }}min.
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Subtotal</span>
+                        <span id="resumo-subtotal">R$ {{ subtotal|floatformat:2 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Taxa de entrega</span>
+                        <span id="resumo-taxa">R$ {{ taxa_entrega|floatformat:2 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Impostos</span>
+                        <span id="resumo-imposto">R$ {{ imposto|floatformat:2 }}</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-0">
+                        <span class="fw-bold fs-5">Total</span>
+                        <span class="fw-bold fs-5 text-success" id="resumo-total">R$ {{ total|floatformat:2 }}</span>
+                    </div>
+                </div>
+                <div class="card-footer bg-white border-top-0 d-grid gap-2">
+                    <form method="get" action="{% url 'checkout' %}" id="checkout-from-cart">
+                        <input type="hidden" name="tipo_entrega" id="tipo-entrega-hidden" value="delivery">
+                        <button type="submit" class="btn btn-success btn-lg w-100">
+                            <i class="bi bi-bag-check me-2"></i>Finalizar Pedido
+                        </button>
+                    </form>
+                    <a href="{% url 'cardapio_publico' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Continuar Comprando
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Empty Cart -->
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-sm text-center py-5">
+                <div class="card-body">
+                    <i class="bi bi-cart-x display-1 text-muted mb-3 d-block"></i>
+                    <h3 class="text-muted mb-3">Seu carrinho está vazio</h3>
+                    <p class="text-muted mb-4">
+                        Você ainda não adicionou nenhum item ao seu carrinho.
+                        Explore o cardápio e adicione seus pratos favoritos!
+                    </p>
+                    <a href="{% url 'cardapio_publico' %}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-shop me-2"></i>Ver Cardápio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var deliveryRadio = document.getElementById('carrinho-delivery');
+        var retiradaRadio = document.getElementById('carrinho-retirada');
+        var avisoTempo = document.getElementById('aviso-tempo');
+        var hiddenTipo = document.getElementById('tipo-entrega-hidden');
+
+        var subtotal = parseFloat('{{ subtotal|floatformat:2 }}'.replace(',', '.')) || 0;
+        var taxaEntrega = parseFloat('{{ taxa_entrega|floatformat:2 }}'.replace(',', '.')) || 0;
+        var imposto = parseFloat('{{ imposto|floatformat:2 }}'.replace(',', '.')) || 0;
+
+        var taxaEl = document.getElementById('resumo-taxa');
+        var totalEl = document.getElementById('resumo-total');
+
+        function formatBRL(value) {
+            return 'R$ ' + value.toFixed(2).replace('.', ',');
+        }
+
+        function atualizarResumo() {
+            var isRetirada = retiradaRadio.checked;
+            var taxaAtual = isRetirada ? 0 : taxaEntrega;
+            var totalAtual = subtotal + imposto + taxaAtual;
+
+            if (hiddenTipo) {
+                hiddenTipo.value = isRetirada ? 'retirada' : 'delivery';
+            }
+
+            if (taxaEl) {
+                taxaEl.textContent = formatBRL(taxaAtual);
+            }
+            if (totalEl) {
+                totalEl.textContent = formatBRL(totalAtual);
+            }
+
+            if (avisoTempo) {
+                avisoTempo.innerHTML = isRetirada
+                    ? '<i class="bi bi-clock me-1"></i>Retirada no local: pedido pronto em {{ restaurante.tempo_retirada_min }}min.'
+                    : '<i class="bi bi-clock me-1"></i>Entrega estimada em {{ restaurante.tempo_entrega_min }}min.';
+            }
+        }
+
+        if (deliveryRadio) deliveryRadio.addEventListener('change', atualizarResumo);
+        if (retiradaRadio) retiradaRadio.addEventListener('change', atualizarResumo);
+
+        atualizarResumo();
+    });
+</script>
+{% endblock %}

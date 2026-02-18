@@ -1,0 +1,304 @@
+<!-- checkout.html - Checkout page for the cardapio-online project.
+     Displays a customer information form with fields for name, phone, email,
+     delivery type selection (delivery or pickup), delivery address (conditionally shown),
+     and observations. Includes an order summary sidebar with items and totals.
+     Form submits via POST to finalize the order. -->
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Checkout - {{ restaurante.nome }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">
+        <i class="bi bi-bag-check me-2"></i>Finalizar Pedido
+    </h1>
+
+    <form method="post" action="{% url 'checkout' %}" id="checkout-form">
+        {% csrf_token %}
+        <div class="row g-4">
+            <!-- Checkout Flow -->
+            <div class="col-lg-7">
+                <!-- 1) Delivery Type -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-truck me-2"></i>1) Tipo de Entrega
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-sm-6">
+                                <div class="form-check card p-3 border-2" id="card-delivery">
+                                    <input class="form-check-input" type="radio" name="tipo_entrega"
+                                           id="tipo_delivery" value="delivery"
+                                           {% if tipo_entrega_inicial != 'retirada' %}checked{% endif %}>
+                                    <label class="form-check-label d-flex align-items-center w-100 cursor-pointer"
+                                           for="tipo_delivery">
+                                        <i class="bi bi-bicycle fs-3 me-3 text-primary"></i>
+                                        <div>
+                                            <strong>Delivery</strong>
+                                            <p class="text-muted small mb-0">Receba no seu endereço</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="form-check card p-3 border-2" id="card-retirada">
+                                    <input class="form-check-input" type="radio" name="tipo_entrega"
+                                           id="tipo_retirada" value="retirada"
+                                           {% if tipo_entrega_inicial == 'retirada' %}checked{% endif %}>
+                                    <label class="form-check-label d-flex align-items-center w-100 cursor-pointer"
+                                           for="tipo_retirada">
+                                        <i class="bi bi-shop fs-3 me-3 text-primary"></i>
+                                        <div>
+                                            <strong>Retirada</strong>
+                                            <p class="text-muted small mb-0">Retire no restaurante</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-info py-2 mt-3 mb-0 small" id="aviso-prazo">
+                            {% if tipo_entrega_inicial == 'retirada' %}
+                            <i class="bi bi-clock me-1"></i>Retirada no local: pedido pronto em {{ restaurante.tempo_retirada_min }}min.
+                            {% else %}
+                            <i class="bi bi-clock me-1"></i>Entrega estimada em {{ restaurante.tempo_entrega_min }}min.
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2) Customer Information -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-person me-2"></i>2) Dados do Cliente
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for="cliente_nome" class="form-label">
+                                    Nome completo <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
+                                    <input type="text" class="form-control" id="cliente_nome"
+                                           name="cliente_nome" placeholder="Seu nome completo" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="cliente_telefone" class="form-label">
+                                    Telefone <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-telephone-fill"></i></span>
+                                    <input type="tel" class="form-control" id="cliente_telefone"
+                                           name="cliente_telefone" placeholder="(00) 00000-0000" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="cliente_email" class="form-label">E-mail</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-envelope-fill"></i></span>
+                                    <input type="email" class="form-control" id="cliente_email"
+                                           name="cliente_email" placeholder="seu@email.com">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Delivery Address (shown only for delivery) -->
+                        <div id="endereco-section" class="mt-3">
+                            <label for="endereco_entrega" class="form-label">
+                                Endereço de entrega <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-geo-alt-fill"></i></span>
+                                <textarea class="form-control" id="endereco_entrega" name="endereco_entrega"
+                                          rows="3" placeholder="Rua, número, complemento, bairro, cidade..."
+                                          required></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observations -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-chat-left-dots me-2"></i>Observações
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <textarea class="form-control" id="observacoes" name="observacoes" rows="3"
+                                  placeholder="Alguma observação sobre o pedido? (opcional)"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Summary Sidebar -->
+            <div class="col-lg-5">
+                <div class="card shadow-sm sticky-lg-top" style="top: 1rem;">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-receipt me-2"></i>Resumo do Pedido
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Items List -->
+                        <ul class="list-group list-group-flush mb-3">
+                            {% for item in itens %}
+                            <li class="list-group-item px-0">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="d-flex gap-2 flex-grow-1">
+                                        {% if item.produto.imagem %}
+                                        <img src="{{ item.produto.imagem.url }}" alt="{{ item.produto.nome }}"
+                                             class="rounded flex-shrink-0" width="45" height="45"
+                                             style="object-fit: cover;">
+                                        {% else %}
+                                        <div class="bg-light rounded d-flex align-items-center justify-content-center flex-shrink-0"
+                                             style="width: 45px; height: 45px;">
+                                            <i class="bi bi-image text-muted small"></i>
+                                        </div>
+                                        {% endif %}
+                                        <div>
+                                            <h6 class="mb-0 small">{{ item.produto.nome }}</h6>
+                                            <span class="text-muted small">
+                                                {{ item.quantidade }}x R$ {{ item.preco_unitario|floatformat:2 }}
+                                            </span>
+                                            {% if item.tamanho_nome %}
+                                            <br>
+                                            <span class="text-muted small">
+                                                <i class="bi bi-rulers me-1"></i>{{ item.tamanho_nome }}
+                                            </span>
+                                            {% endif %}
+                                            {% if item.sabores_nomes %}
+                                            <br>
+                                            <span class="text-muted small">
+                                                <i class="bi bi-ui-checks me-1"></i>{{ item.sabores_nomes|join:", " }}
+                                            </span>
+                                            {% endif %}
+                                            {% if item.adicional_sabores and item.adicional_sabores > 0 %}
+                                            <br>
+                                            <span class="text-muted small">
+                                                <i class="bi bi-plus-circle me-1"></i>Adicional sabores: R$ {{ item.adicional_sabores|floatformat:2 }}
+                                            </span>
+                                            {% endif %}
+                                            {% if item.observacao %}
+                                            <br>
+                                            <span class="text-muted small fst-italic">
+                                                <i class="bi bi-chat-left-text me-1"></i>{{ item.observacao }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <span class="fw-semibold small text-nowrap ms-2">
+                                        R$ {{ item.subtotal|floatformat:2 }}
+                                    </span>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+
+                        <!-- Totals -->
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Subtotal</span>
+                            <span>R$ {{ subtotal|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Taxa de entrega</span>
+                            <span id="taxa-entrega-valor">R$ {{ taxa_entrega|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Impostos</span>
+                            <span>R$ {{ imposto|floatformat:2 }}</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <span class="fw-bold fs-5">Total</span>
+                            <span class="fw-bold fs-5 text-success" id="total-geral-valor">R$ {{ total|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white border-top-0 d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>Confirmar Pedido
+                        </button>
+                        <a href="{% url 'ver_carrinho' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Voltar ao Carrinho
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tipoDelivery = document.getElementById('tipo_delivery');
+        const tipoRetirada = document.getElementById('tipo_retirada');
+        const enderecoSection = document.getElementById('endereco-section');
+        const enderecoInput = document.getElementById('endereco_entrega');
+        const cardDelivery = document.getElementById('card-delivery');
+        const cardRetirada = document.getElementById('card-retirada');
+        const avisoPrazo = document.getElementById('aviso-prazo');
+        const taxaEntregaEl = document.getElementById('taxa-entrega-valor');
+        const totalGeralEl = document.getElementById('total-geral-valor');
+
+        const subtotal = parseFloat('{{ subtotal|floatformat:2 }}'.replace(',', '.')) || 0;
+        const imposto = parseFloat('{{ imposto|floatformat:2 }}'.replace(',', '.')) || 0;
+        const taxaEntregaBase = parseFloat('{{ restaurante.taxa_entrega|floatformat:2 }}'.replace(',', '.')) || 0;
+
+        function formatBRL(value) {
+            return 'R$ ' + value.toFixed(2).replace('.', ',');
+        }
+
+        function toggleEndereco() {
+            if (tipoDelivery.checked) {
+                enderecoSection.style.display = 'block';
+                enderecoInput.setAttribute('required', 'required');
+                cardDelivery.classList.add('border-primary');
+                cardRetirada.classList.remove('border-primary');
+                avisoPrazo.innerHTML = '<i class="bi bi-clock me-1"></i>Entrega estimada em {{ restaurante.tempo_entrega_min }}min.';
+                taxaEntregaEl.textContent = formatBRL(taxaEntregaBase);
+                totalGeralEl.textContent = formatBRL(subtotal + imposto + taxaEntregaBase);
+            } else {
+                enderecoSection.style.display = 'none';
+                enderecoInput.removeAttribute('required');
+                enderecoInput.value = '';
+                cardRetirada.classList.add('border-primary');
+                cardDelivery.classList.remove('border-primary');
+                avisoPrazo.innerHTML = '<i class="bi bi-clock me-1"></i>Retirada no local: pedido pronto em {{ restaurante.tempo_retirada_min }}min.';
+                taxaEntregaEl.textContent = formatBRL(0);
+                totalGeralEl.textContent = formatBRL(subtotal + imposto);
+            }
+        }
+
+        tipoDelivery.addEventListener('change', toggleEndereco);
+        tipoRetirada.addEventListener('change', toggleEndereco);
+
+        // Initialize on page load
+        toggleEndereco();
+
+        // Phone mask
+        const telefoneInput = document.getElementById('cliente_telefone');
+        telefoneInput.addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.slice(0, 11);
+
+            if (value.length > 6) {
+                value = '(' + value.slice(0, 2) + ') ' + value.slice(2, 7) + '-' + value.slice(7);
+            } else if (value.length > 2) {
+                value = '(' + value.slice(0, 2) + ') ' + value.slice(2);
+            } else if (value.length > 0) {
+                value = '(' + value;
+            }
+            e.target.value = value;
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}

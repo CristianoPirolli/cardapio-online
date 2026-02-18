@@ -1,0 +1,347 @@
+<!-- cardapio.html - Public menu page for a restaurant. Displays products grouped by category
+     using responsive Bootstrap 5 cards. Allows adding items to cart with quantity selection. -->
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Cardápio - {{ restaurante.nome }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sabor-bloqueado {
+        opacity: 0.45;
+        filter: grayscale(0.6) blur(1px);
+        transition: opacity .2s ease, filter .2s ease;
+    }
+    .sabor-link-bloqueado {
+        pointer-events: none;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Restaurant header -->
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            {% if restaurante.logo %}
+                <img src="{{ restaurante.logo.url }}" alt="{{ restaurante.nome }}"
+                     class="img-fluid rounded-circle mb-3" style="max-height: 120px;">
+            {% endif %}
+            <h1 class="fw-bold">{{ restaurante.nome }}</h1>
+            {% if restaurante.descricao %}
+                <p class="text-muted lead">{{ restaurante.descricao }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Aviso restaurante fechado -->
+    {% if not restaurante.esta_aberto %}
+    <div class="alert alert-warning text-center mb-4" role="alert">
+        <i class="bi bi-clock-fill me-2"></i>
+        <strong>Restaurante fechado.</strong>
+        Horário de funcionamento: {{ restaurante.horario_abertura|time:"H:i" }} às {{ restaurante.horario_fechamento|time:"H:i" }}.
+        O cardápio pode ser visualizado, mas pedidos não podem ser feitos no momento.
+    </div>
+    {% endif %}
+
+    {% if tamanhos_pizza %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="mb-2"><i class="bi bi-rulers me-2"></i>1) Escolha o Tamanho da Pizza</h5>
+            <p class="text-muted small mb-2">Você só poderá escolher os sabores após selecionar o tamanho.</p>
+            <div class="row g-2">
+                {% for tamanho in tamanhos_pizza %}
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <label class="border rounded p-2 d-flex justify-content-between align-items-center w-100">
+                        <span>
+                            <input class="form-check-input me-2 tamanho-global-radio" type="radio"
+                                   name="tamanho_global" value="{{ tamanho.id }}"
+                                   data-preco-base="{{ tamanho.preco_base }}">
+                            <strong>{{ tamanho.nome }}</strong>
+                            {% if tamanho.fatias %}<small class="text-muted ms-1">{{ tamanho.fatias }} fatias</small>{% endif %}
+                            {% if tamanho.diametro_cm %}<small class="text-muted ms-1">~{{ tamanho.diametro_cm }} cm</small>{% endif %}
+                        </span>
+                        <span class="text-success fw-semibold">R$ {{ tamanho.preco_base|floatformat:2 }}</span>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="small text-muted mt-2" id="tamanho-global-status">
+                Nenhum tamanho selecionado. Escolha o tamanho para liberar os sabores e preços.
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning mb-4">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        Nenhum tamanho de pizza configurado para este restaurante.
+    </div>
+    {% endif %}
+
+    <!-- Category navigation -->
+    {% if cardapio %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <nav class="nav nav-pills flex-nowrap overflow-auto pb-2" id="categorias-nav">
+                {% for grupo in cardapio %}
+                    <a class="nav-link text-nowrap {% if forloop.first %}active{% endif %}"
+                       href="#categoria-{{ forloop.counter }}">
+                        <i class="bi bi-tag-fill me-1"></i>{{ grupo.categoria }}
+                    </a>
+                {% endfor %}
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Products grouped by category -->
+    {% for grupo in cardapio %}
+    <section id="categoria-{{ forloop.counter }}" class="mb-5">
+        <h2 class="fw-semibold border-bottom pb-2 mb-4">
+            <i class="bi bi-grid-fill me-2 text-primary"></i>{{ grupo.categoria }}
+        </h2>
+
+        <div class="row g-3">
+            {% for produto in grupo.produtos %}
+            <div class="col-sm-6 col-md-4 col-lg-3">
+                <div class="card h-100 shadow-sm border-0 card-sabor sabor-bloqueado">
+                    {% if produto.imagem %}
+                        <a href="{% url 'produto_detalhe' produto.pk %}">
+                            <img src="{{ produto.imagem.url }}"
+                                 class="card-img-top img-fluid"
+                                 alt="{{ produto.nome }}"
+                                 style="height: 200px; object-fit: cover;">
+                        </a>
+                    {% else %}
+                        <a href="{% url 'produto_detalhe' produto.pk %}">
+                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
+                                 style="height: 200px;">
+                                <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                            </div>
+                        </a>
+                    {% endif %}
+
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title fw-bold mb-1">
+                            <a href="{% url 'produto_detalhe' produto.pk %}"
+                               class="text-decoration-none text-dark produto-link-sabor"
+                               data-base-href="{% url 'produto_detalhe' produto.pk %}">
+                                {{ produto.nome }}
+                            </a>
+                        </h5>
+                        {% if produto.descricao %}
+                            <p class="card-text text-muted small flex-grow-1">
+                                {{ produto.descricao|truncatewords:15 }}
+                            </p>
+                        {% endif %}
+                        <p class="card-text fw-bold text-success fs-5 mb-2 produto-preco-card"
+                           data-adicional-sabor="{{ produto.categoria.adicional_sabor|default_if_none:'0' }}"
+                           data-preco-fallback="{{ produto.preco|default_if_none:produto.categoria.adicional_sabor|default_if_none:'0' }}">
+                            {% if tamanhos_pizza %}
+                                Selecione o tamanho
+                            {% else %}
+                                R$ {{ produto.preco|default_if_none:produto.categoria.adicional_sabor|default_if_none:'0'|floatformat:2|intcomma }}
+                            {% endif %}
+                        </p>
+
+                        {% if produto.disponivel and restaurante.esta_aberto %}
+                            {% if produto.possui_tamanhos %}
+                            <a href="#" class="btn btn-primary w-100 mt-auto produto-acao-tamanho disabled"
+                               data-base-href="{% url 'produto_detalhe' produto.pk %}" aria-disabled="true">
+                                <i class="bi bi-sliders me-1"></i>Escolher Tamanho e Sabores
+                            </a>
+                            {% else %}
+                            <form method="post" action="{% url 'adicionar_ao_carrinho' %}" class="mt-auto">
+                                {% csrf_token %}
+                                <input type="hidden" name="produto_id" value="{{ produto.pk }}">
+                                <div class="input-group input-group-sm mb-2">
+                                    <button type="button" class="btn btn-outline-secondary btn-diminuir"
+                                            aria-label="Diminuir quantidade">
+                                        <i class="bi bi-dash"></i>
+                                    </button>
+                                    <input type="number" name="quantidade" value="1" min="1" max="99"
+                                           class="form-control text-center quantidade-input"
+                                           aria-label="Quantidade">
+                                    <button type="button" class="btn btn-outline-secondary btn-aumentar"
+                                            aria-label="Aumentar quantidade">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-cart-plus me-1"></i>Adicionar
+                                </button>
+                            </form>
+                            {% endif %}
+                        {% elif not produto.disponivel %}
+                            <button class="btn btn-secondary w-100 mt-auto" disabled>
+                                <i class="bi bi-x-circle me-1"></i>Indisponível
+                            </button>
+                        {% else %}
+                            <button class="btn btn-secondary w-100 mt-auto" disabled>
+                                <i class="bi bi-clock me-1"></i>Fechado
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>Nenhum produto nesta categoria.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% empty %}
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-warning text-center py-5">
+                <i class="bi bi-exclamation-triangle-fill fs-1 d-block mb-3"></i>
+                <h4>Cardápio indisponível</h4>
+                <p class="text-muted">Este restaurante ainda não cadastrou produtos no cardápio.</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var tamanhoRadios = document.querySelectorAll('.tamanho-global-radio');
+        var linksSabor = document.querySelectorAll('.produto-acao-tamanho, .produto-link-sabor');
+        var cardsSabor = document.querySelectorAll('.card-sabor');
+        var statusTamanho = document.getElementById('tamanho-global-status');
+        var precoCards = document.querySelectorAll('.produto-preco-card');
+
+        function formatarMoeda(valor) {
+            return 'R$ ' + valor.toFixed(2).replace('.', ',');
+        }
+
+        function atualizarPrecosCards(tamanhoId) {
+            if (!precoCards.length) return;
+            if (!tamanhoId) {
+                precoCards.forEach(function (el) {
+                    if (tamanhoRadios.length) {
+                        el.textContent = 'Selecione o tamanho';
+                    } else {
+                        var fallback = parseFloat(el.dataset.precoFallback || '0') || 0;
+                        el.textContent = formatarMoeda(fallback);
+                    }
+                });
+                return;
+            }
+
+            var radio = document.querySelector('.tamanho-global-radio[value="' + tamanhoId + '"]');
+            var precoBase = radio ? (parseFloat(radio.dataset.precoBase || '0') || 0) : 0;
+
+            precoCards.forEach(function (el) {
+                var adicional = parseFloat(el.dataset.adicionalSabor || '0') || 0;
+                el.textContent = formatarMoeda(precoBase + adicional);
+            });
+        }
+
+        function aplicarTamanhoSelecionado(tamanhoId) {
+            linksSabor.forEach(function (el) {
+                var base = el.getAttribute('data-base-href');
+                if (!base) return;
+                if (tamanhoId) {
+                    el.setAttribute('href', base + '?tamanho=' + tamanhoId);
+                    el.classList.remove('disabled');
+                    el.classList.remove('sabor-link-bloqueado');
+                    el.setAttribute('aria-disabled', 'false');
+                } else {
+                    el.setAttribute('href', '#');
+                    el.classList.add('sabor-link-bloqueado');
+                    el.setAttribute('aria-disabled', 'true');
+                    if (el.classList.contains('produto-acao-tamanho')) {
+                        el.classList.add('disabled');
+                    }
+                }
+            });
+
+            cardsSabor.forEach(function (card) {
+                card.classList.toggle('sabor-bloqueado', !tamanhoId);
+            });
+            atualizarPrecosCards(tamanhoId);
+
+            if (statusTamanho) {
+                if (tamanhoId) {
+                    var radio = document.querySelector('.tamanho-global-radio[value="' + tamanhoId + '"]');
+                    var label = radio ? radio.closest('label').innerText.trim().replace(/\s+/g, ' ') : '';
+                    statusTamanho.textContent = 'Tamanho selecionado: ' + (label || tamanhoId);
+                } else {
+                    statusTamanho.textContent = 'Nenhum tamanho selecionado. Escolha o tamanho para liberar os sabores e preços.';
+                }
+            }
+        }
+
+        tamanhoRadios.forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                var tamanhoId = this.value;
+                aplicarTamanhoSelecionado(tamanhoId);
+            });
+        });
+
+        linksSabor.forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                if (!document.querySelector('.tamanho-global-radio:checked')) {
+                    e.preventDefault();
+                    if (statusTamanho) {
+                        statusTamanho.textContent = 'Selecione primeiro um tamanho para liberar os sabores.';
+                    }
+                }
+            });
+        });
+
+        // Sempre entra desmarcado no cardápio
+        function resetarSelecaoTamanho() {
+            tamanhoRadios.forEach(function (radio) { radio.checked = false; });
+            aplicarTamanhoSelecionado(null);
+        }
+        resetarSelecaoTamanho();
+        window.addEventListener('pageshow', function () {
+            resetarSelecaoTamanho();
+        });
+
+        // Quantity increase/decrease buttons
+        document.querySelectorAll('.btn-diminuir').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var input = this.closest('.input-group').querySelector('.quantidade-input');
+                var val = parseInt(input.value) || 1;
+                if (val > 1) input.value = val - 1;
+            });
+        });
+
+        document.querySelectorAll('.btn-aumentar').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var input = this.closest('.input-group').querySelector('.quantidade-input');
+                var val = parseInt(input.value) || 1;
+                if (val < 99) input.value = val + 1;
+            });
+        });
+
+        // Smooth scroll for category navigation
+        document.querySelectorAll('#categorias-nav a').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                var target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                // Update active state
+                document.querySelectorAll('#categorias-nav a').forEach(function (l) {
+                    l.classList.remove('active');
+                });
+                this.classList.add('active');
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,76 @@
+<!-- ==========================================================================
+     templates/painel/produto_form.html - Formulário de criação/edição de produto
+
+     Usado para criar e editar produtos, com upload de imagem e preview.
+     ========================================================================== -->
+{% extends 'painel/base_painel.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ titulo }} - {{ restaurante.nome }}{% endblock %}
+
+{% block painel_content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h2"><i class="bi bi-box-seam"></i> {{ titulo }}</h1>
+    <a href="{% url 'painel_produtos' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <div class="alert alert-info py-2">
+                <i class="bi bi-info-circle me-1"></i>
+                O tipo de sabor (categoria) e o adicional são configurados em
+                <a href="{% url 'painel_configuracoes' %}#tipos-sabor">Configurações &gt; Tipos de Sabor</a>.
+            </div>
+
+            <!-- Preview da imagem atual -->
+            {% if produto and produto.imagem %}
+            <div class="mb-3">
+                <label class="form-label">Imagem Atual:</label><br>
+                <img src="{{ produto.imagem.url }}"
+                     class="img-fluid rounded"
+                     style="max-width: 200px;"
+                     alt="{{ produto.nome }}">
+            </div>
+            {% endif %}
+
+            <!-- Preview da nova imagem (JS) -->
+            <div class="mb-3" id="preview-container" style="display:none;">
+                <label class="form-label">Nova Imagem:</label><br>
+                <img id="preview-img" class="img-fluid rounded" style="max-width: 200px;" alt="Preview">
+            </div>
+
+            <hr>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg"></i> Salvar
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Preview de imagem antes do upload
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.querySelector('input[type="file"]');
+        if (input) {
+            input.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        document.getElementById('preview-img').src = e.target.result;
+                        document.getElementById('preview-container').style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

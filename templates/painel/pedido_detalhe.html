@@ -1,0 +1,166 @@
+<!-- ==========================================================================
+     templates/painel/pedido_detalhe.html - Detalhe de pedido no painel
+
+     Exibe todos os dados do pedido, itens, e permite atualizar status.
+     ========================================================================== -->
+{% extends 'painel/base_painel.html' %}
+{% load humanize %}
+
+{% block title %}Pedido #{{ pedido.id }} - {{ restaurante.nome }}{% endblock %}
+
+{% block painel_content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h2"><i class="bi bi-receipt"></i> Pedido #{{ pedido.id }}</h1>
+    <a href="{% url 'painel_pedidos' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+</div>
+
+<div class="row g-4">
+    <!-- Dados do pedido -->
+    <div class="col-lg-8">
+        <!-- Cliente -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header"><h6 class="mb-0">Dados do Cliente</h6></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Nome:</strong> {{ pedido.cliente_nome }}</p>
+                        <p><strong>Telefone:</strong> {{ pedido.cliente_telefone }}</p>
+                        <p><strong>Email:</strong> {{ pedido.cliente_email|default:"N/A" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Tipo:</strong> {{ pedido.get_tipo_entrega_display }}</p>
+                        {% if pedido.endereco_entrega %}
+                        <p><strong>Endereço:</strong> {{ pedido.endereco_entrega }}</p>
+                        {% endif %}
+                        {% if pedido.observacoes %}
+                        <p><strong>Obs:</strong> {{ pedido.observacoes }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Itens -->
+        <div class="card shadow-sm">
+            <div class="card-header"><h6 class="mb-0">Itens do Pedido</h6></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Produto</th>
+                                <th class="text-center">Qtd</th>
+                                <th class="text-end">Preço Unit.</th>
+                                <th class="text-end">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in pedido.itens.all %}
+                            <tr>
+                                <td>
+                                    {{ item.produto.nome|default:"Produto removido" }}
+                                    {% if item.tamanho_nome %}
+                                    <br><small class="text-muted"><i class="bi bi-rulers me-1"></i>{{ item.tamanho_nome }}</small>
+                                    {% endif %}
+                                    {% if item.sabores_descricao %}
+                                    <br><small class="text-muted"><i class="bi bi-ui-checks me-1"></i>{{ item.sabores_descricao }}</small>
+                                    {% endif %}
+                                    {% if item.observacao %}
+                                    <br><small class="text-muted">{{ item.observacao }}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ item.quantidade }}</td>
+                                <td class="text-end">R$ {{ item.preco_unitario|floatformat:2 }}</td>
+                                <td class="text-end">R$ {{ item.subtotal|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
+                                <td class="text-end">R$ {{ pedido.subtotal|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-end">Taxa de Entrega:</td>
+                                <td class="text-end">R$ {{ pedido.taxa_entrega|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-end">Imposto:</td>
+                                <td class="text-end">R$ {{ pedido.imposto|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                <td class="text-end"><strong>R$ {{ pedido.total|floatformat:2 }}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar: Status e Ações -->
+    <div class="col-lg-4">
+        <!-- Status atual -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header"><h6 class="mb-0">Status</h6></div>
+            <div class="card-body text-center">
+                <span class="badge fs-5
+                    {% if pedido.status == 'recebido' %}bg-primary
+                    {% elif pedido.status == 'preparo' %}bg-warning text-dark
+                    {% elif pedido.status == 'entrega' %}bg-info
+                    {% elif pedido.status == 'concluido' %}bg-success
+                    {% elif pedido.status == 'cancelado' %}bg-danger
+                    {% endif %}">
+                    {{ pedido.get_status_display }}
+                </span>
+
+                <div class="mt-2">
+                    {% if pedido.pago %}
+                        <span class="text-success"><i class="bi bi-check-circle-fill"></i> Pago</span>
+                    {% else %}
+                        <span class="text-warning"><i class="bi bi-clock"></i> Pendente</span>
+                    {% endif %}
+                </div>
+
+                <hr>
+                <small class="text-muted">
+                    Criado em: {{ pedido.criado_em|date:"d/m/Y H:i" }}
+                </small>
+            </div>
+        </div>
+
+        <!-- Atualizar status -->
+        {% if pedido.status != 'concluido' and pedido.status != 'cancelado' %}
+        <div class="card shadow-sm">
+            <div class="card-header"><h6 class="mb-0">Atualizar Status</h6></div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2">
+                        {% if pedido.status == 'recebido' %}
+                        <button name="status" value="preparo" class="btn btn-warning">
+                            <i class="bi bi-fire"></i> Em Preparo
+                        </button>
+                        {% elif pedido.status == 'preparo' %}
+                        <button name="status" value="entrega" class="btn btn-info">
+                            <i class="bi bi-truck"></i> Saiu para Entrega
+                        </button>
+                        {% elif pedido.status == 'entrega' %}
+                        <button name="status" value="concluido" class="btn btn-success">
+                            <i class="bi bi-check-lg"></i> Concluído
+                        </button>
+                        {% endif %}
+                        <button name="status" value="cancelado" class="btn btn-outline-danger btn-sm mt-2">
+                            <i class="bi bi-x-lg"></i> Cancelar Pedido
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

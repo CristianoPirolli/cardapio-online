@@ -1,0 +1,66 @@
+<!-- ==========================================================================
+     templates/painel/base_painel.html - Template base do painel administrativo
+
+     Estende base.html e adiciona sidebar de navegação do painel.
+     Todas as páginas do painel herdam deste template.
+     ========================================================================== -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar py-3"
+             style="min-height: calc(100vh - 120px);">
+            <div class="position-sticky">
+                <h6 class="sidebar-heading px-3 mt-2 mb-2 text-muted text-uppercase">
+                    <i class="bi bi-speedometer2"></i> Painel
+                </h6>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'painel_dashboard' %}">
+                            <i class="bi bi-graph-up"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'painel_pedidos' %}">
+                            <i class="bi bi-receipt"></i> Pedidos
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'painel_produtos' %}">
+                            <i class="bi bi-box-seam"></i> Produtos
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'painel_categorias' %}">
+                            <i class="bi bi-tags"></i> Categorias
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'painel_entregas' %}">
+                            <i class="bi bi-truck"></i> Entregas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'painel_entregadores' %}">
+                            <i class="bi bi-people"></i> Entregadores
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'painel_configuracoes' %}">
+                            <i class="bi bi-gear"></i> Configurações
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Conteúdo principal do painel -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+            {% block painel_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% endblock %}

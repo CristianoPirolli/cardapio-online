@@ -1,0 +1,174 @@
+<!-- selecionar_restaurante.html - Restaurant selection page. Displayed when the user accesses the
+     system without a subdomain. Shows a responsive grid of available restaurant cards so the
+     user can choose which restaurant's menu to browse. -->
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Selecione um Restaurante{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Page header -->
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h1 class="fw-bold mb-2">
+                <i class="bi bi-shop me-2 text-primary"></i>Nossos Restaurantes
+            </h1>
+            <p class="text-muted lead">
+                Selecione um restaurante para ver o cardápio e fazer seu pedido.
+            </p>
+        </div>
+    </div>
+
+    <!-- Search bar -->
+    <div class="row mb-4 justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="input-group input-group-lg shadow-sm">
+                <span class="input-group-text bg-white border-end-0">
+                    <i class="bi bi-search text-muted"></i>
+                </span>
+                <input type="text" id="busca-restaurante" class="form-control border-start-0"
+                       placeholder="Buscar restaurante..." aria-label="Buscar restaurante">
+            </div>
+        </div>
+    </div>
+
+    <!-- Restaurant grid -->
+    <div class="row g-3" id="restaurantes-grid">
+        {% for restaurante in restaurantes %}
+        <div class="col-sm-6 col-md-4 col-lg-3 restaurante-card"
+             data-nome="{{ restaurante.nome|lower }}">
+            <a href="{% url 'cardapio_publico' %}?id={{ restaurante.id }}" class="text-decoration-none">
+                <div class="card h-100 shadow-sm border-0 card-hover">
+                    {% if restaurante.logo %}
+                        <div class="text-center pt-4 pb-2">
+                            <img src="{{ restaurante.logo.url }}"
+                                 class="img-fluid rounded-circle"
+                                 alt="{{ restaurante.nome }}"
+                                 style="width: 120px; height: 120px; object-fit: cover;">
+                        </div>
+                    {% else %}
+                        <div class="text-center pt-4 pb-2">
+                            <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center"
+                                 style="width: 120px; height: 120px;">
+                                <i class="bi bi-shop text-muted" style="font-size: 3rem;"></i>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <div class="card-body text-center">
+                        <h5 class="card-title fw-bold text-dark mb-1">{{ restaurante.nome }}</h5>
+
+                        {% if restaurante.categoria %}
+                        <span class="badge bg-primary bg-opacity-10 text-primary mb-2">
+                            {{ restaurante.categoria }}
+                        </span>
+                        {% endif %}
+
+                        {% if restaurante.descricao %}
+                            <p class="card-text text-muted small">
+                                {{ restaurante.descricao|truncatewords:12 }}
+                            </p>
+                        {% endif %}
+
+                        {% if restaurante.esta_aberto %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-clock-fill me-1"></i>Aberto
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger">
+                                <i class="bi bi-clock-fill me-1"></i>Fechado
+                            </span>
+                        {% endif %}
+
+                        {% if restaurante.avaliacao %}
+                        <div class="mt-2">
+                            <span class="text-warning">
+                                <i class="bi bi-star-fill"></i>
+                            </span>
+                            <span class="fw-semibold small text-dark">{{ restaurante.avaliacao }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-footer bg-transparent border-0 text-center pb-3">
+                        <span class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-journal-text me-1"></i>Ver Cardápio
+                        </span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info text-center py-5">
+                <i class="bi bi-info-circle-fill fs-1 d-block mb-3"></i>
+                <h4>Nenhum restaurante disponível</h4>
+                <p class="text-muted mb-0">
+                    Não há restaurantes cadastrados no momento. Volte mais tarde!
+                </p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- No results message (hidden by default) -->
+    <div class="row d-none" id="sem-resultados">
+        <div class="col-12">
+            <div class="alert alert-warning text-center py-4">
+                <i class="bi bi-search fs-3 d-block mb-2"></i>
+                <h5>Nenhum restaurante encontrado</h5>
+                <p class="text-muted mb-0">Tente buscar com outro termo.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card-hover {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .card-hover:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15) !important;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var buscaInput = document.getElementById('busca-restaurante');
+        var cards = document.querySelectorAll('.restaurante-card');
+        var semResultados = document.getElementById('sem-resultados');
+
+        if (buscaInput) {
+            buscaInput.addEventListener('input', function () {
+                var termo = this.value.toLowerCase().trim();
+                var visiveis = 0;
+
+                cards.forEach(function (card) {
+                    var nome = card.getAttribute('data-nome');
+                    if (nome.indexOf(termo) !== -1) {
+                        card.classList.remove('d-none');
+                        visiveis++;
+                    } else {
+                        card.classList.add('d-none');
+                    }
+                });
+
+                if (visiveis === 0 && termo.length > 0) {
+                    semResultados.classList.remove('d-none');
+                } else {
+                    semResultados.classList.add('d-none');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,43 @@
+<!-- ==========================================================================
+     templates/auth/login.html - Página de login
+     ========================================================================== -->
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Login - Cardápio Online{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-person-circle" style="font-size: 3rem; color: #0d6efd;"></i>
+                        <h3 class="mt-2">Entrar</h3>
+                        <p class="text-muted">Acesse o painel do seu restaurante</p>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        {% if next %}
+                        <input type="hidden" name="next" value="{{ next }}">
+                        {% endif %}
+                        {{ form|crispy }}
+                        <div class="d-grid mt-3">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-box-arrow-in-right"></i> Entrar
+                            </button>
+                        </div>
+                    </form>
+
+                    <hr>
+                    <p class="text-center mb-0">
+                        Acesso liberado apenas para contas criadas pelo administrador master.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
