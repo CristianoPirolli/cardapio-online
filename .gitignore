@@ -1,0 +1,44 @@
+# =============================================================================
+# .gitignore - Arquivos e diretórios ignorados pelo Git
+# =============================================================================
+
+# Ambiente virtual Python
+venv/
+.venv/
+env/
+
+# Variáveis de ambiente (NUNCA commitar)
+.env
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Banco de dados SQLite (dev)
+db.sqlite3
+
+# Arquivos de media (uploads dos usuários)
+media/
+
+# Arquivos estáticos coletados
+staticfiles/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker volumes
+postgres_data/
+
+# Certbot
+nginx/certbot/
+
+# OS
+.DS_Store
+Thumbs.db

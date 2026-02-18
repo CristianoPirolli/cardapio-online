@@ -1,0 +1,58 @@
+<!-- ==========================================================================
+     templates/auth/registro.html - Página de registro de novo restaurante
+
+     Formulário em duas partes: dados do proprietário e dados do restaurante.
+     ========================================================================== -->
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Cadastrar Restaurante - Cardápio Online{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-shop" style="font-size: 3rem; color: #0d6efd;"></i>
+                        <h3 class="mt-2">Cadastrar Restaurante</h3>
+                        <p class="text-muted">Crie sua conta e comece a receber pedidos online</p>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <!-- Dados do Proprietário -->
+                        <h5 class="mb-3 text-primary">
+                            <i class="bi bi-person"></i> Seus Dados
+                        </h5>
+                        {{ user_form|crispy }}
+
+                        <hr class="my-4">
+
+                        <!-- Dados do Restaurante -->
+                        <h5 class="mb-3 text-primary">
+                            <i class="bi bi-shop"></i> Dados do Restaurante
+                        </h5>
+                        {{ rest_form|crispy }}
+
+                        <hr>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-circle"></i> Criar Conta e Restaurante
+                            </button>
+                        </div>
+                    </form>
+
+                    <hr>
+                    <p class="text-center mb-0">
+                        Já tem conta?
+                        <a href="{% url 'login' %}">Faça login</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,102 @@
+<!-- ==========================================================================
+     templates/home.html - Landing page do sistema Cardápio Online SaaS
+
+     Exibe um hero section e uma grade de restaurantes cadastrados.
+     ========================================================================== -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cardápio Online - Peça sua comida favorita{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="bg-primary text-white py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold">Peça sua comida favorita online</h1>
+                <p class="lead mt-3">
+                    Escolha entre os melhores restaurantes da sua região.
+                    Cardápio digital, pedidos rápidos e entrega na sua porta.
+                </p>
+                <a href="#restaurantes" class="btn btn-light btn-lg mt-3">
+                    <i class="bi bi-search"></i> Ver Restaurantes
+                </a>
+            </div>
+            <div class="col-lg-6 text-center mt-4 mt-lg-0">
+                <i class="bi bi-bag-check" style="font-size: 8rem; opacity: 0.3;"></i>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Lista de Restaurantes -->
+<section id="restaurantes" class="py-5">
+    <div class="container">
+        <h2 class="text-center mb-4">Restaurantes Disponíveis</h2>
+
+        {% if restaurantes %}
+        <div class="row g-4">
+            {% for rest in restaurantes %}
+            <div class="col-sm-6 col-md-4 col-lg-3">
+                <div class="card h-100 shadow-sm">
+                    {% if rest.logo %}
+                    <img src="{{ rest.logo.url }}"
+                         class="card-img-top img-fluid"
+                         alt="{{ rest.nome }}"
+                         style="height: 180px; object-fit: cover;">
+                    {% else %}
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
+                         style="height: 180px;">
+                        <i class="bi bi-shop text-muted" style="font-size: 4rem;"></i>
+                    </div>
+                    {% endif %}
+
+                    <div class="card-body">
+                        <h5 class="card-title">{{ rest.nome }}</h5>
+                        <p class="card-text text-muted small">
+                            <i class="bi bi-geo-alt"></i> {{ rest.cidade }}/{{ rest.estado }}
+                        </p>
+                        {% if rest.descricao %}
+                        <p class="card-text small">{{ rest.descricao|truncatewords:15 }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-truck"></i> R$ {{ rest.taxa_entrega }}
+                            </small>
+                            {% if rest.esta_aberto %}
+                                <span class="badge bg-success">Aberto</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Fechado</span>
+                            {% endif %}
+                        </div>
+                        <a href="{% url 'cardapio_publico' %}?id={{ rest.id }}"
+                           class="btn btn-primary btn-sm w-100 mt-2">
+                            Ver Cardápio
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-emoji-frown" style="font-size: 4rem; color: #ccc;"></i>
+            <p class="mt-3 text-muted">Nenhum restaurante cadastrado ainda.</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- CTA para restaurantes -->
+<section class="bg-light py-5">
+    <div class="container text-center">
+        <h3>Tem um restaurante?</h3>
+        <p class="text-muted mb-0">
+            O cadastro de contas e restaurantes é realizado pelo administrador master da plataforma.
+        </p>
+    </div>
+</section>
+{% endblock %}

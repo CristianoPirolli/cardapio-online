@@ -1,0 +1,166 @@
+<!-- ==========================================================================
+     templates/base.html - Template base do projeto Cardápio Online SaaS
+
+     Template pai de todas as páginas. Inclui:
+     - Bootstrap 5 (CDN) com tema responsivo
+     - Navbar responsiva com carrinho e login
+     - Mensagens flash do Django (alerts Bootstrap)
+     - Footer fixo
+     - Blocks: title, extra_css, content, extra_js
+     ========================================================================== -->
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Cardápio Online{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
+          crossorigin="anonymous">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css"
+          rel="stylesheet">
+
+    <!-- CSS customizado -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+    <!-- ===== NAVBAR RESPONSIVA ===== -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+        <div class="container">
+            <!-- Logo / Nome do restaurante ou sistema -->
+            <a class="navbar-brand fw-bold" href="{% url 'home' %}">
+                <i class="bi bi-shop"></i>
+                {% if restaurante_atual %}
+                    {{ restaurante_atual.nome }}
+                {% else %}
+                    Cardápio Online
+                {% endif %}
+            </a>
+
+            <!-- Botão hamburger (mobile) -->
+            <button class="navbar-toggler" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#navbarMain"
+                    aria-controls="navbarMain" aria-expanded="false"
+                    aria-label="Menu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- Links de navegação -->
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto">
+                    {% if restaurante_atual %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'cardapio_publico' %}">
+                                <i class="bi bi-journal-text"></i> Cardápio
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+
+                <!-- Links da direita -->
+                <ul class="navbar-nav">
+                    <!-- Carrinho -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'ver_carrinho' %}">
+                            <i class="bi bi-cart3"></i> Carrinho
+                        </a>
+                    </li>
+
+                    {% if user.is_authenticated %}
+                        <!-- Menu do usuário logado -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#"
+                               role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-circle"></i>
+                                {{ user.first_name|default:user.username }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                {% if user.entregador %}
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'entregador_entregas' %}">
+                                            <i class="bi bi-truck"></i> Minhas Entregas
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'painel_dashboard' %}">
+                                            <i class="bi bi-speedometer2"></i> Painel
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'painel_configuracoes' %}">
+                                            <i class="bi bi-gear"></i> Configurações
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'logout' %}">
+                                        <i class="bi bi-box-arrow-right"></i> Sair
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'login' %}">
+                                <i class="bi bi-box-arrow-in-right"></i> Entrar
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ===== MENSAGENS FLASH ===== -->
+    {% if messages %}
+    <div class="container mt-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- ===== CONTEÚDO PRINCIPAL ===== -->
+    <main class="flex-grow-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="bg-dark text-light py-4 mt-auto">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-0">&copy; 2026 Powered by Cristiano Pirolli</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <small class="text-muted">
+                        Sistema de pedidos online para restaurantes
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle (inclui Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+            crossorigin="anonymous"></script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!-- ==========================================================================
+     templates/painel/dashboard.html - Dashboard do painel administrativo
+
+     Exibe métricas do restaurante: pedidos, faturamento, ticket médio.
+     Inclui tabela de pedidos recentes e gráfico de status.
+     ========================================================================== -->
+{% extends 'painel/base_painel.html' %}
+{% load humanize %}
+
+{% block title %}Dashboard - {{ restaurante.nome }}{% endblock %}
+
+{% block painel_content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-graph-up"></i> Dashboard
+    </h1>
+    <span class="text-muted">{{ restaurante.nome }}</span>
+</div>
+
+<!-- Cards de métricas -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card text-white bg-primary shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-uppercase small">Total de Pedidos</h6>
+                        <h2 class="mb-0">{{ total_pedidos }}</h2>
+                    </div>
+                    <i class="bi bi-receipt" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+        <div class="card text-white bg-success shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-uppercase small">Pedidos Hoje</h6>
+                        <h2 class="mb-0">{{ pedidos_hoje }}</h2>
+                    </div>
+                    <i class="bi bi-calendar-check" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+        <div class="card text-white bg-info shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-uppercase small">Faturamento Total</h6>
+                        <h2 class="mb-0">R$ {{ faturamento_total|floatformat:2 }}</h2>
+                    </div>
+                    <i class="bi bi-currency-dollar" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+        <div class="card text-white bg-warning shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-uppercase small">Ticket Médio</h6>
+                        <h2 class="mb-0">R$ {{ ticket_medio|floatformat:2 }}</h2>
+                    </div>
+                    <i class="bi bi-tag" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Faturamento hoje -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Faturamento Hoje</h6>
+                <h3 class="text-success">R$ {{ faturamento_hoje|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0">Pedidos por Status</h6>
+            </div>
+            <div class="card-body">
+                {% if pedidos_por_status %}
+                <div class="row">
+                    {% for item in pedidos_por_status %}
+                    <div class="col-auto mb-2">
+                        <span class="badge
+                            {% if item.status == 'recebido' %}bg-primary
+                            {% elif item.status == 'preparo' %}bg-warning text-dark
+                            {% elif item.status == 'entrega' %}bg-info
+                            {% elif item.status == 'concluido' %}bg-success
+                            {% elif item.status == 'cancelado' %}bg-danger
+                            {% endif %}
+                            fs-6">
+                            {{ item.status|title }}: {{ item.count }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">Nenhum pedido ainda.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pedidos recentes -->
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Pedidos Recentes</h6>
+        <a href="{% url 'painel_pedidos' %}" class="btn btn-sm btn-outline-primary">Ver Todos</a>
+    </div>
+    <div class="card-body p-0">
+        {% if pedidos_recentes %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Cliente</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Data</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pedido in pedidos_recentes %}
+                    <tr>
+                        <td>{{ pedido.id }}</td>
+                        <td>{{ pedido.cliente_nome }}</td>
+                        <td>R$ {{ pedido.total|floatformat:2 }}</td>
+                        <td>
+                            <span class="badge
+                                {% if pedido.status == 'recebido' %}bg-primary
+                                {% elif pedido.status == 'preparo' %}bg-warning text-dark
+                                {% elif pedido.status == 'entrega' %}bg-info
+                                {% elif pedido.status == 'concluido' %}bg-success
+                                {% elif pedido.status == 'cancelado' %}bg-danger
+                                {% endif %}">
+                                {{ pedido.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ pedido.criado_em|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'painel_pedido_detalhe' pedido.id %}"
+                               class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <p class="text-muted">Nenhum pedido recebido ainda.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

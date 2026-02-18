@@ -1,0 +1,19 @@
+# =============================================================================
+# apps/restaurantes/urls.py - URLs do painel do restaurante (views HTML)
+#
+# Incluído em config/urls.py como: path('painel/', include(...))
+# =============================================================================
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    # Dashboard principal do painel
+    path('', views.painel_dashboard, name='painel_dashboard'),
+    # Configurações do restaurante
+    path('configuracoes/', views.painel_configuracoes, name='painel_configuracoes'),
+    # Lista de pedidos no painel
+    path('pedidos/', views.painel_pedidos, name='painel_pedidos'),
+    # Detalhe de pedido no painel
+    path('pedidos/<int:pedido_id>/', views.painel_pedido_detalhe, name='painel_pedido_detalhe'),
+]

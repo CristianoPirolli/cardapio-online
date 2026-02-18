@@ -1,0 +1,119 @@
+/* =============================================================================
+   static/css/style.css - Estilos customizados do Cardápio Online SaaS
+
+   Complementa o Bootstrap 5 com estilos específicos do projeto.
+   ============================================================================= */
+
+/* --- Variáveis de tema --- */
+:root {
+    --cor-primaria: #0d6efd;
+    --cor-sucesso: #198754;
+    --cor-fundo: #f8f9fa;
+}
+
+/* --- Body --- */
+body {
+    background-color: var(--cor-fundo);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* --- Cards de produto no cardápio --- */
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* --- Imagem do produto --- */
+.card-img-top {
+    object-fit: cover;
+}
+
+/* --- Sidebar do painel --- */
+.sidebar {
+    border-right: 1px solid #dee2e6;
+}
+
+.sidebar .nav-link {
+    color: #333;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    margin-bottom: 2px;
+}
+
+.sidebar .nav-link:hover {
+    background-color: #e9ecef;
+    color: var(--cor-primaria);
+}
+
+.sidebar .nav-link.active {
+    background-color: var(--cor-primaria);
+    color: #fff;
+}
+
+/* --- Badge de status --- */
+.badge {
+    font-weight: 500;
+}
+
+/* --- Carrinho --- */
+.carrinho-item {
+    border-bottom: 1px solid #eee;
+    padding: 0.75rem 0;
+}
+
+.carrinho-item:last-child {
+    border-bottom: none;
+}
+
+/* --- Responsividade extra para telas pequenas --- */
+@media (max-width: 576px) {
+    .display-4 {
+        font-size: 1.75rem;
+    }
+
+    .card-body h2 {
+        font-size: 1.25rem;
+    }
+
+    /* Sidebar vira menu horizontal em mobile */
+    .sidebar {
+        border-right: none;
+        border-bottom: 1px solid #dee2e6;
+        min-height: auto !important;
+    }
+
+    .sidebar .nav {
+        flex-direction: row !important;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+
+    .sidebar .nav-item {
+        white-space: nowrap;
+    }
+}
+
+/* --- Spinner de carregamento --- */
+.loading-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--cor-primaria);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* --- Footer --- */
+footer {
+    font-size: 0.875rem;
+}

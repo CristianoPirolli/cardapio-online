@@ -1,0 +1,373 @@
+<!-- acompanhar.html - Order tracking page for the cardapio-online project.
+     Displays order details including order ID, client name, current status with a colored
+     badge, ordered items list, and totals. Features a visual progress bar showing the
+     order through its stages: recebido, preparo, entrega, and concluido. -->
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Acompanhar Pedido #{{ pedido.id }} - {{ restaurante.nome }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Page Header -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+                <h1 class="mb-2 mb-md-0">
+                    <i class="bi bi-search me-2"></i>Pedido #{{ pedido.id }}
+                </h1>
+                <span class="fs-5">
+                    {% if pedido.status == 'recebido' %}
+                    <span class="badge bg-info fs-6">
+                        <i class="bi bi-inbox me-1"></i>{{ pedido.get_status_display }}
+                    </span>
+                    {% elif pedido.status == 'preparo' %}
+                    <span class="badge bg-warning text-dark fs-6">
+                        <i class="bi bi-fire me-1"></i>{{ pedido.get_status_display }}
+                    </span>
+                    {% elif pedido.status == 'entrega' %}
+                    <span class="badge bg-primary fs-6">
+                        <i class="bi bi-truck me-1"></i>{{ pedido.get_status_display }}
+                    </span>
+                    {% elif pedido.status == 'concluido' %}
+                    <span class="badge bg-success fs-6">
+                        <i class="bi bi-check-circle me-1"></i>{{ pedido.get_status_display }}
+                    </span>
+                    {% elif pedido.status == 'cancelado' %}
+                    <span class="badge bg-danger fs-6">
+                        <i class="bi bi-x-circle me-1"></i>{{ pedido.get_status_display }}
+                    </span>
+                    {% else %}
+                    <span class="badge bg-secondary fs-6">
+                        {{ pedido.get_status_display }}
+                    </span>
+                    {% endif %}
+                </span>
+            </div>
+
+            <!-- Status Progress Bar -->
+            {% if pedido.status != 'cancelado' %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-body py-4">
+                    <div class="position-relative">
+                        <!-- Background Track -->
+                        <div class="progress mb-0" style="height: 4px;">
+                            <div class="progress-bar bg-success" role="progressbar"
+                                 style="width: {% if pedido.status == 'recebido' %}0{% elif pedido.status == 'preparo' %}33{% elif pedido.status == 'entrega' %}66{% elif pedido.status == 'concluido' %}100{% else %}0{% endif %}%"
+                                 aria-valuenow="{% if pedido.status == 'recebido' %}0{% elif pedido.status == 'preparo' %}33{% elif pedido.status == 'entrega' %}66{% elif pedido.status == 'concluido' %}100{% else %}0{% endif %}"
+                                 aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+
+                        <!-- Step Indicators -->
+                        <div class="d-flex justify-content-between" style="margin-top: -12px;">
+                            <!-- Recebido -->
+                            <div class="text-center" style="width: 25%;">
+                                <div class="rounded-circle d-inline-flex align-items-center justify-content-center
+                                    {% if pedido.status == 'recebido' or pedido.status == 'preparo' or pedido.status == 'entrega' or pedido.status == 'concluido' %}
+                                    bg-success text-white
+                                    {% else %}
+                                    bg-light text-muted border
+                                    {% endif %}"
+                                     style="width: 28px; height: 28px;">
+                                    {% if pedido.status == 'preparo' or pedido.status == 'entrega' or pedido.status == 'concluido' %}
+                                    <i class="bi bi-check" style="font-size: 0.9rem;"></i>
+                                    {% else %}
+                                    <i class="bi bi-inbox" style="font-size: 0.75rem;"></i>
+                                    {% endif %}
+                                </div>
+                                <p class="small mt-2 mb-0 fw-{% if pedido.status == 'recebido' %}bold{% else %}normal{% endif %}">
+                                    Recebido
+                                </p>
+                            </div>
+
+                            <!-- Preparo -->
+                            <div class="text-center" style="width: 25%;">
+                                <div class="rounded-circle d-inline-flex align-items-center justify-content-center
+                                    {% if pedido.status == 'preparo' or pedido.status == 'entrega' or pedido.status == 'concluido' %}
+                                    bg-success text-white
+                                    {% else %}
+                                    bg-light text-muted border
+                                    {% endif %}"
+                                     style="width: 28px; height: 28px;">
+                                    {% if pedido.status == 'entrega' or pedido.status == 'concluido' %}
+                                    <i class="bi bi-check" style="font-size: 0.9rem;"></i>
+                                    {% else %}
+                                    <i class="bi bi-fire" style="font-size: 0.75rem;"></i>
+                                    {% endif %}
+                                </div>
+                                <p class="small mt-2 mb-0 fw-{% if pedido.status == 'preparo' %}bold{% else %}normal{% endif %}">
+                                    Em Preparo
+                                </p>
+                            </div>
+
+                            <!-- Entrega -->
+                            <div class="text-center" style="width: 25%;">
+                                <div class="rounded-circle d-inline-flex align-items-center justify-content-center
+                                    {% if pedido.status == 'entrega' or pedido.status == 'concluido' %}
+                                    bg-success text-white
+                                    {% else %}
+                                    bg-light text-muted border
+                                    {% endif %}"
+                                     style="width: 28px; height: 28px;">
+                                    {% if pedido.status == 'concluido' %}
+                                    <i class="bi bi-check" style="font-size: 0.9rem;"></i>
+                                    {% else %}
+                                    <i class="bi bi-truck" style="font-size: 0.75rem;"></i>
+                                    {% endif %}
+                                </div>
+                                <p class="small mt-2 mb-0 fw-{% if pedido.status == 'entrega' %}bold{% else %}normal{% endif %}">
+                                    Saiu p/ Entrega
+                                </p>
+                            </div>
+
+                            <!-- Concluido -->
+                            <div class="text-center" style="width: 25%;">
+                                <div class="rounded-circle d-inline-flex align-items-center justify-content-center
+                                    {% if pedido.status == 'concluido' %}
+                                    bg-success text-white
+                                    {% else %}
+                                    bg-light text-muted border
+                                    {% endif %}"
+                                     style="width: 28px; height: 28px;">
+                                    <i class="bi bi-check-circle" style="font-size: 0.75rem;"></i>
+                                </div>
+                                <p class="small mt-2 mb-0 fw-{% if pedido.status == 'concluido' %}bold{% else %}normal{% endif %}">
+                                    Concluído
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Cancelled Notice -->
+            {% if pedido.status == 'cancelado' %}
+            <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+                <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+                <div>
+                    <h6 class="alert-heading mb-1">Pedido Cancelado</h6>
+                    <p class="mb-0">Este pedido foi cancelado. Entre em contato com o restaurante para mais informações.</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="row g-4">
+                <!-- Order Details -->
+                <div class="col-md-7">
+                    <!-- Customer Info -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-person me-2"></i>Dados do Cliente
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2">
+                                <div class="col-sm-6">
+                                    <span class="text-muted small d-block">Nome</span>
+                                    <span class="fw-semibold">{{ pedido.cliente_nome }}</span>
+                                </div>
+                                {% if pedido.cliente_telefone %}
+                                <div class="col-sm-6">
+                                    <span class="text-muted small d-block">Telefone</span>
+                                    <span class="fw-semibold">{{ pedido.cliente_telefone }}</span>
+                                </div>
+                                {% endif %}
+                                {% if pedido.cliente_email %}
+                                <div class="col-sm-6">
+                                    <span class="text-muted small d-block">E-mail</span>
+                                    <span class="fw-semibold">{{ pedido.cliente_email }}</span>
+                                </div>
+                                {% endif %}
+                                {% if pedido.tipo_entrega %}
+                                <div class="col-sm-6">
+                                    <span class="text-muted small d-block">Tipo de Entrega</span>
+                                    <span class="fw-semibold">
+                                        {% if pedido.tipo_entrega == 'delivery' %}
+                                        <i class="bi bi-bicycle me-1"></i>Delivery
+                                        {% else %}
+                                        <i class="bi bi-shop me-1"></i>Retirada
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                {% endif %}
+                                {% if pedido.endereco_entrega %}
+                                <div class="col-12">
+                                    <span class="text-muted small d-block">Endereço de Entrega</span>
+                                    <span class="fw-semibold">
+                                        <i class="bi bi-geo-alt me-1"></i>{{ pedido.endereco_entrega }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                                {% if pedido.observacoes %}
+                                <div class="col-12">
+                                    <span class="text-muted small d-block">Observações</span>
+                                    <span class="fst-italic">{{ pedido.observacoes }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Items List -->
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-list-ul me-2"></i>Itens do Pedido
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <ul class="list-group list-group-flush">
+                                {% for item in pedido.itens.all %}
+                                <li class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex gap-3 align-items-center">
+                                            {% if item.produto.imagem %}
+                                            <img src="{{ item.produto.imagem.url }}" alt="{{ item.produto.nome }}"
+                                                 class="rounded flex-shrink-0" width="50" height="50"
+                                                 style="object-fit: cover;">
+                                            {% else %}
+                                            <div class="bg-light rounded d-flex align-items-center justify-content-center flex-shrink-0"
+                                                 style="width: 50px; height: 50px;">
+                                                <i class="bi bi-image text-muted"></i>
+                                            </div>
+                                            {% endif %}
+                                            <div>
+                                                <h6 class="mb-0">{{ item.produto.nome }}</h6>
+                                                <span class="text-muted small">
+                                                    {{ item.quantidade }}x R$ {{ item.preco_unitario|floatformat:2 }}
+                                                </span>
+                                                {% if item.tamanho_nome %}
+                                                <br>
+                                                <span class="text-muted small">
+                                                    <i class="bi bi-rulers me-1"></i>{{ item.tamanho_nome }}
+                                                </span>
+                                                {% endif %}
+                                                {% if item.sabores_descricao %}
+                                                <br>
+                                                <span class="text-muted small">
+                                                    <i class="bi bi-ui-checks me-1"></i>{{ item.sabores_descricao }}
+                                                </span>
+                                                {% endif %}
+                                                {% if item.observacao %}
+                                                <br>
+                                                <span class="text-muted small fst-italic">
+                                                    <i class="bi bi-chat-left-text me-1"></i>{{ item.observacao }}
+                                                </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <span class="fw-semibold text-nowrap">
+                                            R$ {{ item.subtotal|floatformat:2 }}
+                                        </span>
+                                    </div>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Summary -->
+                <div class="col-md-5">
+                    <div class="card shadow-sm sticky-md-top" style="top: 1rem;">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-receipt me-2"></i>Resumo
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Número do Pedido</span>
+                                <span class="fw-semibold">#{{ pedido.id }}</span>
+                            </div>
+                            {% if pedido.criado_em %}
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Data do Pedido</span>
+                                <span>{{ pedido.criado_em|date:"d/m/Y H:i" }}</span>
+                            </div>
+                            {% endif %}
+                            <hr>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Subtotal</span>
+                                <span>R$ {{ pedido.subtotal|floatformat:2 }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Taxa de entrega</span>
+                                <span>R$ {{ pedido.taxa_entrega|floatformat:2 }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Impostos</span>
+                                <span>R$ {{ pedido.imposto|floatformat:2 }}</span>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold fs-5">Total</span>
+                                <span class="fw-bold fs-5 text-success">R$ {{ pedido.total|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-white border-top-0 d-grid">
+                            {% if pedido.status == 'entrega' %}
+                            <form method="post" action="{% url 'concluir_pedido_cliente' pedido.id %}" class="mb-2">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="bi bi-check-circle me-2"></i>Confirmar Recebimento
+                                </button>
+                            </form>
+                            {% endif %}
+                            <a href="{% url 'cardapio_publico' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-shop me-2"></i>Voltar ao Cardápio
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if pedido.status != 'concluido' and pedido.status != 'cancelado' %}
+            <div class="text-center text-muted small mt-3">
+                <i class="bi bi-arrow-repeat me-1"></i>
+                Esta página atualiza automaticamente a cada 30 segundos.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if pedido.status != 'concluido' and pedido.status != 'cancelado' %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var currentStatus = '{{ pedido.status }}';
+    var pollInterval = 30000;
+
+    function checkStatus() {
+        fetch('{% url "acompanhar_pedido_status" pedido.id %}')
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.status !== currentStatus) {
+                    window.location.reload();
+                }
+            })
+            .catch(function(err) {
+                console.error('Erro ao verificar status:', err);
+            });
+    }
+
+    var timer = setInterval(checkStatus, pollInterval);
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            clearInterval(timer);
+        } else {
+            checkStatus();
+            timer = setInterval(checkStatus, pollInterval);
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

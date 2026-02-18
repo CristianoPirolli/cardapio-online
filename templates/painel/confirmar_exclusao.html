@@ -1,0 +1,38 @@
+<!-- ==========================================================================
+     templates/painel/confirmar_exclusao.html - Confirmação de exclusão
+
+     Página genérica de confirmação antes de excluir um objeto.
+     ========================================================================== -->
+{% extends 'painel/base_painel.html' %}
+
+{% block title %}Excluir {{ tipo }} - {{ restaurante.nome }}{% endblock %}
+
+{% block painel_content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                <h4 class="mt-3">Confirmar Exclusão</h4>
+                <p class="text-muted">
+                    Tem certeza que deseja excluir {{ tipo }}
+                    <strong>"{{ objeto }}"</strong>?
+                </p>
+                <p class="text-danger small">Esta ação não pode ser desfeita.</p>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-center gap-2">
+                        <a href="javascript:history.back()" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Excluir
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

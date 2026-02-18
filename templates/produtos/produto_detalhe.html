@@ -1,0 +1,472 @@
+<!-- produto_detalhe.html - Product detail page. Shows full product information with a large image,
+     complete description, price, and an add-to-cart form with quantity selector and observation field. -->
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ produto.nome }} - {{ restaurante.nome }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Breadcrumb navigation -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cardapio_publico' %}" class="text-decoration-none">
+                    <i class="bi bi-house-fill me-1"></i>Cardápio
+                </a>
+            </li>
+            {% if produto.categoria %}
+            <li class="breadcrumb-item">
+                <span class="text-muted">{{ produto.categoria }}</span>
+            </li>
+            {% endif %}
+            <li class="breadcrumb-item active" aria-current="page">{{ produto.nome }}</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <!-- Product image -->
+        <div class="col-12 col-md-6">
+            <div class="card border-0 shadow-sm overflow-hidden">
+                {% if produto.imagem %}
+                    <img src="{{ produto.imagem.url }}"
+                         class="img-fluid w-100"
+                         alt="{{ produto.nome }}"
+                         style="max-height: 500px; object-fit: cover;">
+                {% else %}
+                    <div class="bg-light d-flex align-items-center justify-content-center"
+                         style="height: 400px;">
+                        <div class="text-center text-muted">
+                            <i class="bi bi-image" style="font-size: 5rem;"></i>
+                            <p class="mt-2">Sem imagem disponível</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Product details and add to cart form -->
+        <div class="col-12 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex flex-column p-4">
+
+                    <!-- Product name -->
+                    <h1 class="fw-bold mb-2">{{ produto.nome }}</h1>
+
+                    <!-- Category badge -->
+                    {% if produto.categoria %}
+                    <div class="mb-3">
+                        <span class="badge bg-secondary fs-6">
+                            <i class="bi bi-tag-fill me-1"></i>{{ produto.categoria }}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Price -->
+                    {% if tamanhos %}
+                    <p class="text-success fw-bold fs-3 mb-1" id="preco-atual-texto">
+                        A partir de R$ {{ tamanhos.0.preco|floatformat:2|intcomma }}
+                    </p>
+                    <p class="text-muted small mb-3">Selecione um tamanho para definir preço e limite de sabores.</p>
+                    {% else %}
+                    <p class="text-success fw-bold fs-3 mb-3">
+                        R$ {{ produto.preco|floatformat:2|intcomma }}
+                    </p>
+                    {% endif %}
+
+                    <!-- Description -->
+                    {% if produto.descricao %}
+                    <div class="mb-4">
+                        <h5 class="fw-semibold">
+                            <i class="bi bi-card-text me-2"></i>Descrição
+                        </h5>
+                        <p class="text-muted lh-lg">{{ produto.descricao }}</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Availability status -->
+                    {% if produto.disponivel and restaurante.esta_aberto %}
+                    <div class="alert alert-success py-2 mb-3" role="alert">
+                        <i class="bi bi-check-circle-fill me-2"></i>Produto disponível
+                    </div>
+                    {% elif produto.disponivel and not restaurante.esta_aberto %}
+                    <div class="alert alert-warning py-2 mb-3" role="alert">
+                        <i class="bi bi-clock-fill me-2"></i>Restaurante fechado no momento.
+                        Horário: {{ restaurante.horario_abertura|time:"H:i" }} às {{ restaurante.horario_fechamento|time:"H:i" }}.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger py-2 mb-3" role="alert">
+                        <i class="bi bi-x-circle-fill me-2"></i>Produto indisponível no momento
+                    </div>
+                    {% endif %}
+
+                    <!-- Add to cart form -->
+                    {% if produto.disponivel and restaurante.esta_aberto %}
+                    <form method="post" action="{% url 'adicionar_ao_carrinho' %}" class="mt-auto">
+                        {% csrf_token %}
+                        <input type="hidden" name="produto_id" value="{{ produto.pk }}">
+
+                        {% if tamanhos %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-rulers me-1"></i>1) Escolha o tamanho
+                            </label>
+                            <div class="d-grid gap-2">
+                                {% for tamanho in tamanhos %}
+                                <label class="border rounded p-2 d-flex justify-content-between align-items-center">
+                                    <span>
+                                        <input class="form-check-input me-2 tamanho-radio" type="radio" name="tamanho_id"
+                                               value="{{ tamanho.id }}" data-max-sabores="{{ tamanho.max_sabores }}" data-preco="{{ tamanho.preco_base }}"
+                                               {% if tamanho_preselecionado_id == tamanho.id %}checked{% endif %} required>
+                                        <strong>{{ tamanho.nome }}</strong>
+                                        {% if tamanho.fatias %}<small class="text-muted ms-1">{{ tamanho.fatias }} fatias</small>{% endif %}
+                                        {% if tamanho.diametro_cm %}<small class="text-muted ms-1">~{{ tamanho.diametro_cm }} cm</small>{% endif %}
+                                    </span>
+                                    <span class="text-success fw-semibold">R$ {{ tamanho.preco_base|floatformat:2 }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-ui-checks-grid me-1"></i>2) Escolha os sabores
+                            </label>
+                            <p class="text-muted small mb-2" id="sabores-ajuda">
+                                Selecione primeiro o tamanho.
+                            </p>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small class="text-muted" id="sabores-contador">0/1 selecionados</small>
+                                <button type="button" id="btn-um-sabor" class="btn btn-sm btn-outline-secondary" disabled>
+                                    Continuar com 1 sabor
+                                </button>
+                            </div>
+                            <div id="sabores-container">
+                                {% for grupo in sabores_por_tipo %}
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">
+                                            {{ grupo.tipo.nome|default:"Sem tipo" }}
+                                        </h6>
+                                        {% if grupo.tipo and grupo.tipo.adicional_sabor > 0 %}
+                                        <span class="badge bg-warning text-dark">
+                                            + R$ {{ grupo.tipo.adicional_sabor|floatformat:2 }} por sabor
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="row g-2">
+                                        {% for sabor in grupo.sabores %}
+                                        <div class="col-12 col-sm-6">
+                                        <label class="sabor-card border rounded p-2 d-block" for="sabor-{{ sabor.id }}">
+                                            <input class="form-check-input d-none sabor-checkbox"
+                                                   type="checkbox"
+                                                   id="sabor-{{ sabor.id }}"
+                                                   name="sabor_ids"
+                                                   value="{{ sabor.id }}"
+                                                   data-adicional="{{ sabor.categoria.adicional_sabor|default:'0' }}"
+                                                   {% if sabor.id == produto.id %}data-principal="1"{% endif %}
+                                                   disabled>
+                                            <div class="position-relative">
+                                                {% if sabor.imagem %}
+                                                <img src="{{ sabor.imagem.url }}"
+                                                     class="img-fluid rounded w-100"
+                                                     alt="{{ sabor.nome }}"
+                                                     style="height: 90px; object-fit: cover;">
+                                                {% else %}
+                                                <div class="bg-light rounded d-flex align-items-center justify-content-center"
+                                                     style="height: 90px;">
+                                                    <i class="bi bi-image text-muted fs-3"></i>
+                                                </div>
+                                                {% endif %}
+                                                <span class="badge bg-primary sabor-slot d-none"></span>
+                                            </div>
+                                            <div class="small fw-semibold mt-2">{{ sabor.nome }}</div>
+                                            {% if sabor.categoria and sabor.categoria.adicional_sabor > 0 %}
+                                            <div class="small text-muted">+ R$ {{ sabor.categoria.adicional_sabor|floatformat:2 }}</div>
+                                            {% endif %}
+                                        </label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="small text-muted mt-2" id="resumo-preco-sabores"></div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Quantity selector -->
+                        <div class="mb-3">
+                            <label for="quantidade" class="form-label fw-semibold">
+                                <i class="bi bi-hash me-1"></i>Quantidade
+                            </label>
+                            <div class="input-group" style="max-width: 180px;">
+                                <button type="button" class="btn btn-outline-secondary" id="btn-diminuir"
+                                        aria-label="Diminuir quantidade">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <input type="number" name="quantidade" id="quantidade"
+                                       value="1" min="1" max="99"
+                                       class="form-control text-center fw-bold fs-5"
+                                       aria-label="Quantidade">
+                                <button type="button" class="btn btn-outline-secondary" id="btn-aumentar"
+                                        aria-label="Aumentar quantidade">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Observation field -->
+                        <div class="mb-4">
+                            <label for="observacao" class="form-label fw-semibold">
+                                <i class="bi bi-chat-left-text me-1"></i>Observações
+                            </label>
+                            <textarea name="observacao" id="observacao"
+                                      class="form-control" rows="3"
+                                      maxlength="500"
+                                      placeholder="Ex: Borda recheada, sem cebola, etc."></textarea>
+                            <div class="form-text">
+                                <span id="char-count">0</span>/500 caracteres
+                            </div>
+                        </div>
+
+                        <!-- Submit button -->
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="bi bi-cart-plus me-2"></i>Adicionar ao Carrinho
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="mt-auto">
+                        <button class="btn btn-secondary btn-lg w-100" disabled>
+                            {% if not restaurante.esta_aberto %}
+                            <i class="bi bi-clock me-2"></i>Fechado no Momento
+                            {% else %}
+                            <i class="bi bi-x-circle me-2"></i>Indisponível
+                            {% endif %}
+                        </button>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back to menu link -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{% url 'cardapio_publico' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Voltar ao Cardápio
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sabor-card {
+        cursor: pointer;
+        transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+    }
+    .sabor-card:hover {
+        transform: translateY(-1px);
+    }
+    .sabor-card.ativo {
+        border-color: #0d6efd !important;
+        box-shadow: 0 0 0 2px rgba(13, 110, 253, .15);
+    }
+    .sabor-card.bloqueado {
+        opacity: .55;
+        cursor: not-allowed;
+    }
+    @media (max-width: 576px) {
+        .sabor-card {
+            padding: 0.75rem !important;
+        }
+        .sabor-card img,
+        .sabor-card .bg-light {
+            height: 120px !important;
+        }
+        #btn-um-sabor {
+            width: 100%;
+        }
+        #quantidade {
+            min-height: 46px;
+            font-size: 1.2rem !important;
+        }
+        #btn-diminuir,
+        #btn-aumentar {
+            min-width: 48px;
+            min-height: 46px;
+        }
+        .btn.btn-primary.btn-lg.w-100 {
+            position: sticky;
+            bottom: 0.75rem;
+            z-index: 20;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var quantidadeInput = document.getElementById('quantidade');
+        var btnDiminuir = document.getElementById('btn-diminuir');
+        var btnAumentar = document.getElementById('btn-aumentar');
+        var observacaoField = document.getElementById('observacao');
+        var charCount = document.getElementById('char-count');
+        var tamanhoRadios = document.querySelectorAll('.tamanho-radio');
+        var saborCheckboxes = document.querySelectorAll('.sabor-checkbox');
+        var saborCards = document.querySelectorAll('.sabor-card');
+        var saborSlots = document.querySelectorAll('.sabor-slot');
+        var saboresAjuda = document.getElementById('sabores-ajuda');
+        var saboresContador = document.getElementById('sabores-contador');
+        var btnUmSabor = document.getElementById('btn-um-sabor');
+        var precoAtualTexto = document.getElementById('preco-atual-texto');
+        var resumoPrecoSabores = document.getElementById('resumo-preco-sabores');
+        var maxSaboresAtual = 1;
+        var principalCheckbox = document.getElementById('sabor-{{ produto.id }}');
+
+        // Quantity increase/decrease
+        if (btnDiminuir) {
+            btnDiminuir.addEventListener('click', function () {
+                var val = parseInt(quantidadeInput.value) || 1;
+                if (val > 1) quantidadeInput.value = val - 1;
+            });
+        }
+
+        if (btnAumentar) {
+            btnAumentar.addEventListener('click', function () {
+                var val = parseInt(quantidadeInput.value) || 1;
+                if (val < 99) quantidadeInput.value = val + 1;
+            });
+        }
+
+        // Character counter for observations
+        if (observacaoField && charCount) {
+            observacaoField.addEventListener('input', function () {
+                charCount.textContent = this.value.length;
+            });
+        }
+
+        function atualizarVisualSabores() {
+            var selecionados = Array.from(saborCheckboxes).filter(function (cb) { return cb.checked; });
+            var total = selecionados.length;
+            var divisor = Math.max(total, 1);
+
+            saborCards.forEach(function (card) {
+                var cb = card.querySelector('.sabor-checkbox');
+                card.classList.toggle('ativo', cb.checked);
+                card.classList.toggle('bloqueado', cb.disabled && !cb.checked);
+            });
+
+            saborSlots.forEach(function (slot) {
+                slot.classList.add('d-none');
+                slot.textContent = '';
+            });
+
+            selecionados.forEach(function (cb, idx) {
+                var slot = cb.closest('.sabor-card').querySelector('.sabor-slot');
+                if (slot) {
+                    slot.textContent = (idx + 1) + '/' + divisor;
+                    slot.classList.remove('d-none');
+                }
+            });
+
+            if (saboresContador) {
+                saboresContador.textContent = total + '/' + maxSaboresAtual + ' selecionados';
+            }
+
+            var tamanhoSelecionado = document.querySelector('.tamanho-radio:checked');
+            if (tamanhoSelecionado && precoAtualTexto) {
+                var base = parseFloat(tamanhoSelecionado.dataset.preco || '0');
+                var adicional = selecionados.reduce(function (acc, cb) {
+                    return acc + (parseFloat(cb.dataset.adicional || '0') || 0);
+                }, 0);
+                var totalUnitario = base + adicional;
+                precoAtualTexto.textContent = 'Preço atual: R$ ' + totalUnitario.toFixed(2).replace('.', ',');
+                if (resumoPrecoSabores) {
+                    resumoPrecoSabores.textContent = 'Base: R$ ' + base.toFixed(2).replace('.', ',') +
+                        ' + Adicional sabores: R$ ' + adicional.toFixed(2).replace('.', ',');
+                }
+            } else if (resumoPrecoSabores) {
+                resumoPrecoSabores.textContent = '';
+            }
+        }
+
+        function atualizarEstadoSabores() {
+            var selecionado = document.querySelector('.tamanho-radio:checked');
+            if (!selecionado) {
+                saborCheckboxes.forEach(function (cb) {
+                    cb.checked = false;
+                    cb.disabled = true;
+                });
+                if (saboresAjuda) saboresAjuda.textContent = 'Selecione primeiro o tamanho.';
+                if (btnUmSabor) btnUmSabor.disabled = true;
+                atualizarVisualSabores();
+                return;
+            }
+
+            maxSaboresAtual = parseInt(selecionado.dataset.maxSabores || '1', 10);
+            if (principalCheckbox) {
+                principalCheckbox.checked = true;
+            }
+            var maxExtras = Math.max(maxSaboresAtual - 1, 0);
+            var extrasSelecionados = Array.from(saborCheckboxes).filter(function (cb) {
+                return cb.checked && cb !== principalCheckbox;
+            }).length;
+            var chegouNoLimiteExtras = extrasSelecionados >= maxExtras;
+
+            saborCheckboxes.forEach(function (cb) {
+                if (cb === principalCheckbox) {
+                    cb.disabled = true;
+                    return;
+                }
+                if (!cb.checked && chegouNoLimiteExtras) {
+                    cb.disabled = true;
+                } else {
+                    cb.disabled = false;
+                }
+            });
+
+            if (saboresAjuda) {
+                saboresAjuda.textContent = 'Escolha ate ' + maxSaboresAtual + ' sabor(es) no total. "' +
+                    '{{ produto.nome|escapejs }}' + '" ja conta como 1.';
+            }
+            if (btnUmSabor) btnUmSabor.disabled = false;
+            atualizarVisualSabores();
+        }
+
+        tamanhoRadios.forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                saborCheckboxes.forEach(function (cb) { cb.checked = false; });
+                atualizarEstadoSabores();
+            });
+        });
+
+        saborCheckboxes.forEach(function (cb) {
+            cb.addEventListener('change', atualizarEstadoSabores);
+        });
+
+        if (btnUmSabor) {
+            btnUmSabor.addEventListener('click', function () {
+                var principal = principalCheckbox;
+                if (principal) {
+                    saborCheckboxes.forEach(function (cb) { cb.checked = false; });
+                    principal.checked = true;
+                    atualizarEstadoSabores();
+                    document.getElementById('quantidade').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
+        }
+
+        atualizarEstadoSabores();
+    });
+</script>
+{% endblock %}

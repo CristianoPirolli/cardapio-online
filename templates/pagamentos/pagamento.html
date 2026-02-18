@@ -1,0 +1,283 @@
+<!-- ==========================================================================
+     templates/pagamentos/pagamento.html - Payment page for an order
+
+     Displays the order summary (items, total) and a payment form.
+     If use_mock is True, shows a simulated payment button.
+     If use_mock is False, renders a Stripe.js Elements card form that
+     confirms payment using the provided client_secret and stripe_public_key.
+
+     Context: pedido, restaurante, pagamento, client_secret, gateway,
+              stripe_public_key, use_mock
+     ========================================================================== -->
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Pagamento - Pedido #{{ pedido.id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Stripe Elements card input styling */
+    #card-element {
+        padding: 12px;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        background-color: #fff;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    #card-element.StripeElement--focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    #card-element.StripeElement--invalid {
+        border-color: #dc3545;
+    }
+    #card-errors {
+        min-height: 1.5em;
+    }
+    .payment-spinner {
+        display: none;
+    }
+    .payment-spinner.active {
+        display: inline-block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+
+        <!-- ===== ORDER SUMMARY ===== -->
+        <div class="col-lg-5 col-md-6 mb-4 mb-md-0 order-md-2">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-receipt me-2"></i>Resumo do Pedido
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <i class="bi bi-hash"></i> Pedido <strong>#{{ pedido.id }}</strong>
+                    </p>
+
+                    {% if restaurante %}
+                    <p class="mb-3">
+                        <i class="bi bi-shop me-1 text-primary"></i>
+                        <strong>{{ restaurante.nome }}</strong>
+                    </p>
+                    {% endif %}
+
+                    <hr>
+
+                    <!-- Order items -->
+                    <ul class="list-group list-group-flush mb-3">
+                        {% for item in pedido.itens.all %}
+                        <li class="list-group-item d-flex justify-content-between align-items-start px-0">
+                            <div class="me-auto">
+                                <span class="fw-semibold">{{ item.produto.nome }}</span>
+                                <br>
+                                <small class="text-muted">
+                                    {{ item.quantidade }}x R$ {{ item.preco_unitario|floatformat:2|intcomma }}
+                                </small>
+                            </div>
+                            <span class="text-nowrap fw-semibold">
+                                R$ {{ item.subtotal|floatformat:2|intcomma }}
+                            </span>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item px-0 text-muted">
+                            <i class="bi bi-info-circle me-1"></i>Nenhum item encontrado.
+                        </li>
+                        {% endfor %}
+                    </ul>
+
+                    {% if pedido.taxa_entrega %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">
+                            <i class="bi bi-truck me-1"></i>Taxa de entrega
+                        </span>
+                        <span>R$ {{ pedido.taxa_entrega|floatformat:2|intcomma }}</span>
+                    </div>
+                    {% endif %}
+
+                    <hr>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fs-5 fw-bold">Total</span>
+                        <span class="fs-4 fw-bold text-success">
+                            R$ {{ pedido.total|floatformat:2|intcomma }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== PAYMENT FORM ===== -->
+        <div class="col-lg-6 col-md-6 order-md-1">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-credit-card me-2"></i>Pagamento
+                    </h5>
+                </div>
+                <div class="card-body">
+
+                    {% if use_mock %}
+                    <!-- ===== MOCK PAYMENT ===== -->
+                    <div class="text-center py-4">
+                        <div class="mb-4">
+                            <i class="bi bi-shield-check text-warning" style="font-size: 3rem;"></i>
+                        </div>
+                        <h5 class="fw-semibold mb-3">Ambiente de Teste</h5>
+                        <p class="text-muted mb-4">
+                            Este pagamento utiliza o modo de simula&ccedil;&atilde;o.
+                            Nenhuma cobran&ccedil;a real ser&aacute; efetuada.
+                        </p>
+                        <form method="post" action="{% url 'pagamento_confirmar_mock' pagamento.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-lg w-100">
+                                <i class="bi bi-check-circle me-2"></i>Simular Pagamento
+                            </button>
+                        </form>
+                    </div>
+
+                    {% else %}
+                    <!-- ===== STRIPE PAYMENT ===== -->
+                    <form id="payment-form" class="py-2">
+                        {% csrf_token %}
+
+                        <div class="mb-4">
+                            <label for="card-element" class="form-label fw-semibold">
+                                <i class="bi bi-credit-card-2-front me-1"></i>Dados do Cart&atilde;o
+                            </label>
+                            <div id="card-element">
+                                <!-- Stripe Elements card input will be mounted here -->
+                            </div>
+                            <div id="card-errors" class="text-danger small mt-2" role="alert"></div>
+                        </div>
+
+                        <button type="submit" id="submit-btn" class="btn btn-success btn-lg w-100"
+                                disabled>
+                            <span id="btn-text">
+                                <i class="bi bi-lock-fill me-2"></i>Pagar R$ {{ pedido.total|floatformat:2|intcomma }}
+                            </span>
+                            <span id="btn-spinner" class="payment-spinner">
+                                <span class="spinner-border spinner-border-sm me-2" role="status"
+                                      aria-hidden="true"></span>
+                                Processando...
+                            </span>
+                        </button>
+
+                        <div id="payment-message" class="alert alert-danger mt-3 d-none" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <span id="payment-message-text"></span>
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            <i class="bi bi-lock me-1"></i>
+                            Pagamento seguro processado via Stripe
+                        </small>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if not use_mock %}
+<!-- Stripe.js -->
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize Stripe
+        var stripe = Stripe('{{ stripe_public_key }}');
+        var elements = stripe.elements();
+
+        // Style for Stripe Elements
+        var style = {
+            base: {
+                color: '#212529',
+                fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+                fontSmoothing: 'antialiased',
+                fontSize: '16px',
+                '::placeholder': {
+                    color: '#6c757d'
+                }
+            },
+            invalid: {
+                color: '#dc3545',
+                iconColor: '#dc3545'
+            }
+        };
+
+        // Create card Element and mount it
+        var cardElement = elements.create('card', { style: style });
+        cardElement.mount('#card-element');
+
+        var submitBtn = document.getElementById('submit-btn');
+        var btnText = document.getElementById('btn-text');
+        var btnSpinner = document.getElementById('btn-spinner');
+        var cardErrors = document.getElementById('card-errors');
+        var paymentMessage = document.getElementById('payment-message');
+        var paymentMessageText = document.getElementById('payment-message-text');
+
+        // Handle real-time validation errors from the card Element
+        cardElement.on('change', function (event) {
+            if (event.error) {
+                cardErrors.textContent = event.error.message;
+                submitBtn.disabled = true;
+            } else {
+                cardErrors.textContent = '';
+                if (event.complete) {
+                    submitBtn.disabled = false;
+                }
+            }
+        });
+
+        // Handle form submission
+        var form = document.getElementById('payment-form');
+        var clientSecret = '{{ client_secret }}';
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            // Disable button and show spinner
+            submitBtn.disabled = true;
+            btnText.style.display = 'none';
+            btnSpinner.classList.add('active');
+            paymentMessage.classList.add('d-none');
+
+            stripe.confirmCardPayment(clientSecret, {
+                payment_method: {
+                    card: cardElement
+                }
+            }).then(function (result) {
+                if (result.error) {
+                    // Show error to customer
+                    paymentMessageText.textContent = result.error.message;
+                    paymentMessage.classList.remove('d-none');
+
+                    // Re-enable button
+                    submitBtn.disabled = false;
+                    btnText.style.display = '';
+                    btnSpinner.classList.remove('active');
+                } else {
+                    if (result.paymentIntent.status === 'succeeded') {
+                        // Payment succeeded - redirect to success page
+                        window.location.href = "{% url 'pagamento_sucesso' pedido.id %}";
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}
