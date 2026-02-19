@@ -14,6 +14,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import Http404
+from django.db.models import Prefetch
 
 from apps.restaurantes.models import Restaurante
 from .models import Categoria, Produto
@@ -29,7 +30,7 @@ def cardapio_publico(request):
     Exibe o cardápio público de um restaurante.
 
     O restaurante é identificado pelo middleware multi-tenant (subdomínio)
-    ou pelo parâmetro GET ?restaurante=<subdominio> em desenvolvimento.
+    ou pelo parâmetro GET ?estabelecimento=<subdominio> em desenvolvimento.
 
     Agrupa produtos por categoria para exibição organizada.
     """
@@ -59,14 +60,20 @@ def cardapio_publico(request):
 
     categorias = Categoria.objects.filter(
         restaurante=restaurante, ativo=True
-    ).prefetch_related('produtos')
+    ).prefetch_related(
+        Prefetch(
+            'produtos',
+            queryset=Produto.objects.filter(disponivel=True).select_related('categoria'),
+            to_attr='produtos_disponiveis',
+        )
+    )
     tamanhos_pizza = restaurante.tamanhos_pizza.filter(ativo=True).order_by('ordem', 'id')
 
     # Filtra apenas produtos disponíveis em cada categoria
     cardapio = []
     for cat in categorias:
-        produtos = cat.produtos.filter(disponivel=True)
-        if produtos.exists():
+        produtos = getattr(cat, 'produtos_disponiveis', [])
+        if produtos:
             cardapio.append({'categoria': cat, 'produtos': produtos})
 
     return render(request, 'produtos/cardapio.html', {

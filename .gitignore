@@ -9,6 +9,8 @@ env/
 
 # Variáveis de ambiente (NUNCA commitar)
 .env
+.env.*
+!.env.example
 
 # Cache Python
 __pycache__/
@@ -38,6 +40,10 @@ postgres_data/
 
 # Certbot
 nginx/certbot/
+
+# Runtime
+gunicorn.ctl
+*.log
 
 # OS
 .DS_Store

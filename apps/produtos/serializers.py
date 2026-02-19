@@ -35,7 +35,11 @@ class CategoriaSerializer(serializers.ModelSerializer):
 
     def get_quantidade_produtos(self, obj):
         """Retorna a quantidade de produtos ativos nesta categoria."""
-        return obj.produtos.filter(disponivel=True).count()
+        return getattr(
+            obj,
+            'quantidade_produtos',
+            obj.produtos.filter(disponivel=True).count()
+        )
 
 
 class ProdutoSerializer(serializers.ModelSerializer):

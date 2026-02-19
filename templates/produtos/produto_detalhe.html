@@ -9,6 +9,23 @@
 {% block content %}
 <div class="container py-4">
 
+    {% if request.GET.item_adicionado %}
+    <div class="alert alert-success d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-4" role="alert">
+        <div>
+            <i class="bi bi-check-circle-fill me-2"></i>
+            Item adicionado ao carrinho.
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'ver_carrinho' %}" class="btn btn-success btn-sm">
+                <i class="bi bi-cart3 me-1"></i>Ir para carrinho
+            </a>
+            <a href="{% url 'cardapio_publico' %}" class="btn btn-outline-secondary btn-sm">
+                Continuar comprando
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Breadcrumb navigation -->
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">

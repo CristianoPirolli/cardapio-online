@@ -12,6 +12,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from django.db.models import Prefetch
 
 from apps.restaurantes.models import Restaurante
 from apps.produtos.models import Produto
@@ -32,11 +33,20 @@ class PedidoViewSet(viewsets.ModelViewSet):
     Filtros: ?restaurante=1&status=recebido
     """
 
-    queryset = Pedido.objects.prefetch_related('itens').all()
+    queryset = Pedido.objects.prefetch_related(
+        Prefetch('itens', queryset=ItemPedido.objects.select_related('produto'))
+    ).all()
     serializer_class = PedidoSerializer
     permission_classes = [permissions.AllowAny]
     filterset_fields = ['restaurante', 'status', 'pago', 'tipo_entrega']
     ordering_fields = ['criado_em', 'total']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        estabelecimento_id = self.request.query_params.get('estabelecimento')
+        if estabelecimento_id and not self.request.query_params.get('restaurante'):
+            queryset = queryset.filter(restaurante_id=estabelecimento_id)
+        return queryset
 
     def create(self, request, *args, **kwargs):
         """
@@ -78,21 +88,33 @@ class PedidoViewSet(viewsets.ModelViewSet):
             observacoes=dados.get('observacoes', ''),
         )
 
-        # Cria os itens do pedido
-        for item_data in itens_data:
-            produto = get_object_or_404(
-                Produto,
-                id=item_data['produto_id'],
-                restaurante=restaurante,
-                disponivel=True
+        produto_ids = list({item['produto_id'] for item in itens_data})
+        produtos = Produto.objects.filter(
+            id__in=produto_ids,
+            restaurante=restaurante,
+            disponivel=True
+        ).select_related('categoria')
+        produtos_por_id = {produto.id: produto for produto in produtos}
+
+        ids_invalidos = [pid for pid in produto_ids if pid not in produtos_por_id]
+        if ids_invalidos:
+            pedido.delete()
+            return Response(
+                {'error': f'Produto(s) inválido(s) ou indisponível(is): {ids_invalidos}'},
+                status=status.HTTP_400_BAD_REQUEST
             )
-            ItemPedido.objects.create(
+
+        itens_pedido = []
+        for item_data in itens_data:
+            produto = produtos_por_id[item_data['produto_id']]
+            itens_pedido.append(ItemPedido(
                 pedido=pedido,
                 produto=produto,
                 quantidade=item_data['quantidade'],
                 preco_unitario=produto.preco,
                 observacao=item_data.get('observacao', ''),
-            )
+            ))
+        ItemPedido.objects.bulk_create(itens_pedido)
 
         # Calcula os totais
         pedido.calcular_totais()
@@ -114,10 +136,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
             Entrega.objects.create(pedido=pedido, status='aguardando')
 
         # Retorna o pedido criado
-        return Response(
-            PedidoSerializer(pedido).data,
-            status=status.HTTP_201_CREATED
-        )
+        pedido = self.get_queryset().get(pk=pedido.pk)
+        return Response(PedidoSerializer(pedido).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['patch'])
     def status(self, request, pk=None):

@@ -43,6 +43,7 @@ urlpatterns = [
 
     # Endpoints REST dos apps
     path('api/restaurantes/', include('apps.restaurantes.api_urls')),
+    path('api/estabelecimentos/', include('apps.restaurantes.api_urls')),
     path('api/produtos/', include('apps.produtos.api_urls')),
     path('api/pedidos/', include('apps.pedidos.api_urls')),
     path('api/pagamentos/', include('apps.pagamentos.api_urls')),
