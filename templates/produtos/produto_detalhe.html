@@ -121,9 +121,12 @@
 
                     <!-- Add to cart form -->
                     {% if produto.disponivel and restaurante.esta_aberto %}
-                    <form method="post" action="{% url 'adicionar_ao_carrinho' %}" class="mt-auto">
+                    <form method="post" action="{% url 'adicionar_ao_carrinho' %}" class="mt-auto" id="form-pizza-detalhe">
                         {% csrf_token %}
                         <input type="hidden" name="produto_id" value="{{ produto.pk }}">
+                        {% if is_pizza %}
+                        <input type="hidden" name="abrir_bebidas" value="1">
+                        {% endif %}
 
                         {% if tamanhos %}
                         <div class="mb-3">
@@ -250,8 +253,12 @@
                         </div>
 
                         <!-- Submit button -->
-                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <button type="submit" class="btn btn-primary btn-lg w-100" id="btn-adicionar-principal">
+                            {% if is_pizza %}
+                            <i class="bi bi-check2-circle me-2"></i>Adicionar Pizza e Escolher Bebidas
+                            {% else %}
                             <i class="bi bi-cart-plus me-2"></i>Adicionar ao Carrinho
+                            {% endif %}
                         </button>
                     </form>
                     {% else %}

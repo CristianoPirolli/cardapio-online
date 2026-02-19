@@ -18,7 +18,7 @@
 
 <div class="card shadow-sm">
     <div class="card-body">
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data">
             {% csrf_token %}
             {{ form|crispy }}
             <div class="alert alert-info py-2">

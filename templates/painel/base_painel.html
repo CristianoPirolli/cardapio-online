@@ -17,43 +17,50 @@
                 <h6 class="sidebar-heading px-3 mt-2 mb-2 text-muted text-uppercase">
                     <i class="bi bi-speedometer2"></i> Painel
                 </h6>
+                {% with current=request.resolver_match.url_name %}
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'painel_dashboard' %}">
+                        <a class="nav-link {% if current == 'painel_dashboard' %}active{% endif %}" href="{% url 'painel_dashboard' %}">
                             <i class="bi bi-graph-up"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'painel_pedidos' %}">
+                        <a class="nav-link {% if current == 'painel_pedidos' or current == 'painel_pedido_detalhe' %}active{% endif %}" href="{% url 'painel_pedidos' %}">
                             <i class="bi bi-receipt"></i> Pedidos
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'painel_produtos' %}">
+                        <a class="nav-link {% if current == 'painel_produtos' or current == 'painel_produto_criar' or current == 'painel_produto_editar' or current == 'painel_produto_excluir' %}active{% endif %}" href="{% url 'painel_produtos' %}">
                             <i class="bi bi-box-seam"></i> Produtos
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'painel_categorias' %}">
+                        <a class="nav-link {% if current == 'painel_pizzas' %}active{% endif %}" href="{% url 'painel_pizzas' %}">
+                            <i class="bi bi-pie-chart"></i> Pizzas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if current == 'painel_categorias' or current == 'painel_categoria_criar' or current == 'painel_categoria_editar' or current == 'painel_categoria_excluir' %}active{% endif %}" href="{% url 'painel_categorias' %}">
                             <i class="bi bi-tags"></i> Categorias
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'painel_entregas' %}">
+                        <a class="nav-link {% if current == 'painel_entregas' %}active{% endif %}" href="{% url 'painel_entregas' %}">
                             <i class="bi bi-truck"></i> Entregas
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'painel_entregadores' %}">
+                        <a class="nav-link {% if current == 'painel_entregadores' or current == 'painel_entregador_criar' or current == 'painel_entregador_editar' %}active{% endif %}" href="{% url 'painel_entregadores' %}">
                             <i class="bi bi-people"></i> Entregadores
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'painel_configuracoes' %}">
+                        <a class="nav-link {% if current == 'painel_configuracoes' %}active{% endif %}" href="{% url 'painel_configuracoes' %}">
                             <i class="bi bi-gear"></i> Configurações
                         </a>
                     </li>
                 </ul>
+                {% endwith %}
             </div>
         </nav>
 

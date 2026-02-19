@@ -47,6 +47,11 @@ class Categoria(models.Model):
         verbose_name='Adicional por Sabor (R$)',
         help_text='Valor opcional somado ao preço base da pizza para sabores desta categoria.'
     )
+    eh_pizza = models.BooleanField(
+        default=True,
+        verbose_name='Categoria de Pizza',
+        help_text='Marque para categorias que usam lógica de pizza (tamanho + sabores).'
+    )
     ativo = models.BooleanField(default=True, verbose_name='Ativa')
 
     class Meta:
@@ -54,6 +59,10 @@ class Categoria(models.Model):
         verbose_name_plural = 'Categorias'
         ordering = ['ordem', 'nome']
         unique_together = ['restaurante', 'nome']
+        # Big O (Cap. 1): índice composto para filtros frequentes
+        indexes = [
+            models.Index(fields=['restaurante', 'ativo', 'ordem'], name='idx_cat_rest_ativo_ord'),
+        ]
 
     def __str__(self):
         return f'{self.nome} ({self.restaurante.nome})'
@@ -127,6 +136,13 @@ class Produto(models.Model):
         verbose_name = 'Produto'
         verbose_name_plural = 'Produtos'
         ordering = ['-destaque', 'categoria__ordem', 'nome']
+        # Big O (Cap. 1): índices para queries frequentes
+        # Transforma scan O(n) em lookup O(log n)
+        indexes = [
+            models.Index(fields=['restaurante', 'disponivel'], name='idx_prod_rest_disponivel'),
+            models.Index(fields=['restaurante', 'categoria', 'disponivel'], name='idx_prod_rest_cat_disp'),
+            models.Index(fields=['disponivel', '-destaque'], name='idx_prod_disp_destaque'),
+        ]
 
     def __str__(self):
         return f'{self.nome} - R$ {self.preco}'
@@ -134,7 +150,10 @@ class Produto(models.Model):
     @property
     def possui_tamanhos(self):
         """Indica se o restaurante possui tamanhos de pizza configurados."""
-        return self.restaurante.tamanhos_pizza.filter(ativo=True).exists()
+        return bool(
+            self.categoria and self.categoria.eh_pizza and
+            self.restaurante.tamanhos_pizza.filter(ativo=True).exists()
+        )
 
 
 class ProdutoTamanho(models.Model):

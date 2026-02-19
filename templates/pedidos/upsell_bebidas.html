@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Escolher Bebidas - {{ restaurante.nome }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h1 class="h3 mb-0"><i class="bi bi-cup-straw me-2"></i>Quer incluir bebidas?</h1>
+        <a href="{% url 'checkout' %}" class="btn btn-outline-secondary">Pular esta etapa</a>
+    </div>
+    <p class="text-muted">Sua pizza já foi adicionada. Selecione bebidas e finalize o pedido.</p>
+
+    <form method="post">
+        {% csrf_token %}
+        {% if bebidas %}
+        <div class="row g-3 mb-4">
+            {% for bebida in bebidas %}
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <input type="hidden" name="bebida_ids" value="{{ bebida.id }}">
+                        <div class="d-flex gap-3">
+                            {% if bebida.imagem %}
+                            <img src="{{ bebida.imagem.url }}" alt="{{ bebida.nome }}" class="rounded" width="72" height="72" style="object-fit: cover;">
+                            {% else %}
+                            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 72px; height: 72px;">
+                                <i class="bi bi-image text-muted"></i>
+                            </div>
+                            {% endif %}
+                            <div>
+                                <div class="fw-semibold">{{ bebida.nome }}</div>
+                                <div class="small text-muted">{{ bebida.categoria.nome }}</div>
+                                <div class="text-success fw-semibold">R$ {{ bebida.preco|default_if_none:'0'|floatformat:2 }}</div>
+                            </div>
+                        </div>
+                        <label class="form-label small text-muted mt-3 mb-1">Quantidade</label>
+                        <div class="input-group">
+                            <button class="btn btn-outline-secondary btn-qtd-menos" type="button" data-target="quantidade_{{ bebida.id }}">
+                                <i class="bi bi-dash-lg"></i>
+                            </button>
+                            <input
+                                type="number"
+                                min="0"
+                                max="20"
+                                value="0"
+                                class="form-control text-center fw-semibold bebida-quantidade"
+                                id="quantidade_{{ bebida.id }}"
+                                name="quantidade_{{ bebida.id }}"
+                            >
+                            <button class="btn btn-outline-secondary btn-qtd-mais" type="button" data-target="quantidade_{{ bebida.id }}">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            class="btn btn-primary w-100 mt-2 btn-adicionar-bebida"
+                            data-target="quantidade_{{ bebida.id }}"
+                        >
+                            <i class="bi bi-cart-plus me-1"></i>Adicionar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-secondary">Nenhuma bebida disponível no momento.</div>
+        {% endif %}
+
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" name="acao" value="continuar" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left-right me-1"></i>Continuar comprando
+            </button>
+            <button type="submit" name="acao" value="finalizar" class="btn btn-success">
+                <i class="bi bi-bag-check me-1"></i>Finalizar pedido
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        function getInputByTarget(targetId) {
+            return document.getElementById(targetId);
+        }
+
+        function clamp(val, min, max) {
+            return Math.max(min, Math.min(max, val));
+        }
+
+        document.querySelectorAll('.btn-qtd-menos').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var input = getInputByTarget(btn.dataset.target);
+                if (!input) return;
+                var min = parseInt(input.min || '0', 10);
+                var max = parseInt(input.max || '20', 10);
+                var atual = parseInt(input.value || '0', 10);
+                input.value = clamp(atual - 1, min, max);
+            });
+        });
+
+        document.querySelectorAll('.btn-qtd-mais').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var input = getInputByTarget(btn.dataset.target);
+                if (!input) return;
+                var min = parseInt(input.min || '0', 10);
+                var max = parseInt(input.max || '20', 10);
+                var atual = parseInt(input.value || '0', 10);
+                input.value = clamp(atual + 1, min, max);
+            });
+        });
+
+        document.querySelectorAll('.btn-adicionar-bebida').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var input = getInputByTarget(btn.dataset.target);
+                if (!input) return;
+                var min = parseInt(input.min || '0', 10);
+                var max = parseInt(input.max || '20', 10);
+                var atual = parseInt(input.value || '0', 10);
+                var novo = atual > 0 ? atual + 1 : 1;
+                input.value = clamp(novo, min, max);
+            });
+        });
+    });
+</script>
+{% endblock %}

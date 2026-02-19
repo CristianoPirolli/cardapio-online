@@ -22,6 +22,7 @@
                     <tr>
                         <th>Nome</th>
                         <th>Descrição</th>
+                        <th>Tipo</th>
                         <th>Ordem</th>
                         <th>Adicional Sabor</th>
                         <th>Ativa</th>
@@ -34,6 +35,13 @@
                     <tr>
                         <td><strong>{{ cat.nome }}</strong></td>
                         <td>{{ cat.descricao|truncatewords:10|default:"—" }}</td>
+                        <td>
+                            {% if cat.eh_pizza %}
+                                <span class="badge bg-primary">Pizza</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Comum</span>
+                            {% endif %}
+                        </td>
                         <td>{{ cat.ordem }}</td>
                         <td>R$ {{ cat.adicional_sabor|floatformat:2 }}</td>
                         <td>

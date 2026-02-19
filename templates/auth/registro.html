@@ -20,7 +20,7 @@
                         <p class="text-muted">Crie sua conta e comece a receber pedidos online</p>
                     </div>
 
-                    <form method="post" enctype="multipart/form-data">
+                    <form method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data">
                         {% csrf_token %}
 
                         <!-- Dados do Proprietário -->

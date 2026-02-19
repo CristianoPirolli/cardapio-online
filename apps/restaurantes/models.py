@@ -11,6 +11,8 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from slugify import slugify
 from datetime import timedelta
 
+from apps.core.algorithms import cache_restaurante
+
 
 class Restaurante(models.Model):
     """
@@ -131,38 +133,69 @@ class Restaurante(models.Model):
         verbose_name = 'Restaurante'
         verbose_name_plural = 'Restaurantes'
         ordering = ['nome']
+        # Big O (Cap. 1): índices transformam busca de O(n) para O(log n)
+        indexes = [
+            models.Index(fields=['subdominio'], name='idx_restaurante_subdominio'),
+            models.Index(fields=['ativo'], name='idx_restaurante_ativo'),
+            models.Index(fields=['proprietario'], name='idx_restaurante_proprietario'),
+        ]
 
     def __str__(self):
         return self.nome
 
-    def save(self, *args, **kwargs):
-        """Gera o subdomínio automaticamente a partir do nome, se não fornecido."""
-        if not self.subdominio:
-            self.subdominio = slugify(self.nome)
-        super().save(*args, **kwargs)
+    # -----------------------------------------------------------------------
+    # Tabela Hash (Cap. 5): dias de funcionamento em tuple indexado por
+    # weekday(). Acesso O(1) em vez de criar um dict a cada chamada.
+    # -----------------------------------------------------------------------
+    def _dias_funcionamento_tuple(self):
+        return (
+            self.funciona_segunda,   # 0 = segunda
+            self.funciona_terca,     # 1 = terça
+            self.funciona_quarta,    # 2 = quarta
+            self.funciona_quinta,    # 3 = quinta
+            self.funciona_sexta,     # 4 = sexta
+            self.funciona_sabado,    # 5 = sábado
+            self.funciona_domingo,   # 6 = domingo
+        )
 
     def funciona_no_dia(self, data):
-        """Retorna se aceita pedidos no dia da semana informado."""
-        mapa = {
-            0: self.funciona_segunda,
-            1: self.funciona_terca,
-            2: self.funciona_quarta,
-            3: self.funciona_quinta,
-            4: self.funciona_sexta,
-            5: self.funciona_sabado,
-            6: self.funciona_domingo,
-        }
-        return mapa.get(data.weekday(), False)
+        """
+        Retorna se aceita pedidos no dia da semana informado.
+
+        Otimização: usa tuple indexado em vez de criar dict novo a cada chamada.
+        Antes: criava dicionário com 7 itens → O(7) por chamada
+        Agora: acesso por índice da tuple → O(1)
+        """
+        dias = self._dias_funcionamento_tuple()
+        weekday = data.weekday()
+        return dias[weekday] if 0 <= weekday <= 6 else False
 
     @property
     def esta_aberto(self):
         """
         Verifica se o restaurante aceita pedidos no momento atual.
 
+        Otimização com Tabela Hash (Cap. 5):
+        - Cache do resultado por 10 segundos para evitar recalcular
+          em múltiplas chamadas na mesma requisição.
+        - Chave do cache: f"aberto:{restaurante.id}"
+        - Lookup no cache: O(1)
+
         Regras:
         - respeita dias selecionados;
         - suporta horários que cruzam meia-noite (ex: 18:00 às 00:00).
         """
+        cache_key = f"aberto:{self.id}"
+        cached = cache_restaurante.get(cache_key)
+        if cached is not None:
+            return cached
+
+        resultado = self._calcular_esta_aberto()
+        cache_restaurante.set(cache_key, resultado)
+        return resultado
+
+    def _calcular_esta_aberto(self):
+        """Cálculo real do estado aberto/fechado (sem cache)."""
         from django.utils import timezone
         agora_dt = timezone.localtime()
         agora = agora_dt.time()
@@ -185,6 +218,15 @@ class Restaurante(models.Model):
             return True
 
         return False
+
+    def save(self, *args, **kwargs):
+        """Gera o subdomínio automaticamente a partir do nome, se não fornecido."""
+        if not self.subdominio:
+            self.subdominio = slugify(self.nome)
+        super().save(*args, **kwargs)
+        # Invalida cache ao salvar (Tabela Hash - invalidação O(1))
+        cache_restaurante.invalidate(f"aberto:{self.id}")
+        cache_restaurante.invalidate(f"tenant:{self.subdominio}")
 
 
 class TamanhoPizza(models.Model):

@@ -40,7 +40,7 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     )
     serializer_class = CategoriaSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    filterset_fields = ['restaurante', 'ativo']
+    filterset_fields = ['restaurante', 'ativo', 'eh_pizza']
     search_fields = ['nome']
     ordering_fields = ['ordem', 'nome']
 

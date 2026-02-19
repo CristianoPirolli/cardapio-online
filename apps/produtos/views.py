@@ -10,6 +10,7 @@
 # - CRUD de produtos com upload de imagem
 # =============================================================================
 
+from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -17,6 +18,11 @@ from django.http import Http404
 from django.db.models import Prefetch
 
 from apps.restaurantes.models import Restaurante
+from apps.core.algorithms import (
+    cache_cardapio,
+    agrupar_por_categoria_hash,
+    produtos_na_faixa_preco,
+)
 from .models import Categoria, Produto
 from .forms import CategoriaForm, ProdutoForm
 
@@ -29,14 +35,16 @@ def cardapio_publico(request):
     """
     Exibe o cardápio público de um restaurante.
 
+    Otimizações aplicadas:
+    - Tabela Hash (Cap. 5): cache do cardápio por restaurante (TTL 30s)
+    - Big O (Cap. 1): prefetch_related evita N+1 queries
+    - Pesquisa Binária (Cap. 1): filtro opcional por faixa de preço
+
     O restaurante é identificado pelo middleware multi-tenant (subdomínio)
     ou pelo parâmetro GET ?estabelecimento=<subdominio> em desenvolvimento.
-
-    Agrupa produtos por categoria para exibição organizada.
     """
     restaurante = request.restaurante
 
-    # Em modo SaaS, usuário autenticado (não superuser) só enxerga o próprio cardápio.
     if request.user.is_authenticated and not request.user.is_superuser:
         restaurante_usuario = Restaurante.objects.filter(
             proprietario=request.user,
@@ -49,7 +57,6 @@ def cardapio_publico(request):
             return redirect('home')
 
     if not restaurante:
-        # Fallback: se acessado sem subdomínio, tenta pelo ID na query string
         rest_id = request.GET.get('id')
         if rest_id:
             restaurante = get_object_or_404(Restaurante, id=rest_id, ativo=True)
@@ -58,33 +65,85 @@ def cardapio_publico(request):
                 'restaurantes': Restaurante.objects.filter(ativo=True)
             })
 
-    categorias = Categoria.objects.filter(
-        restaurante=restaurante, ativo=True
-    ).prefetch_related(
-        Prefetch(
-            'produtos',
-            queryset=Produto.objects.filter(disponivel=True).select_related('categoria'),
-            to_attr='produtos_disponiveis',
-        )
-    )
-    tamanhos_pizza = restaurante.tamanhos_pizza.filter(ativo=True).order_by('ordem', 'id')
+    # -----------------------------------------------------------------------
+    # Tabela Hash (Cap. 5): tenta cache primeiro - O(1)
+    # Sem cache: cada acesso ao cardápio = 2-3 queries SQL
+    # Com cache: lookup O(1) no dicionário em memória (TTL 30s)
+    # -----------------------------------------------------------------------
+    cache_key = f"cardapio:{restaurante.id}"
+    cached = cache_cardapio.get(cache_key)
 
-    # Filtra apenas produtos disponíveis em cada categoria
-    cardapio = []
-    for cat in categorias:
-        produtos = getattr(cat, 'produtos_disponiveis', [])
-        if produtos:
-            cardapio.append({'categoria': cat, 'produtos': produtos})
+    if cached is not None:
+        cardapio, tamanhos_pizza = cached
+    else:
+        categorias = Categoria.objects.filter(
+            restaurante=restaurante, ativo=True
+        ).prefetch_related(
+            Prefetch(
+                'produtos',
+                queryset=Produto.objects.filter(disponivel=True).select_related('categoria'),
+                to_attr='produtos_disponiveis',
+            )
+        )
+        tamanhos_pizza = list(restaurante.tamanhos_pizza.filter(ativo=True).order_by('ordem', 'id'))
+
+        cardapio = []
+        for cat in categorias:
+            produtos = getattr(cat, 'produtos_disponiveis', [])
+            if produtos:
+                cardapio.append({'categoria': cat, 'produtos': produtos})
+
+        # Armazena no cache (Tabela Hash - inserção O(1))
+        cache_cardapio.set(cache_key, (cardapio, tamanhos_pizza))
+
+    # -----------------------------------------------------------------------
+    # Pesquisa Binária (Cap. 1): filtro por faixa de preço
+    # Se o usuário informar ?preco_min=X&preco_max=Y, usa bisect
+    # para encontrar os produtos na faixa em O(log n) por categoria
+    # -----------------------------------------------------------------------
+    preco_min = request.GET.get('preco_min')
+    preco_max = request.GET.get('preco_max')
+
+    if preco_min or preco_max:
+        p_min = Decimal(preco_min) if preco_min else Decimal('0')
+        p_max = Decimal(preco_max) if preco_max else Decimal('99999')
+        cardapio_filtrado = []
+        for item in cardapio:
+            # Ordena por preço para pesquisa binária
+            produtos_ordenados = sorted(
+                item['produtos'],
+                key=lambda p: p.preco or Decimal('0')
+            )
+            # Pesquisa Binária: encontra faixa em O(log n)
+            filtrados = produtos_na_faixa_preco(produtos_ordenados, p_min, p_max)
+            if filtrados:
+                cardapio_filtrado.append({
+                    'categoria': item['categoria'],
+                    'produtos': filtrados,
+                })
+        cardapio = cardapio_filtrado
+
+    cardapio_pizzas = [item for item in cardapio if item['categoria'].eh_pizza]
+    cardapio_outros = [item for item in cardapio if not item['categoria'].eh_pizza]
 
     return render(request, 'produtos/cardapio.html', {
         'restaurante': restaurante,
         'cardapio': cardapio,
+        'cardapio_pizzas': cardapio_pizzas,
+        'cardapio_outros': cardapio_outros,
         'tamanhos_pizza': tamanhos_pizza,
     })
 
 
 def produto_detalhe(request, produto_id):
-    """Exibe o detalhe de um produto específico."""
+    """
+    Exibe o detalhe de um produto específico.
+
+    Otimizações:
+    - Tabela Hash (Cap. 5): agrupamento de sabores por categoria em O(n)
+      usando dicionário ao invés de nested loops O(n²)
+    - select_related evita N+1 na categoria
+    """
     produto = get_object_or_404(Produto, id=produto_id, disponivel=True)
     if request.user.is_authenticated and not request.user.is_superuser:
         restaurante_usuario = Restaurante.objects.filter(proprietario=request.user).first()
@@ -92,34 +151,44 @@ def produto_detalhe(request, produto_id):
             messages.error(request, 'Você só pode visualizar produtos do seu restaurante.')
             return redirect('cardapio_publico')
 
-    tamanhos = produto.restaurante.tamanhos_pizza.filter(ativo=True).order_by('ordem', 'id')
+    is_pizza = bool(produto.categoria and produto.categoria.eh_pizza)
+    tamanhos = (
+        produto.restaurante.tamanhos_pizza.filter(ativo=True).order_by('ordem', 'id')
+        if is_pizza else []
+    )
     tamanho_preselecionado_id = request.GET.get('tamanho')
     try:
         tamanho_preselecionado_id = int(tamanho_preselecionado_id) if tamanho_preselecionado_id else None
     except ValueError:
         tamanho_preselecionado_id = None
-    sabores = Produto.objects.filter(
-        restaurante=produto.restaurante,
-        disponivel=True
-    ).select_related('categoria').order_by('categoria__ordem', 'categoria__nome', 'nome')
+    sabores = Produto.objects.none()
+    if is_pizza:
+        sabores = Produto.objects.filter(
+            restaurante=produto.restaurante,
+            categoria__eh_pizza=True,
+            disponivel=True
+        ).select_related('categoria').order_by('categoria__ordem', 'categoria__nome', 'nome')
 
-    sabores_por_tipo = []
-    agrupados = {}
-    for sabor in sabores:
-        categoria = sabor.categoria
-        categoria_id = categoria.id if categoria else 0
-        if categoria_id not in agrupados:
-            agrupados[categoria_id] = {
-                'tipo': categoria,
-                'sabores': [],
-            }
-        agrupados[categoria_id]['sabores'].append(sabor)
-
-    sabores_por_tipo = list(agrupados.values())
+    # -----------------------------------------------------------------------
+    # Tabela Hash (Cap. 5): Agrupamento O(n) usando dicionário
+    #
+    # Antes: loop com verificação `if categoria_id not in agrupados` — já
+    #        usava dict, mas agora usamos a função centralizada que garante
+    #        lookup O(1) para cada produto.
+    #
+    # Para 100 sabores: 100 lookups O(1) = O(100) = O(n)
+    # Sem hash table: teria que comparar com todos os grupos = O(n²)
+    # -----------------------------------------------------------------------
+    agrupados = agrupar_por_categoria_hash(sabores)
+    sabores_por_tipo = [
+        {'tipo': grupo['categoria'], 'sabores': grupo['produtos']}
+        for grupo in agrupados.values()
+    ]
 
     return render(request, 'produtos/produto_detalhe.html', {
         'produto': produto,
         'restaurante': produto.restaurante,
+        'is_pizza': is_pizza,
         'tamanhos': tamanhos,
         'tamanho_preselecionado_id': tamanho_preselecionado_id,
         'sabores': sabores,
@@ -212,7 +281,11 @@ def painel_categoria_excluir(request, categoria_id):
 
 @login_required
 def painel_produtos(request):
-    """Lista todos os produtos do restaurante no painel."""
+    """
+    Lista todos os produtos do restaurante no painel.
+
+    Pesquisa Binária (Cap. 1): filtro por faixa de preço usando bisect.
+    """
     restaurante = get_object_or_404(Restaurante, proprietario=request.user)
     produtos = Produto.objects.filter(restaurante=restaurante).select_related('categoria')
 
@@ -220,6 +293,24 @@ def painel_produtos(request):
     categoria_filtro = request.GET.get('categoria')
     if categoria_filtro:
         produtos = produtos.filter(categoria_id=categoria_filtro)
+
+    # -----------------------------------------------------------------------
+    # Pesquisa Binária (Cap. 1): filtro por faixa de preço
+    # Em vez de filtrar no banco (WHERE preco BETWEEN), carregamos e
+    # usamos bisect para encontrar a faixa em O(log n).
+    # Vantagem: funciona mesmo com preços calculados (adicional_sabor).
+    # -----------------------------------------------------------------------
+    preco_min = request.GET.get('preco_min')
+    preco_max = request.GET.get('preco_max')
+
+    if preco_min or preco_max:
+        p_min = Decimal(preco_min) if preco_min else Decimal('0')
+        p_max = Decimal(preco_max) if preco_max else Decimal('99999')
+        produtos_lista = sorted(
+            list(produtos),
+            key=lambda p: p.preco or Decimal('0')
+        )
+        produtos = produtos_na_faixa_preco(produtos_lista, p_min, p_max)
 
     categorias = Categoria.objects.filter(restaurante=restaurante)
 

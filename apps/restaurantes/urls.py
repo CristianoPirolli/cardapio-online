@@ -12,6 +12,8 @@ urlpatterns = [
     path('', views.painel_dashboard, name='painel_dashboard'),
     # Configurações do restaurante
     path('configuracoes/', views.painel_configuracoes, name='painel_configuracoes'),
+    # Configurações específicas de pizzas
+    path('pizzas/', views.painel_pizzas, name='painel_pizzas'),
     # Lista de pedidos no painel
     path('pedidos/', views.painel_pedidos, name='painel_pedidos'),
     # Detalhe de pedido no painel

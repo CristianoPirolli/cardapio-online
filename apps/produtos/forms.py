@@ -15,7 +15,7 @@ class CategoriaForm(forms.ModelForm):
 
     class Meta:
         model = Categoria
-        fields = ['nome', 'descricao', 'ordem', 'adicional_sabor', 'ativo']
+        fields = ['nome', 'descricao', 'ordem', 'eh_pizza', 'adicional_sabor', 'ativo']
         widgets = {
             'descricao': forms.Textarea(attrs={'rows': 2}),
             'adicional_sabor': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
@@ -50,11 +50,11 @@ class ProdutoForm(forms.ModelForm):
             restaurante: Instância do Restaurante para filtrar categorias.
         """
         super().__init__(*args, **kwargs)
-        self.fields['categoria'].label = 'Tipo de Sabor'
-        self.fields['nome'].label = 'Nome do Sabor'
-        self.fields['preco'].label = 'Preço Padrão (fallback)'
+        self.fields['categoria'].label = 'Categoria'
+        self.fields['nome'].label = 'Nome do Produto'
+        self.fields['preco'].label = 'Preço Padrão'
         self.fields['preco'].help_text = (
-            'Usado apenas quando não houver tamanho de pizza configurado no restaurante.'
+            'Usado como preço padrão do produto. Para pizzas, pode ser complemento quando houver tamanhos.'
         )
         self.fields['preco'].required = False
         if restaurante:

@@ -63,6 +63,10 @@ class Entregador(models.Model):
         verbose_name = 'Entregador'
         verbose_name_plural = 'Entregadores'
         ordering = ['nome']
+        # Big O (Cap. 1): índice para busca rápida de entregadores disponíveis
+        indexes = [
+            models.Index(fields=['restaurante', 'disponivel', 'ativo'], name='idx_entregador_disp'),
+        ]
 
     def __str__(self):
         return f'{self.nome} ({self.get_veiculo_display()})'
@@ -127,6 +131,11 @@ class Entrega(models.Model):
         verbose_name = 'Entrega'
         verbose_name_plural = 'Entregas'
         ordering = ['-criado_em']
+        # Big O (Cap. 1): índices para queries frequentes no painel
+        indexes = [
+            models.Index(fields=['status', 'criado_em'], name='idx_entrega_status_criado'),
+            models.Index(fields=['entregador', 'status'], name='idx_entrega_entregador'),
+        ]
 
     def __str__(self):
         return f'Entrega #{self.id} - Pedido #{self.pedido_id} ({self.get_status_display()})'
