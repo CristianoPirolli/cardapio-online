@@ -1,0 +1,79 @@
+<!-- ==========================================================================
+     templates/painel/pizzas.html - Gerenciamento de pizzas
+
+     Configura tamanhos de pizza e tipos de sabor (categorias/adicionais).
+     ========================================================================== -->
+{% extends 'painel/base_painel.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Gerenciar Pizzas - {{ restaurante.nome }}{% endblock %}
+
+{% block painel_content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h2 mb-0"><i class="bi bi-pie-chart me-2"></i>Gerenciar Pizzas</h1>
+    <a href="{% url 'painel_configuracoes' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-gear me-1"></i>Configurações Gerais
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+
+            <h5 class="mb-3"><i class="bi bi-rulers me-2"></i>Tamanhos de Pizza (Preço Base)</h5>
+            <p class="text-muted small">
+                Esses tamanhos serão usados no cardápio para montar a pizza (tamanho primeiro, depois sabores).
+            </p>
+            {{ tamanhos_formset.management_form }}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tamanho</th>
+                            <th>Fatias</th>
+                            <th>Diâmetro (cm)</th>
+                            <th>Máx. Sabores</th>
+                            <th>Preço Base (R$)</th>
+                            <th>Ordem</th>
+                            <th>Ativo</th>
+                            <th>Excluir</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tamanho_form in tamanhos_formset %}
+                        <tr>
+                            <td>
+                                {{ tamanho_form.id }}
+                                {{ tamanho_form.nome }}
+                            </td>
+                            <td>{{ tamanho_form.fatias }}</td>
+                            <td>{{ tamanho_form.diametro_cm }}</td>
+                            <td>{{ tamanho_form.max_sabores }}</td>
+                            <td>{{ tamanho_form.preco_base }}</td>
+                            <td>{{ tamanho_form.ordem }}</td>
+                            <td>{{ tamanho_form.ativo }}</td>
+                            <td>{{ tamanho_form.DELETE }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <hr>
+            <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2" role="alert">
+                <div>
+                    <i class="bi bi-info-circle me-1"></i>
+                    Para cadastrar tipos de sabor e categorias de bebidas, use o menu <strong>Categorias</strong>.
+                </div>
+                <a href="{% url 'painel_categorias' %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-tags me-1"></i>Ir para Categorias
+                </a>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg"></i> Salvar Alterações de Pizzas
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

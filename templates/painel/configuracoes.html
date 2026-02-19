@@ -13,83 +13,19 @@
 
 <div class="card shadow-sm">
     <div class="card-body">
-        <form method="post" enctype="multipart/form-data">
+        <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2" role="alert">
+            <div>
+                <i class="bi bi-info-circle me-1"></i>
+                Tamanhos de pizza agora ficam no menu <strong>Pizzas</strong>.
+            </div>
+            <a href="{% url 'painel_pizzas' %}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-pie-chart me-1"></i>Ir para Pizzas
+            </a>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data">
             {% csrf_token %}
             {{ form|crispy }}
-
-            <hr>
-            <h5 class="mb-3"><i class="bi bi-rulers me-2"></i>Tamanhos de Pizza (Preço Base)</h5>
-            <p class="text-muted small">
-                Esses tamanhos serão usados no cardápio para montar a pizza (tamanho primeiro, depois sabores).
-            </p>
-            {{ tamanhos_formset.management_form }}
-            <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Tamanho</th>
-                            <th>Fatias</th>
-                            <th>Diâmetro (cm)</th>
-                            <th>Máx. Sabores</th>
-                            <th>Preço Base (R$)</th>
-                            <th>Ordem</th>
-                            <th>Ativo</th>
-                            <th>Excluir</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for tamanho_form in tamanhos_formset %}
-                        <tr>
-                            <td>
-                                {{ tamanho_form.id }}
-                                {{ tamanho_form.nome }}
-                            </td>
-                            <td>{{ tamanho_form.fatias }}</td>
-                            <td>{{ tamanho_form.diametro_cm }}</td>
-                            <td>{{ tamanho_form.max_sabores }}</td>
-                            <td>{{ tamanho_form.preco_base }}</td>
-                            <td>{{ tamanho_form.ordem }}</td>
-                            <td>{{ tamanho_form.ativo }}</td>
-                            <td>{{ tamanho_form.DELETE }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <hr>
-            <h5 class="mb-3" id="tipos-sabor"><i class="bi bi-tags me-2"></i>Tipos de Sabor (Categorias)</h5>
-            <p class="text-muted small">
-                Defina aqui os tipos de sabor e o adicional que cada tipo soma no preço base da pizza.
-            </p>
-            {{ tipos_sabor_formset.management_form }}
-            <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Tipo de Sabor</th>
-                            <th>Adicional (R$)</th>
-                            <th>Ordem</th>
-                            <th>Ativo</th>
-                            <th>Excluir</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for tipo_form in tipos_sabor_formset %}
-                        <tr>
-                            <td>
-                                {{ tipo_form.id }}
-                                {{ tipo_form.nome }}
-                            </td>
-                            <td>{{ tipo_form.adicional_sabor }}</td>
-                            <td>{{ tipo_form.ordem }}</td>
-                            <td>{{ tipo_form.ativo }}</td>
-                            <td>{{ tipo_form.DELETE }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
             <hr>
             <button type="submit" class="btn btn-primary">
                 <i class="bi bi-check-lg"></i> Salvar Alterações

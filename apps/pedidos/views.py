@@ -105,6 +105,7 @@ def adicionar_ao_carrinho(request):
     sabores_ids = [sid for sid in request.POST.getlist('sabor_ids') if sid]
 
     produto = get_object_or_404(Produto, id=produto_id, disponivel=True)
+    is_pizza = bool(produto.categoria and produto.categoria.eh_pizza)
 
     # Verifica se o restaurante esta aberto
     if not produto.restaurante.esta_aberto:
@@ -127,7 +128,7 @@ def adicionar_ao_carrinho(request):
     tamanho_nome = ''
     max_sabores = 1
 
-    if tamanhos_disponiveis.exists():
+    if is_pizza and tamanhos_disponiveis.exists():
         if not tamanho_id:
             msg = 'Selecione um tamanho antes de escolher os sabores.'
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -220,6 +221,9 @@ def adicionar_ao_carrinho(request):
         total_itens = sum(item['quantidade'] for item in carrinho['itens'].values())
         return JsonResponse({'success': True, 'total_itens': total_itens})
 
+    if is_pizza and request.POST.get('abrir_bebidas') == '1':
+        return redirect('upsell_bebidas')
+
     if tamanho_nome:
         messages.success(request, f'"{produto.nome}" ({tamanho_nome}) adicionado ao carrinho!')
     else:
@@ -229,6 +233,81 @@ def adicionar_ao_carrinho(request):
         '/cardapio/',
         item_adicionado=1,
     )
+
+
+def upsell_bebidas(request):
+    """
+    Tela intermediária para incluir bebidas após adicionar pizza.
+    """
+    carrinho = _get_carrinho(request)
+    if not carrinho['itens'] or not carrinho['restaurante_id']:
+        messages.warning(request, 'Seu carrinho está vazio.')
+        return redirect('cardapio_publico')
+
+    restaurante = get_object_or_404(Restaurante, id=carrinho['restaurante_id'], ativo=True)
+    bebidas = Produto.objects.filter(
+        restaurante=restaurante,
+        categoria__eh_pizza=False,
+        disponivel=True
+    ).select_related('categoria').order_by('categoria__ordem', 'categoria__nome', 'nome')
+
+    if request.method == 'POST':
+        bebida_ids = request.POST.getlist('bebida_ids')
+        quantidades = {}
+        for bebida_id in bebida_ids:
+            try:
+                qtd = int(request.POST.get(f'quantidade_{bebida_id}', '0'))
+            except ValueError:
+                qtd = 0
+            if qtd > 0:
+                quantidades[bebida_id] = qtd
+
+        if quantidades:
+            produtos_bebida = {
+                str(p.id): p
+                for p in Produto.objects.filter(
+                    id__in=quantidades.keys(),
+                    restaurante=restaurante,
+                    categoria__eh_pizza=False,
+                    disponivel=True
+                )
+            }
+
+            for bebida_id, qtd in quantidades.items():
+                produto = produtos_bebida.get(str(bebida_id))
+                if not produto:
+                    continue
+                item_key = _item_key(produto.id)
+                if item_key in carrinho['itens']:
+                    carrinho['itens'][item_key]['quantidade'] += qtd
+                else:
+                    carrinho['itens'][item_key] = {
+                        'produto_id': produto.id,
+                        'quantidade': qtd,
+                        'observacao': '',
+                        'tamanho_id': None,
+                        'tamanho_nome': '',
+                        'max_sabores': 1,
+                        'sabores': [produto.id],
+                        'sabores_nomes': [produto.nome],
+                        'preco_base': str(produto.preco or Decimal('0.00')),
+                        'adicional_sabores': '0.00',
+                        'preco_unitario': str(produto.preco or Decimal('0.00')),
+                    }
+
+            _salvar_carrinho(request, carrinho)
+
+        acao = request.POST.get('acao')
+        if acao == 'continuar':
+            return redirect('cardapio_publico')
+        if acao == 'finalizar':
+            return redirect('checkout')
+        return redirect('upsell_bebidas')
+
+    return render(request, 'pedidos/upsell_bebidas.html', {
+        'restaurante': restaurante,
+        'bebidas': bebidas,
+    })
 
 
 @require_POST
@@ -487,8 +566,9 @@ def checkout(request):
 
         ItemPedido.objects.bulk_create(itens_pedido)
 
-        # Calcula totais
-        pedido.calcular_totais()
+        # Memoização (Cap. 8) + Big O (Cap. 1):
+        # Passa itens já em memória para calcular_totais evitando query N+1
+        pedido.calcular_totais(itens_prefetched=itens_pedido)
 
         # Verifica pedido mínimo
         if pedido.subtotal < restaurante.pedido_minimo:
@@ -568,12 +648,24 @@ def acompanhar_pedido(request, pedido_id):
     """
     Página pública de acompanhamento de pedido.
 
-    Exibe o status atual e os itens do pedido.
+    Otimizações:
+    - Big O (Cap. 1): select_related evita queries extras para restaurante
+    - BFS (Cap. 6): mostra caminho até conclusão e próximo passo
     """
-    pedido = get_object_or_404(Pedido, id=pedido_id)
+    pedido = get_object_or_404(
+        Pedido.objects.select_related('restaurante'),
+        id=pedido_id
+    )
+
+    # BFS (Cap. 6): informações de progresso
+    nomes_status = dict(Pedido.STATUS_CHOICES)
+    caminho = pedido.caminho_ate_status('concluido')
+
     return render(request, 'pedidos/acompanhar.html', {
         'pedido': pedido,
         'restaurante': pedido.restaurante,
+        'passos_para_concluir': pedido.passos_para_concluir,
+        'caminho_conclusao': [nomes_status.get(s, s) for s in caminho],
     })
 
 
@@ -581,11 +673,19 @@ def acompanhar_pedido_status(request, pedido_id):
     """
     Endpoint AJAX que retorna o status atual do pedido como JSON.
     Usado para polling na pagina de acompanhamento.
+
+    Big O (Cap. 1): .only() carrega apenas campos necessários
+    ao invés de todos os campos do model. Reduz transferência de dados.
     """
-    pedido = get_object_or_404(Pedido, id=pedido_id)
+    pedido = get_object_or_404(
+        Pedido.objects.only('id', 'status'),
+        id=pedido_id
+    )
     return JsonResponse({
         'status': pedido.status,
         'status_display': pedido.get_status_display(),
+        'proximo_passo': pedido.proximo_passo,
+        'passos_para_concluir': pedido.passos_para_concluir,
     })
 
 

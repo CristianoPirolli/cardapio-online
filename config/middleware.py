@@ -1,14 +1,44 @@
 # =============================================================================
-# config/middleware.py - Middleware multi-tenant por subdomínio
+# config/middleware.py - Middlewares do projeto
 #
-# Identifica o tenant atual com base no subdomínio da requisição.
-# Exemplo: pizzaria1.meusistema.com → tenant com subdominio="pizzaria1"
-# Disponibiliza o objeto em request.estabelecimento e request.restaurante
-# (compatibilidade com código legado).
+# 1. HtmxMiddleware: Garante redirects corretos com HTMX hx-boost.
+# 2. TenantMiddleware: Identifica o tenant (restaurante) pelo subdomínio.
 # =============================================================================
 
 from django.conf import settings
-from django.http import Http404
+from django.http import Http404, HttpResponse
+
+from apps.core.algorithms import cache_restaurante
+
+
+class HtmxMiddleware:
+    """
+    Converte redirects Django (302) em HX-Redirect para requests HTMX.
+
+    Sem este middleware: HTMX segue o redirect via AJAX mas a URL do browser
+    não atualiza corretamente.
+    Com este middleware: HTMX recebe HX-Redirect e faz navegação client-side,
+    atualizando a URL do browser.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        # Só intercepta se for request HTMX com redirect (3xx)
+        if (
+            request.headers.get('HX-Request') == 'true'
+            and 300 <= response.status_code < 400
+            and 'Location' in response
+        ):
+            redirect_url = response['Location']
+            new_response = HttpResponse(status=200)
+            new_response['HX-Redirect'] = redirect_url
+            return new_response
+
+        return response
 
 
 class TenantMiddleware:
@@ -16,63 +46,65 @@ class TenantMiddleware:
     Middleware que extrai o subdomínio da requisição HTTP e associa
     o estabelecimento correspondente ao objeto request.
 
+    Otimização com Tabela Hash (Cap. 5):
+    - Cacheia o tenant por subdomínio para evitar query ao banco a cada request.
+    - Sem cache: cada requisição = 1 query SQL → O(log n) no banco
+    - Com cache: lookup O(1) no dicionário em memória
+
     Se nenhum subdomínio for encontrado (ex: acesso pelo domínio raiz),
     request.estabelecimento será None (permite acesso a páginas genéricas).
     """
 
     def __init__(self, get_response):
-        """Inicializa o middleware com a função de resposta."""
         self.get_response = get_response
 
-    def __call__(self, request):
+    def _buscar_tenant(self, subdominio):
         """
-        Processa cada requisição para identificar o tenant (estabelecimento).
+        Busca tenant com cache via Tabela Hash (Cap. 5).
 
-        Fluxo:
-        1. Extrai o host da requisição (ex: 'pizzaria1.meusistema.com')
-        2. Remove a porta se houver (ex: 'localhost:8000' → 'localhost')
-        3. Verifica se há subdomínio válido
-        4. Busca o estabelecimento no banco pelo subdomínio
-        5. Atribui a request.estabelecimento (e request.restaurante)
+        Primeiro tenta o cache O(1). Se miss, busca no banco O(log n)
+        e armazena no cache para próximas requisições.
         """
+        cache_key = f"tenant:{subdominio}"
+        tenant = cache_restaurante.get(cache_key)
+        if tenant is not None:
+            return tenant
+
+        from apps.restaurantes.models import Restaurante
+        try:
+            tenant = Restaurante.objects.get(
+                subdominio=subdominio,
+                ativo=True
+            )
+            cache_restaurante.set(cache_key, tenant)
+            return tenant
+        except Restaurante.DoesNotExist:
+            # Cacheia o "miss" também para evitar queries repetidas
+            cache_restaurante.set(cache_key, False)
+            return None
+
+    def __call__(self, request):
         host = request.META.get('HTTP_HOST', '').split(':')[0]
         base_domain = settings.BASE_DOMAIN
 
-        # Inicializa como None (sem estabelecimento identificado)
         request.restaurante = None
         request.estabelecimento = None
 
-        # Verifica se o host possui subdomínio em relação ao domínio base
         if host.endswith(f'.{base_domain}'):
             subdominio = host.replace(f'.{base_domain}', '').strip('.')
             if subdominio and subdominio != 'www':
-                # Importação tardia para evitar importação circular
-                from apps.restaurantes.models import Restaurante
-                try:
-                    tenant = Restaurante.objects.get(
-                        subdominio=subdominio,
-                        ativo=True
-                    )
+                tenant = self._buscar_tenant(subdominio)
+                if tenant:
                     request.restaurante = tenant
                     request.estabelecimento = tenant
-                except Restaurante.DoesNotExist:
-                    pass
 
-        # Para desenvolvimento local, permite identificar via query param
-        # Ex: localhost:8000/?estabelecimento=pizzaria1 (ou ?restaurante=)
         if settings.DEBUG and request.estabelecimento is None:
             sub_param = request.GET.get('estabelecimento') or request.GET.get('restaurante')
             if sub_param:
-                from apps.restaurantes.models import Restaurante
-                try:
-                    tenant = Restaurante.objects.get(
-                        subdominio=sub_param,
-                        ativo=True
-                    )
+                tenant = self._buscar_tenant(sub_param)
+                if tenant:
                     request.restaurante = tenant
                     request.estabelecimento = tenant
-                except Restaurante.DoesNotExist:
-                    pass
 
         response = self.get_response(request)
         return response

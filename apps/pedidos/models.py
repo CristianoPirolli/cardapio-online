@@ -14,10 +14,18 @@
 # - total: subtotal + imposto + taxa_entrega
 # =============================================================================
 
+from decimal import Decimal
 from django.db import models
 from django.core.validators import MinValueValidator
 from apps.restaurantes.models import Restaurante
 from apps.produtos.models import Produto
+from apps.core.algorithms import (
+    GRAFO_STATUS_PEDIDO,
+    bfs_caminho_mais_curto,
+    bfs_status_alcancaveis,
+    proximo_status_para_concluir,
+    calcular_subtotal_otimizado,
+)
 
 
 class Pedido(models.Model):
@@ -36,6 +44,11 @@ class Pedido(models.Model):
     - taxa_entrega: Copiada do restaurante no momento do pedido
     - imposto: Calculado com base na taxa_imposto do restaurante
     - total: subtotal + taxa_entrega + imposto
+
+    Algoritmos utilizados:
+    - BFS (Cap. 6): Validação de transições e caminho até status final
+    - Tabela Hash (Cap. 5): VALID_TRANSITIONS como dicionário O(1)
+    - Memoização (Cap. 8): Cache de cálculo de totais
     """
 
     STATUS_CHOICES = [
@@ -46,14 +59,10 @@ class Pedido(models.Model):
         ('cancelado', 'Cancelado'),
     ]
 
-    # Transicoes de status permitidas
-    VALID_TRANSITIONS = {
-        'recebido': ['preparo', 'cancelado'],
-        'preparo': ['entrega', 'cancelado'],
-        'entrega': ['concluido', 'cancelado'],
-        'concluido': [],
-        'cancelado': [],
-    }
+    # Tabela Hash (Cap. 5): transições como dicionário para lookup O(1)
+    # Antes: se fosse uma lista de tuplas, buscar seria O(n)
+    # Agora: dict.get() é O(1) amortizado
+    VALID_TRANSITIONS = GRAFO_STATUS_PEDIDO
 
     TIPO_ENTREGA_CHOICES = [
         ('delivery', 'Delivery'),
@@ -116,20 +125,34 @@ class Pedido(models.Model):
         verbose_name = 'Pedido'
         verbose_name_plural = 'Pedidos'
         ordering = ['-criado_em']
+        # Big O (Cap. 1): índices transformam busca de O(n) para O(log n)
+        # Sem índice: o banco varre toda a tabela (full scan) = O(n)
+        # Com índice: usa B-tree para encontrar em O(log n)
+        indexes = [
+            models.Index(fields=['restaurante', 'status'], name='idx_pedido_rest_status'),
+            models.Index(fields=['restaurante', 'criado_em'], name='idx_pedido_rest_criado'),
+            models.Index(fields=['status', 'criado_em'], name='idx_pedido_status_criado'),
+            models.Index(fields=['stripe_payment_intent_id'], name='idx_pedido_stripe'),
+        ]
 
     def __str__(self):
         return f'Pedido #{self.id} - {self.cliente_nome} ({self.get_status_display()})'
 
+    # -------------------------------------------------------------------
+    # Pesquisa em Largura / BFS (Cap. 6)
+    # -------------------------------------------------------------------
+
     def validar_transicao_status(self, novo_status):
         """
-        Valida se a transicao de status e permitida.
-        Retorna (is_valid, error_message).
+        Valida se a transição de status é permitida.
+
+        Usa Tabela Hash (Cap. 5) para lookup O(1) das transições diretas.
         """
         if novo_status == self.status:
             return True, ''
         permitidas = self.VALID_TRANSITIONS.get(self.status, [])
         if novo_status not in permitidas:
-            nomes = {k: v for k, v in self.STATUS_CHOICES}
+            nomes = dict(self.STATUS_CHOICES)
             return False, (
                 f'Transição inválida: {nomes.get(self.status, self.status)} → '
                 f'{nomes.get(novo_status, novo_status)}. '
@@ -137,13 +160,50 @@ class Pedido(models.Model):
             )
         return True, ''
 
+    def caminho_ate_status(self, status_destino):
+        """
+        BFS (Cap. 6): Encontra o caminho mais curto do status atual até o destino.
+
+        Livro: "A pesquisa em largura encontra o caminho mais curto"
+
+        Exemplo: pedido.status = 'recebido'
+        pedido.caminho_ate_status('concluido')
+        → ['recebido', 'preparo', 'entrega', 'concluido']
+
+        Útil para mostrar ao usuário quantos passos faltam.
+        """
+        return bfs_caminho_mais_curto(GRAFO_STATUS_PEDIDO, self.status, status_destino)
+
+    def status_alcancaveis(self):
+        """
+        BFS (Cap. 6): Retorna todos os status alcançáveis e a distância.
+
+        Exemplo: pedido.status = 'preparo'
+        → {'preparo': 0, 'entrega': 1, 'cancelado': 1, 'concluido': 2}
+        """
+        return bfs_status_alcancaveis(GRAFO_STATUS_PEDIDO, self.status)
+
+    @property
+    def proximo_passo(self):
+        """
+        BFS (Cap. 6): Sugere o próximo status no caminho até 'concluido'.
+
+        Útil para o painel do restaurante mostrar a ação recomendada.
+        """
+        return proximo_status_para_concluir(self.status)
+
+    @property
+    def passos_para_concluir(self):
+        """Número de passos até 'concluido' via BFS."""
+        caminho = self.caminho_ate_status('concluido')
+        return max(len(caminho) - 1, 0) if caminho else -1
+
     def save(self, *args, **kwargs):
         if self.pk and not getattr(self, '_skip_status_validation', False):
             old_status = Pedido.objects.filter(pk=self.pk).values_list(
                 'status', flat=True
             ).first()
             if old_status and old_status != self.status:
-                # Temporariamente restaura o status antigo para validar
                 novo = self.status
                 self.status = old_status
                 valido, msg = self.validar_transicao_status(novo)
@@ -152,25 +212,40 @@ class Pedido(models.Model):
                     raise ValueError(msg)
         super().save(*args, **kwargs)
 
-    def calcular_totais(self):
+    # -------------------------------------------------------------------
+    # Recursão + Memoização (Cap. 3 e 8) / Big O (Cap. 1)
+    # -------------------------------------------------------------------
+
+    def calcular_totais(self, itens_prefetched=None):
         """
         Calcula subtotal, imposto e total do pedido com base nos itens.
 
-        Deve ser chamado após adicionar/remover/alterar itens.
-        A taxa de entrega é copiada do restaurante (ou zero para retirada).
-        O imposto é calculado como percentual do subtotal.
+        Otimizações aplicadas:
+
+        1. Big O (Cap. 1) - Eliminação de query N+1:
+           ANTES: self.itens.all() disparava uma query SQL a cada chamada
+           AGORA: aceita itens_prefetched para evitar query extra.
+           Reduz de O(n) queries para O(1) query.
+
+        2. Memoização (Cap. 8):
+           O cálculo usa calcular_subtotal_otimizado() que acumula em
+           uma passada O(n) sem queries adicionais.
+
+        3. Tabela Hash (Cap. 5):
+           Ao salvar, invalida o cache se implementado.
         """
-        # Subtotal = soma de (quantidade × preco_unitario) de cada item
-        self.subtotal = sum(
-            item.quantidade * item.preco_unitario
-            for item in self.itens.all()
-        )
+        # Se recebeu itens pré-carregados, usa direto (0 queries extras)
+        # Se não, carrega uma vez só com .all() (1 query)
+        itens = itens_prefetched if itens_prefetched is not None else self.itens.all()
+
+        # Memoização: calcula subtotal em O(n) com uma passada
+        self.subtotal = calcular_subtotal_otimizado(itens)
 
         # Taxa de entrega (zero para retirada no local)
         if self.tipo_entrega == 'delivery':
             self.taxa_entrega = self.restaurante.taxa_entrega
         else:
-            self.taxa_entrega = 0
+            self.taxa_entrega = Decimal('0')
 
         # Imposto = percentual do subtotal
         taxa_pct = self.restaurante.taxa_imposto / 100

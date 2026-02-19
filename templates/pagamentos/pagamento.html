@@ -144,7 +144,7 @@
 
                     {% else %}
                     <!-- ===== STRIPE PAYMENT ===== -->
-                    <form id="payment-form" class="py-2">
+                    <form id="payment-form" class="py-2" hx-boost="false">
                         {% csrf_token %}
 
                         <div class="mb-4">

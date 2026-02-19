@@ -29,7 +29,7 @@ class CategoriaSerializer(serializers.ModelSerializer):
         model = Categoria
         fields = [
             'id', 'restaurante', 'nome', 'descricao', 'ordem',
-            'adicional_sabor', 'ativo', 'quantidade_produtos'
+            'adicional_sabor', 'eh_pizza', 'ativo', 'quantidade_produtos'
         ]
         read_only_fields = ['id']
 

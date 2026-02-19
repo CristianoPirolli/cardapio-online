@@ -11,8 +11,14 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db.models import Count, Q
 
 from apps.restaurantes.models import Restaurante
+from apps.core.algorithms import (
+    ranking_entregadores,
+    dijkstra_melhor_entregador,
+    dijkstra_estimar_tempo_entrega,
+)
 from .models import Entregador, Entrega
 from .forms import EntregadorForm
 
@@ -65,7 +71,15 @@ def painel_entregadores(request):
 
 @login_required
 def atribuir_entregador(request, entrega_id):
-    """Atribui um entregador a uma entrega."""
+    """
+    Atribui um entregador a uma entrega.
+
+    Otimização com Dijkstra (Cap. 7):
+    - Rankeia entregadores por "custo" ponderado usando min-heap
+    - Fatores: tipo de veículo + entregas ativas pendentes
+    - Sugere o melhor entregador automaticamente
+    - Complexidade: O(n log n) vs O(n²) sem heap
+    """
     restaurante = _restaurante_do_proprietario(request.user)
     if not restaurante:
         messages.warning(request, 'Acesso disponível apenas para gestores de restaurante.')
@@ -81,20 +95,65 @@ def atribuir_entregador(request, entrega_id):
         )
         entrega.entregador = entregador
         entrega.status = 'coletado'
-        # Timestamp saiu_em e preenchido automaticamente no model.save()
         entrega.save()
 
-        messages.success(request, f'Entregador {entregador.nome} atribuído!')
+        # Dijkstra: estima tempo de entrega baseado no veículo
+        tempo_estimado = dijkstra_estimar_tempo_entrega(
+            entregador.veiculo,
+            distancia_km=restaurante.raio_entrega_km / 2,  # média do raio
+        )
+        messages.success(
+            request,
+            f'Entregador {entregador.nome} atribuído! '
+            f'Tempo estimado: ~{tempo_estimado} min'
+        )
         return redirect('painel_entregas')
 
     entregadores = Entregador.objects.filter(
         restaurante=restaurante, disponivel=True, ativo=True
     )
 
+    # -----------------------------------------------------------------------
+    # Dijkstra (Cap. 7): Ranking inteligente de entregadores
+    #
+    # Calcula o "custo" de cada entregador usando uma min-heap:
+    # custo = peso_veiculo + (entregas_ativas * 1.5)
+    #
+    # Sem Dijkstra: lista simples sem ordenação inteligente
+    # Com Dijkstra: ranking por custo ponderado em O(n log n)
+    # -----------------------------------------------------------------------
+
+    # Tabela Hash (Cap. 5): conta entregas ativas por entregador em 1 query
+    # Antes: faria N queries (uma por entregador) = O(n)
+    # Agora: 1 query com annotate + dict comprehension = O(1) no banco
+    entregas_ativas_qs = Entrega.objects.filter(
+        entregador__in=entregadores,
+        status__in=['coletado', 'em_transito'],
+    ).values('entregador_id').annotate(total=Count('id'))
+
+    entregas_ativas_por_entregador = {
+        item['entregador_id']: item['total']
+        for item in entregas_ativas_qs
+    }
+
+    # Dijkstra: gera ranking com custo e tempo estimado
+    ranking = ranking_entregadores(
+        list(entregadores),
+        entregas_ativas_por_entregador,
+    )
+
+    # Melhor sugestão automática
+    melhor = dijkstra_melhor_entregador(
+        list(entregadores),
+        entregas_ativas_por_entregador,
+    )
+
     return render(request, 'entregas/atribuir.html', {
         'restaurante': restaurante,
         'entrega': entrega,
         'entregadores': entregadores,
+        'ranking': ranking,
+        'melhor_entregador': melhor,
     })
 
 

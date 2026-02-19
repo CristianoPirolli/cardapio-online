@@ -116,8 +116,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
             ))
         ItemPedido.objects.bulk_create(itens_pedido)
 
-        # Calcula os totais
-        pedido.calcular_totais()
+        # Memoização (Cap. 8) + Big O (Cap. 1):
+        # Passa itens já em memória para evitar query N+1 extra.
+        # ANTES: calcular_totais() fazia self.itens.all() = 1 query extra
+        # AGORA: passa itens_pedido direto = 0 queries extras
+        pedido.calcular_totais(itens_prefetched=itens_pedido)
 
         # Valida pedido mínimo
         if pedido.subtotal < restaurante.pedido_minimo:
@@ -168,8 +171,15 @@ class PedidoViewSet(viewsets.ModelViewSet):
         pedido.status = novo_status
         pedido.save()
 
+        # BFS (Cap. 6): inclui informações de navegação do grafo de status
+        nomes = dict(Pedido.STATUS_CHOICES)
         return Response({
             'id': pedido.id,
             'status': pedido.status,
             'status_display': pedido.get_status_display(),
+            'proximo_passo': pedido.proximo_passo,
+            'passos_para_concluir': pedido.passos_para_concluir,
+            'caminho_ate_conclusao': [
+                nomes.get(s, s) for s in pedido.caminho_ate_status('concluido')
+            ],
         })

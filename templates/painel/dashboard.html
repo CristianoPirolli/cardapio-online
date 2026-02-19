@@ -9,67 +9,129 @@
 
 {% block title %}Dashboard - {{ restaurante.nome }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .dashboard-hero {
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+        border-radius: 16px;
+        color: #fff;
+        padding: 1.25rem 1.25rem;
+        box-shadow: 0 10px 30px rgba(13, 110, 253, 0.22);
+    }
+    .metric-card {
+        border: 0;
+        border-radius: 14px;
+        overflow: hidden;
+    }
+    .metric-card .card-body {
+        padding: 1rem 1.1rem;
+    }
+    .metric-value {
+        font-size: 2rem;
+        line-height: 1;
+        font-weight: 700;
+        margin: 0;
+    }
+    .metric-icon {
+        font-size: 2rem;
+        opacity: 0.35;
+    }
+    .status-chip {
+        border-radius: 999px;
+        padding: 0.45rem 0.75rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        border: 1px solid transparent;
+    }
+    .status-recebido { background: #e9f2ff; color: #0d6efd; border-color: #cfe2ff; }
+    .status-preparo { background: #fff6db; color: #997404; border-color: #ffe69c; }
+    .status-entrega { background: #e5f9ff; color: #0a6f8f; border-color: #9eeaf9; }
+    .status-concluido { background: #e7f8ee; color: #1f7a46; border-color: #a3cfbb; }
+    .status-cancelado { background: #fdecef; color: #b02a37; border-color: #f1aeb5; }
+    .panel-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 .5rem 1.25rem rgba(0,0,0,.08);
+    }
+    .empty-state {
+        border: 1px dashed #ced4da;
+        border-radius: 12px;
+        padding: 1.25rem;
+        text-align: center;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
 {% block painel_content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2">
-        <i class="bi bi-graph-up"></i> Dashboard
-    </h1>
-    <span class="text-muted">{{ restaurante.nome }}</span>
+<div class="dashboard-hero mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+            <h1 class="h3 mb-1"><i class="bi bi-graph-up-arrow me-2"></i>Dashboard</h1>
+            <p class="mb-0 opacity-75">Visão geral dos pedidos e do desempenho do dia.</p>
+        </div>
+        <div class="text-end">
+            <div class="small opacity-75">{{ restaurante.nome }}</div>
+            <div class="small opacity-75">{% now "d/m/Y H:i" %}</div>
+        </div>
+    </div>
 </div>
 
 <!-- Cards de métricas -->
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-xl-3">
-        <div class="card text-white bg-primary shadow">
+        <div class="card metric-card text-white bg-primary shadow">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title text-uppercase small">Total de Pedidos</h6>
-                        <h2 class="mb-0">{{ total_pedidos }}</h2>
+                        <p class="metric-value">{{ total_pedidos }}</p>
                     </div>
-                    <i class="bi bi-receipt" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                    <i class="bi bi-receipt metric-icon"></i>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="col-sm-6 col-xl-3">
-        <div class="card text-white bg-success shadow">
+        <div class="card metric-card text-white bg-success shadow">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title text-uppercase small">Pedidos Hoje</h6>
-                        <h2 class="mb-0">{{ pedidos_hoje }}</h2>
+                        <p class="metric-value">{{ pedidos_hoje }}</p>
                     </div>
-                    <i class="bi bi-calendar-check" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                    <i class="bi bi-calendar-check metric-icon"></i>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="col-sm-6 col-xl-3">
-        <div class="card text-white bg-info shadow">
+        <div class="card metric-card text-white bg-info shadow">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title text-uppercase small">Faturamento Total</h6>
-                        <h2 class="mb-0">R$ {{ faturamento_total|floatformat:2 }}</h2>
+                        <p class="metric-value">R$ {{ faturamento_total|floatformat:2 }}</p>
                     </div>
-                    <i class="bi bi-currency-dollar" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                    <i class="bi bi-cash-coin metric-icon"></i>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="col-sm-6 col-xl-3">
-        <div class="card text-white bg-warning shadow">
+        <div class="card metric-card text-white bg-warning shadow">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title text-uppercase small">Ticket Médio</h6>
-                        <h2 class="mb-0">R$ {{ ticket_medio|floatformat:2 }}</h2>
+                        <p class="metric-value">R$ {{ ticket_medio|floatformat:2 }}</p>
                     </div>
-                    <i class="bi bi-tag" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                    <i class="bi bi-tags metric-icon"></i>
                 </div>
             </div>
         </div>
@@ -79,38 +141,39 @@
 <!-- Faturamento hoje -->
 <div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card shadow-sm">
-            <div class="card-body text-center">
-                <h6 class="text-muted">Faturamento Hoje</h6>
-                <h3 class="text-success">R$ {{ faturamento_hoje|floatformat:2 }}</h3>
+        <div class="card panel-card">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Faturamento Hoje</h6>
+                <h3 class="text-success mb-1">R$ {{ faturamento_hoje|floatformat:2 }}</h3>
+                <small class="text-muted">Pedidos concluídos no dia atual.</small>
             </div>
         </div>
     </div>
     <div class="col-md-8">
-        <div class="card shadow-sm">
-            <div class="card-header">
+        <div class="card panel-card">
+            <div class="card-header bg-white border-0 pt-3 pb-0">
                 <h6 class="mb-0">Pedidos por Status</h6>
             </div>
             <div class="card-body">
                 {% if pedidos_por_status %}
-                <div class="row">
+                <div class="d-flex flex-wrap gap-2">
                     {% for item in pedidos_por_status %}
-                    <div class="col-auto mb-2">
-                        <span class="badge
-                            {% if item.status == 'recebido' %}bg-primary
-                            {% elif item.status == 'preparo' %}bg-warning text-dark
-                            {% elif item.status == 'entrega' %}bg-info
-                            {% elif item.status == 'concluido' %}bg-success
-                            {% elif item.status == 'cancelado' %}bg-danger
-                            {% endif %}
-                            fs-6">
-                            {{ item.status|title }}: {{ item.count }}
-                        </span>
-                    </div>
+                    <span class="status-chip
+                        {% if item.status == 'recebido' %}status-recebido
+                        {% elif item.status == 'preparo' %}status-preparo
+                        {% elif item.status == 'entrega' %}status-entrega
+                        {% elif item.status == 'concluido' %}status-concluido
+                        {% elif item.status == 'cancelado' %}status-cancelado
+                        {% endif %}">
+                        {{ item.status|title }}: {{ item.count }}
+                    </span>
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-muted mb-0">Nenhum pedido ainda.</p>
+                <div class="empty-state">
+                    <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                    Nenhum pedido ainda.
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -118,8 +181,8 @@
 </div>
 
 <!-- Pedidos recentes -->
-<div class="card shadow-sm">
-    <div class="card-header d-flex justify-content-between align-items-center">
+<div class="card panel-card">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center border-0">
         <h6 class="mb-0">Pedidos Recentes</h6>
         <a href="{% url 'painel_pedidos' %}" class="btn btn-sm btn-outline-primary">Ver Todos</a>
     </div>
@@ -167,8 +230,12 @@
             </table>
         </div>
         {% else %}
-        <div class="text-center py-4">
-            <p class="text-muted">Nenhum pedido recebido ainda.</p>
+        <div class="p-3">
+            <div class="empty-state">
+                <i class="bi bi-receipt-cutoff fs-3 d-block mb-2"></i>
+                <p class="mb-2">Nenhum pedido recebido ainda.</p>
+                <a href="{% url 'painel_produtos' %}" class="btn btn-sm btn-outline-secondary">Revisar Cardápio</a>
+            </div>
         </div>
         {% endif %}
     </div>

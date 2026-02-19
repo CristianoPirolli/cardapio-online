@@ -79,6 +79,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # Middleware customizado para identificar o restaurante pelo subdomínio
     'config.middleware.TenantMiddleware',
+    # HTMX: converte redirects 302 em HX-Redirect para navegação SPA-like
+    'config.middleware.HtmxMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'

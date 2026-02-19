@@ -15,8 +15,8 @@ from django.utils import timezone
 
 from .models import Restaurante
 from .forms import RestauranteForm, TamanhoPizzaFormSet
-from apps.produtos.forms import TipoSaborFormSet
 from apps.pedidos.models import Pedido
+from apps.core.algorithms import GRAFO_STATUS_PEDIDO, bfs_status_alcancaveis
 
 
 def _restaurante_do_usuario(request):
@@ -112,28 +112,45 @@ def painel_configuracoes(request):
 
     if request.method == 'POST':
         form = RestauranteForm(request.POST, request.FILES, instance=restaurante)
-        tamanhos_formset = TamanhoPizzaFormSet(
-            request.POST, instance=restaurante, prefix='tamanhos'
-        )
-        tipos_sabor_formset = TipoSaborFormSet(
-            request.POST, instance=restaurante, prefix='tipos_sabor'
-        )
-        if form.is_valid() and tamanhos_formset.is_valid() and tipos_sabor_formset.is_valid():
+        if form.is_valid():
             form.save()
-            tamanhos_formset.save()
-            tipos_sabor_formset.save()
             messages.success(request, 'Configurações atualizadas com sucesso!')
             return redirect('painel_configuracoes')
     else:
         form = RestauranteForm(instance=restaurante)
-        tamanhos_formset = TamanhoPizzaFormSet(instance=restaurante, prefix='tamanhos')
-        tipos_sabor_formset = TipoSaborFormSet(instance=restaurante, prefix='tipos_sabor')
 
     return render(request, 'painel/configuracoes.html', {
         'form': form,
-        'tamanhos_formset': tamanhos_formset,
-        'tipos_sabor_formset': tipos_sabor_formset,
         'restaurante': restaurante,
+    })
+
+
+@login_required
+def painel_pizzas(request):
+    """
+    Página de gerenciamento de pizzas.
+
+    Permite editar:
+    - Tamanhos de pizza (preço base, fatias, max. sabores etc.)
+    """
+    restaurante = _restaurante_do_usuario(request)
+    if not restaurante:
+        return _redirecionar_sem_restaurante(request)
+
+    if request.method == 'POST':
+        tamanhos_formset = TamanhoPizzaFormSet(
+            request.POST, instance=restaurante, prefix='tamanhos'
+        )
+        if tamanhos_formset.is_valid():
+            tamanhos_formset.save()
+            messages.success(request, 'Configurações de pizzas atualizadas com sucesso!')
+            return redirect('painel_pizzas')
+    else:
+        tamanhos_formset = TamanhoPizzaFormSet(instance=restaurante, prefix='tamanhos')
+
+    return render(request, 'painel/pizzas.html', {
+        'restaurante': restaurante,
+        'tamanhos_formset': tamanhos_formset,
     })
 
 
@@ -171,6 +188,10 @@ def painel_pedidos(request):
 def painel_pedido_detalhe(request, pedido_id):
     """
     Detalhe de um pedido específico com opção de atualizar status.
+
+    Otimizações:
+    - BFS (Cap. 6): mostra próximo passo sugerido e status alcançáveis
+    - Tabela Hash (Cap. 5): lookup O(1) para transições válidas
     """
     restaurante = _restaurante_do_usuario(request)
     if not restaurante:
@@ -191,7 +212,21 @@ def painel_pedido_detalhe(request, pedido_id):
                 messages.error(request, msg)
             return redirect('painel_pedido_detalhe', pedido_id=pedido.id)
 
+    # BFS (Cap. 6): informações de navegação do status
+    nomes_status = dict(Pedido.STATUS_CHOICES)
+    transicoes_diretas = GRAFO_STATUS_PEDIDO.get(pedido.status, [])
+    caminho_conclusao = pedido.caminho_ate_status('concluido')
+
     return render(request, 'painel/pedido_detalhe.html', {
         'restaurante': restaurante,
         'pedido': pedido,
+        # BFS: dados de navegação de status
+        'proximo_passo': pedido.proximo_passo,
+        'proximo_passo_nome': nomes_status.get(pedido.proximo_passo, ''),
+        'passos_para_concluir': pedido.passos_para_concluir,
+        'caminho_conclusao': [nomes_status.get(s, s) for s in caminho_conclusao],
+        'transicoes_disponiveis': [
+            {'status': s, 'nome': nomes_status.get(s, s)}
+            for s in transicoes_diretas
+        ],
     })
