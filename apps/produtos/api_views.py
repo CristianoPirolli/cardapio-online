@@ -12,6 +12,7 @@
 
 from rest_framework import viewsets, permissions
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Count, Q
 from .models import Categoria, Produto
 from .serializers import CategoriaSerializer, ProdutoSerializer
 
@@ -30,12 +31,25 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     Filtros: ?restaurante=1&ativo=true
     """
 
-    queryset = Categoria.objects.all()
+    queryset = Categoria.objects.annotate(
+        quantidade_produtos=Count(
+            'produtos',
+            filter=Q(produtos__disponivel=True),
+            distinct=True
+        )
+    )
     serializer_class = CategoriaSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filterset_fields = ['restaurante', 'ativo']
     search_fields = ['nome']
     ordering_fields = ['ordem', 'nome']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        estabelecimento_id = self.request.query_params.get('estabelecimento')
+        if estabelecimento_id and not self.request.query_params.get('restaurante'):
+            queryset = queryset.filter(restaurante_id=estabelecimento_id)
+        return queryset
 
 
 class ProdutoViewSet(viewsets.ModelViewSet):
@@ -67,3 +81,10 @@ class ProdutoViewSet(viewsets.ModelViewSet):
     filterset_fields = ['restaurante', 'categoria', 'disponivel', 'destaque']
     search_fields = ['nome', 'descricao']
     ordering_fields = ['preco', 'nome', 'criado_em']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        estabelecimento_id = self.request.query_params.get('estabelecimento')
+        if estabelecimento_id and not self.request.query_params.get('restaurante'):
+            queryset = queryset.filter(restaurante_id=estabelecimento_id)
+        return queryset

@@ -26,7 +26,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ---------------------------------------------------------------------------
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-TROQUE-ESTA-CHAVE')
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    if host.strip()
+]
+if DEBUG and '*' not in ALLOWED_HOSTS:
+    # Em desenvolvimento local, permite acesso via IP da LAN (ex.: 192.168.x.x).
+    ALLOWED_HOSTS.append('*')
 
 # ---------------------------------------------------------------------------
 # Aplicações instaladas
@@ -90,8 +97,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                # Context processor customizado para dados do restaurante
-                'config.context_processors.restaurante_context',
+                # Context processor customizado para dados do estabelecimento
+                'config.context_processors.estabelecimento_context',
             ],
         },
     },

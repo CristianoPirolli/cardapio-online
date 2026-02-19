@@ -4,8 +4,6 @@
 # Uso: docker-compose up --build -d
 # =============================================================================
 
-version: "3.9"
-
 services:
   # ---------------------------------------------------------------------------
   # Banco de dados PostgreSQL
@@ -36,7 +34,7 @@ services:
     build: .
     restart: always
     command: >
-      bash -c "
+      sh -c "
         python manage.py migrate --noinput &&
         python manage.py collectstatic --noinput &&
         gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120
@@ -47,6 +45,8 @@ services:
       - media_volume:/app/media
     env_file:
       - .env
+    environment:
+      POSTGRES_HOST: db
     depends_on:
       db:
         condition: service_healthy

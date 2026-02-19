@@ -10,6 +10,7 @@
 
 import json
 from decimal import Decimal
+from urllib.parse import urlsplit, urlunsplit, parse_qs, urlencode
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import JsonResponse
@@ -59,6 +60,20 @@ def _item_key(produto_id, tamanho_id=None, sabor_ids=None):
         return str(produto_id)
     sabores = '-'.join(str(sid) for sid in sorted(sabor_ids or []))
     return f'{produto_id}:{tamanho_id}:{sabores}'
+
+
+def _redirect_com_status_carrinho(request, fallback='/cardapio/', **params):
+    """
+    Redireciona para a página de origem preservando query params e
+    adicionando sinalizadores para feedback de UX no frontend.
+    """
+    destino = request.META.get('HTTP_REFERER', fallback) or fallback
+    partes = urlsplit(destino)
+    query = parse_qs(partes.query, keep_blank_values=True)
+    for chave, valor in params.items():
+        query[chave] = [str(valor)]
+    nova_query = urlencode(query, doseq=True)
+    return redirect(urlunsplit((partes.scheme, partes.netloc, partes.path, nova_query, partes.fragment)))
 
 
 def _preco_padrao_sabor(produto):
@@ -209,7 +224,11 @@ def adicionar_ao_carrinho(request):
         messages.success(request, f'"{produto.nome}" ({tamanho_nome}) adicionado ao carrinho!')
     else:
         messages.success(request, f'"{produto.nome}" adicionado ao carrinho!')
-    return redirect(request.META.get('HTTP_REFERER', '/cardapio/'))
+    return _redirect_com_status_carrinho(
+        request,
+        '/cardapio/',
+        item_adicionado=1,
+    )
 
 
 @require_POST
@@ -290,24 +309,34 @@ def ver_carrinho(request):
     itens_removidos = []
 
     if restaurante and carrinho['itens']:
-        produto_ids = [
-            _produto_id_do_item(item_key, item_data)
-            for item_key, item_data in carrinho['itens'].items()
-        ]
-        produtos = Produto.objects.filter(id__in=produto_ids, disponivel=True)
-
-        # Detecta itens indisponiveis
-        ids_disponiveis = set(str(p.id) for p in produtos)
-        keys_para_remover = []
-        for item_key, item_data in carrinho['itens'].items():
+        itens_sessao = carrinho['itens']
+        itens_por_produto_id = {}
+        for item_key, item_data in itens_sessao.items():
             pid = _produto_id_do_item(item_key, item_data)
-            if pid not in ids_disponiveis:
-                try:
-                    prod = Produto.objects.get(id=pid)
-                    itens_removidos.append(prod.nome)
-                except Produto.DoesNotExist:
-                    itens_removidos.append(f'Produto #{pid}')
-                keys_para_remover.append(item_key)
+            if pid not in itens_por_produto_id:
+                itens_por_produto_id[pid] = []
+            itens_por_produto_id[pid].append((item_key, item_data))
+
+        produto_ids = list(itens_por_produto_id.keys())
+        produtos = Produto.objects.filter(
+            id__in=produto_ids,
+            disponivel=True
+        ).select_related('categoria')
+        produtos_por_id = {str(prod.id): prod for prod in produtos}
+
+        # Detecta itens indisponiveis em lote
+        ids_disponiveis = set(produtos_por_id.keys())
+        ids_indisponiveis = [pid for pid in produto_ids if pid not in ids_disponiveis]
+        keys_para_remover = []
+        if ids_indisponiveis:
+            nomes_indisponiveis = {
+                str(prod.id): prod.nome
+                for prod in Produto.objects.filter(id__in=ids_indisponiveis).only('id', 'nome')
+            }
+            for pid in ids_indisponiveis:
+                itens_removidos.append(nomes_indisponiveis.get(pid, f'Produto #{pid}'))
+                for item_key, _ in itens_por_produto_id.get(pid, []):
+                    keys_para_remover.append(item_key)
 
         # Remove itens indisponiveis da sessao
         if keys_para_remover:
@@ -317,36 +346,39 @@ def ver_carrinho(request):
             if not carrinho['itens']:
                 carrinho['restaurante_id'] = None
             _salvar_carrinho(request, carrinho)
+            itens_sessao = carrinho['itens']
 
-        produtos_por_id = {str(prod.id): prod for prod in produtos}
-        for produto in produtos:
-            for item_key, item_data in carrinho['itens'].items():
-                if _produto_id_do_item(item_key, item_data) != str(produto.id):
-                    continue
-                quantidade = item_data['quantidade']
-                preco_padrao = _preco_padrao_sabor(produto)
-                preco_unitario = Decimal(str(item_data.get('preco_unitario', preco_padrao)))
-                item_subtotal = preco_unitario * quantidade
-                subtotal += item_subtotal
-                sabores_nomes = item_data.get('sabores_nomes', [])
-                if not sabores_nomes:
-                    sabores_ids = item_data.get('sabores', [])
-                    sabores_nomes = [
-                        produtos_por_id[str(sid)].nome for sid in sabores_ids
-                        if str(sid) in produtos_por_id
-                    ]
-                itens_carrinho.append({
-                    'item_key': item_key,
-                    'produto': produto,
-                    'quantidade': quantidade,
-                    'observacao': item_data.get('observacao', ''),
-                    'preco_base': Decimal(str(item_data.get('preco_base', preco_unitario))),
-                    'adicional_sabores': Decimal(str(item_data.get('adicional_sabores', '0'))),
-                    'preco_unitario': preco_unitario,
-                    'tamanho_nome': item_data.get('tamanho_nome', ''),
-                    'sabores_nomes': sabores_nomes,
-                    'subtotal': item_subtotal,
-                })
+        for item_key, item_data in itens_sessao.items():
+            pid = _produto_id_do_item(item_key, item_data)
+            produto = produtos_por_id.get(pid)
+            if not produto:
+                continue
+
+            quantidade = item_data['quantidade']
+            preco_padrao = _preco_padrao_sabor(produto)
+            preco_unitario = Decimal(str(item_data.get('preco_unitario', preco_padrao)))
+            item_subtotal = preco_unitario * quantidade
+            subtotal += item_subtotal
+            sabores_nomes = item_data.get('sabores_nomes', [])
+            if not sabores_nomes:
+                sabores_ids = item_data.get('sabores', [])
+                sabores_nomes = [
+                    produtos_por_id[str(sid)].nome for sid in sabores_ids
+                    if str(sid) in produtos_por_id
+                ]
+
+            itens_carrinho.append({
+                'item_key': item_key,
+                'produto': produto,
+                'quantidade': quantidade,
+                'observacao': item_data.get('observacao', ''),
+                'preco_base': Decimal(str(item_data.get('preco_base', preco_unitario))),
+                'adicional_sabores': Decimal(str(item_data.get('adicional_sabores', '0'))),
+                'preco_unitario': preco_unitario,
+                'tamanho_nome': item_data.get('tamanho_nome', ''),
+                'sabores_nomes': sabores_nomes,
+                'subtotal': item_subtotal,
+            })
 
     # Cálculos
     taxa_entrega = restaurante.taxa_entrega if restaurante else Decimal('0.00')
@@ -417,25 +449,43 @@ def checkout(request):
             observacoes=observacoes,
         )
 
-        # Cria os itens
-        for item_key, item_data in carrinho['itens'].items():
-            try:
-                produto_id = _produto_id_do_item(item_key, item_data)
-                produto = Produto.objects.get(
-                    id=produto_id, restaurante=restaurante, disponivel=True
-                )
-                sabores_nomes = item_data.get('sabores_nomes', [])
-                ItemPedido.objects.create(
-                    pedido=pedido,
-                    produto=produto,
-                    quantidade=item_data['quantidade'],
-                    preco_unitario=Decimal(str(item_data.get('preco_unitario', _preco_padrao_sabor(produto)))),
-                    observacao=item_data.get('observacao', ''),
-                    tamanho_nome=item_data.get('tamanho_nome', ''),
-                    sabores_descricao=', '.join(sabores_nomes),
-                )
-            except Produto.DoesNotExist:
+        # Cria os itens (busca produtos em lote e insere em bulk)
+        itens_sessao = carrinho['itens']
+        produto_ids = list({
+            _produto_id_do_item(item_key, item_data)
+            for item_key, item_data in itens_sessao.items()
+        })
+        produtos_por_id = {
+            str(prod.id): prod
+            for prod in Produto.objects.filter(
+                id__in=produto_ids,
+                restaurante=restaurante,
+                disponivel=True
+            ).select_related('categoria')
+        }
+
+        itens_pedido = []
+        for item_key, item_data in itens_sessao.items():
+            produto = produtos_por_id.get(_produto_id_do_item(item_key, item_data))
+            if not produto:
                 continue
+            sabores_nomes = item_data.get('sabores_nomes', [])
+            itens_pedido.append(ItemPedido(
+                pedido=pedido,
+                produto=produto,
+                quantidade=item_data['quantidade'],
+                preco_unitario=Decimal(str(item_data.get('preco_unitario', _preco_padrao_sabor(produto)))),
+                observacao=item_data.get('observacao', ''),
+                tamanho_nome=item_data.get('tamanho_nome', ''),
+                sabores_descricao=', '.join(sabores_nomes),
+            ))
+
+        if not itens_pedido:
+            pedido.delete()
+            messages.error(request, 'Os itens do carrinho ficaram indisponíveis. Revise seu carrinho.')
+            return redirect('ver_carrinho')
+
+        ItemPedido.objects.bulk_create(itens_pedido)
 
         # Calcula totais
         pedido.calcular_totais()

@@ -37,6 +37,13 @@ class EntregadorViewSet(viewsets.ModelViewSet):
     filterset_fields = ['restaurante', 'disponivel', 'ativo', 'veiculo']
     search_fields = ['nome', 'telefone']
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        estabelecimento_id = self.request.query_params.get('estabelecimento')
+        if estabelecimento_id and not self.request.query_params.get('restaurante'):
+            queryset = queryset.filter(restaurante_id=estabelecimento_id)
+        return queryset
+
     @action(detail=True, methods=['get'])
     def entregas(self, request, pk=None):
         """
