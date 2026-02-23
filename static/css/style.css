@@ -6,9 +6,55 @@
 
 /* --- Variáveis de tema --- */
 :root {
-    --cor-primaria: #0d6efd;
+    --cor-primaria: #4B2412;
+    --cor-secundaria: #A6823B;
     --cor-sucesso: #198754;
     --cor-fundo: #f8f9fa;
+}
+
+/* --- Navbar e Footer com cores do tema --- */
+.navbar-tema {
+    background-color: var(--cor-primaria) !important;
+}
+
+.navbar-tema .navbar-brand,
+.navbar-tema .nav-link {
+    color: #fff !important;
+}
+
+.navbar-tema .nav-link:hover {
+    color: var(--cor-secundaria) !important;
+}
+
+.footer-tema {
+    background-color: var(--cor-primaria) !important;
+}
+
+/* --- Botão primário com cores do tema --- */
+.btn-primary {
+    background-color: var(--cor-secundaria);
+    border-color: var(--cor-secundaria);
+    color: #fff;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--cor-primaria);
+    border-color: var(--cor-primaria);
+    color: #fff;
+}
+
+.btn-outline-light:hover {
+    color: var(--cor-secundaria) !important;
+}
+
+/* --- Links com cor do tema --- */
+a {
+    color: var(--cor-secundaria);
+}
+
+a:hover {
+    color: var(--cor-primaria);
 }
 
 /* --- Body --- */
@@ -30,6 +76,49 @@ body {
 /* --- Imagem do produto --- */
 .card-img-top {
     object-fit: cover;
+}
+
+/* --- Card da home (estabelecimento) --- */
+.home-restaurante-card {
+    max-width: 56rem;
+    margin: 0 auto;
+}
+
+.home-restaurante-card:hover {
+    transform: none;
+}
+
+.home-restaurante-card .card-body {
+    padding: 1.25rem 1.5rem 1rem;
+}
+
+.home-restaurante-card-img {
+    height: 22rem;
+    object-fit: contain;
+    background-color: #fff;
+    padding: 1rem;
+}
+
+.home-restaurante-card .card-title {
+    margin-bottom: 0.35rem !important;
+}
+
+.home-restaurante-card .card-text {
+    margin-bottom: 0.5rem;
+}
+
+.home-page .home-main-compact {
+    flex-grow: 1 !important;
+    display: flex;
+    align-items: center;
+}
+
+.home-page .home-main-compact .container {
+    width: 100%;
+}
+
+.home-page .home-main-compact > section {
+    width: 100%;
 }
 
 /* --- Sidebar do painel --- */
@@ -59,6 +148,7 @@ body {
     font-weight: 500;
 }
 
+
 /* --- Carrinho --- */
 .carrinho-item {
     border-bottom: 1px solid #eee;
@@ -77,6 +167,10 @@ body {
 
     .card-body h2 {
         font-size: 1.25rem;
+    }
+
+    .home-restaurante-card-img {
+        height: 14rem;
     }
 
     /* Sidebar vira menu horizontal em mobile */

@@ -41,8 +41,39 @@
             }
         }
 
-        /* === Barra de progresso oculta === */
-        #page-progress { display: none; }
+        /* === Barra de progresso no topo === */
+        #page-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            width: 0;
+            background: linear-gradient(90deg, var(--cor-secundaria, #A6823B), var(--cor-primaria, #4B2412));
+            z-index: 9999;
+            transition: none;
+            opacity: 0;
+        }
+        #page-progress.htmx-request {
+            opacity: 1;
+            width: 85%;
+            transition: width 8s cubic-bezier(0.1, 0.5, 0.3, 1);
+        }
+        #page-progress.htmx-settling {
+            width: 100%;
+            transition: width 0.15s ease-out;
+            opacity: 0;
+            transition: width 0.15s ease-out, opacity 0.3s ease 0.15s;
+        }
+
+        /* === Cursor de loading durante requisições HTMX === */
+        body.htmx-request {
+            cursor: progress !important;
+        }
+        body.htmx-request a,
+        body.htmx-request button {
+            pointer-events: none;
+            opacity: 0.7;
+        }
 
         /* === Transição suave do conteúdo === */
         main {
@@ -87,13 +118,13 @@
     })();
     </script>
 </head>
-<body class="d-flex flex-column min-vh-100" hx-boost="true" hx-indicator="#page-progress" hx-swap="innerHTML show:window:top" hx-target="body">
+<body class="d-flex flex-column min-vh-100 {% block body_class %}{% endblock %}" hx-boost="true" hx-indicator="#page-progress" hx-swap="innerHTML show:window:top" hx-target="body">
 
     <!-- Barra de progresso no topo -->
     <div id="page-progress"></div>
 
     <!-- ===== NAVBAR RESPONSIVA ===== -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-tema sticky-top">
         <div class="container">
             <!-- Logo / Nome do estabelecimento ou sistema -->
             <a class="navbar-brand fw-bold" href="{% url 'home' %}">
@@ -215,7 +246,7 @@
     {% endif %}
 
     <!-- ===== CONTEÚDO PRINCIPAL ===== -->
-    <main class="flex-grow-1">
+    <main class="flex-grow-1 {% block main_class %}{% endblock %}">
         {% block content %}{% endblock %}
     </main>
 
@@ -281,15 +312,28 @@
             window.scrollTo({ top: 0, behavior: 'instant' });
         });
 
-        // Reseta a barra de progresso antes de cada request
+        // Barra de progresso: reseta antes de cada request
         document.addEventListener('htmx:beforeRequest', function(evt) {
             var bar = document.getElementById('page-progress');
             if (bar) {
+                bar.classList.remove('htmx-request', 'htmx-settling');
                 bar.style.width = '0';
                 bar.style.opacity = '0';
                 bar.style.transition = 'none';
-                void bar.offsetWidth; // Força reflow para reiniciar a animação
+                void bar.offsetWidth;
+                bar.classList.add('htmx-request');
             }
+            document.body.classList.add('htmx-request');
+        });
+
+        // Barra de progresso: completa ao receber resposta
+        document.addEventListener('htmx:afterRequest', function(evt) {
+            var bar = document.getElementById('page-progress');
+            if (bar) {
+                bar.classList.remove('htmx-request');
+                bar.classList.add('htmx-settling');
+            }
+            document.body.classList.remove('htmx-request');
         });
 
         // Links externos: desativa hx-boost (faz reload completo)

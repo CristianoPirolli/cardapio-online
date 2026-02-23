@@ -104,7 +104,10 @@ def adicionar_ao_carrinho(request):
     tamanho_id = request.POST.get('tamanho_id')
     sabores_ids = [sid for sid in request.POST.getlist('sabor_ids') if sid]
 
-    produto = get_object_or_404(Produto, id=produto_id, disponivel=True)
+    produto = get_object_or_404(
+        Produto.objects.select_related('categoria', 'restaurante'),
+        id=produto_id, disponivel=True
+    )
     is_pizza = bool(produto.categoria and produto.categoria.eh_pizza)
 
     # Verifica se o restaurante esta aberto

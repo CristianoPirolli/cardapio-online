@@ -312,8 +312,8 @@
 
             if (avisoTempo) {
                 avisoTempo.innerHTML = isRetirada
-                    ? '<i class="bi bi-clock me-1"></i>Retirada no local: pedido pronto em {{ restaurante.tempo_retirada_min }}min.'
-                    : '<i class="bi bi-clock me-1"></i>Entrega estimada em {{ restaurante.tempo_entrega_min }}min.';
+                    ? '<i class="bi bi-clock me-1"></i>Retirada no local: pedido pronto em {{ restaurante.tempo_retirada_min }}min após o início preparo.'
+                    : '<i class="bi bi-clock me-1"></i>Entrega estimada em {{ restaurante.tempo_entrega_min }}min após o início preparo.';
             }
         }
 
