@@ -144,7 +144,10 @@ def produto_detalhe(request, produto_id):
       usando dicionário ao invés de nested loops O(n²)
     - select_related evita N+1 na categoria
     """
-    produto = get_object_or_404(Produto, id=produto_id, disponivel=True)
+    produto = get_object_or_404(
+        Produto.objects.select_related('categoria', 'restaurante'),
+        id=produto_id, disponivel=True
+    )
     if request.user.is_authenticated and not request.user.is_superuser:
         restaurante_usuario = Restaurante.objects.filter(proprietario=request.user).first()
         if restaurante_usuario and produto.restaurante_id != restaurante_usuario.id:

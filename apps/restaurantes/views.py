@@ -35,17 +35,16 @@ def _redirecionar_sem_restaurante(request):
 
 def home(request):
     """
-    Página inicial do sistema.
+    Página inicial simplificada.
 
-    Se o request possui um restaurante (identificado pelo middleware multi-tenant),
-    redireciona para o cardápio desse restaurante.
-    Caso contrário, exibe a landing page com lista de restaurantes.
+    Exibe apenas um card de estabelecimento com botão para abrir o cardápio.
+    Prioriza o restaurante do tenant atual; se não houver, usa o primeiro ativo.
     """
-    if request.restaurante:
-        return redirect('cardapio_publico')
+    restaurante = request.restaurante
+    if not restaurante:
+        restaurante = Restaurante.objects.filter(ativo=True).first()
 
-    restaurantes = Restaurante.objects.filter(ativo=True)[:12]
-    return render(request, 'home.html', {'restaurantes': restaurantes})
+    return render(request, 'home.html', {'restaurante': restaurante})
 
 
 @login_required
@@ -84,7 +83,7 @@ def painel_dashboard(request):
     ).order_by('status')
 
     # Pedidos recentes (últimos 10)
-    pedidos_recentes = pedidos.order_by('-criado_em')[:10]
+    pedidos_recentes = pedidos.select_related('restaurante').order_by('-criado_em')[:10]
 
     context = {
         'restaurante': restaurante,
@@ -165,7 +164,9 @@ def painel_pedidos(request):
     if not restaurante:
         return _redirecionar_sem_restaurante(request)
 
-    pedidos = Pedido.objects.filter(restaurante=restaurante).order_by('-criado_em')
+    pedidos = Pedido.objects.filter(
+        restaurante=restaurante
+    ).select_related('restaurante').order_by('-criado_em')
 
     # Filtro por status
     status_filtro = request.GET.get('status')
@@ -177,10 +178,17 @@ def painel_pedidos(request):
     if data_filtro:
         pedidos = pedidos.filter(criado_em__date=data_filtro)
 
+    # Paginação: limita a 50 pedidos por página
+    from django.core.paginator import Paginator
+    paginator = Paginator(pedidos, 50)
+    page_number = request.GET.get('page')
+    pedidos_page = paginator.get_page(page_number)
+
     return render(request, 'painel/pedidos.html', {
         'restaurante': restaurante,
-        'pedidos': pedidos,
+        'pedidos': pedidos_page,
         'status_filtro': status_filtro,
+        'paginator': paginator,
     })
 
 

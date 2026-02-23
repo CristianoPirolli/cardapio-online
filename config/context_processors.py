@@ -19,12 +19,18 @@ def estabelecimento_context(request):
     - {{ base_domain }}: domínio base do sistema
     - {{ carrinho_total_itens }}: quantidade total de itens no carrinho da sessão
     """
+    # Evita acessar a sessão em requests que não precisam (AJAX de status, etc.)
+    if getattr(request, '_skip_context', False):
+        return {}
+
     tenant = getattr(request, 'estabelecimento', None) or getattr(request, 'restaurante', None)
-    carrinho = request.session.get('carrinho', {'itens': {}})
-    total_itens = sum(
-        int(item.get('quantidade', 0))
-        for item in carrinho.get('itens', {}).values()
-    )
+
+    # Calcula total de itens apenas se houver sessão com carrinho
+    total_itens = 0
+    if hasattr(request, 'session') and 'carrinho' in request.session:
+        itens = request.session['carrinho'].get('itens', {})
+        total_itens = sum(int(item.get('quantidade', 0)) for item in itens.values())
+
     return {
         'estabelecimento_atual': tenant,
         'restaurante_atual': tenant,

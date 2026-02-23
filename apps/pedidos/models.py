@@ -310,6 +310,10 @@ class ItemPedido(models.Model):
     class Meta:
         verbose_name = 'Item do Pedido'
         verbose_name_plural = 'Itens do Pedido'
+        indexes = [
+            models.Index(fields=['pedido'], name='idx_itempedido_pedido'),
+            models.Index(fields=['produto'], name='idx_itempedido_produto'),
+        ]
 
     def __str__(self):
         return f'{self.quantidade}x {self.produto.nome if self.produto else "Removido"}'

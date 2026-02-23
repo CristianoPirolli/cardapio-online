@@ -77,6 +77,10 @@ class Pagamento(models.Model):
         verbose_name = 'Pagamento'
         verbose_name_plural = 'Pagamentos'
         ordering = ['-criado_em']
+        indexes = [
+            models.Index(fields=['pedido'], name='idx_pagamento_pedido'),
+            models.Index(fields=['status', 'criado_em'], name='idx_pagamento_status_criado'),
+        ]
 
     def __str__(self):
         return f'Pagamento #{self.id} - Pedido #{self.pedido_id} ({self.get_status_display()})'
