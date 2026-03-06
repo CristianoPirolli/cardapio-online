@@ -12,7 +12,8 @@ gunicorn==25.1.0
 idna==3.11
 packaging==26.0
 pillow==12.1.1
-psycopg[binary]==3.3.2
+psycopg==3.3.2
+psycopg-binary==3.3.2
 PyJWT==2.11.0
 python-dotenv==1.2.1
 python-slugify==8.0.4

@@ -3,11 +3,11 @@
 
      Displays the order summary (items, total) and a payment form.
      If use_mock is True, shows a simulated payment button.
-     If use_mock is False, renders a Stripe.js Elements card form that
-     confirms payment using the provided client_secret and stripe_public_key.
+     If use_mock is False, renders a button that redirects to
+     Mercado Pago Checkout using checkout_url.
 
-     Context: pedido, restaurante, pagamento, client_secret, gateway,
-              stripe_public_key, use_mock
+     Context: pedido, restaurante, pagamento, checkout_url, client_secret,
+              gateway, mercadopago_public_key, use_mock
      ========================================================================== -->
 {% extends 'base.html' %}
 {% load static %}
@@ -15,34 +15,7 @@
 
 {% block title %}Pagamento - Pedido #{{ pedido.id }}{% endblock %}
 
-{% block extra_css %}
-<style>
-    /* Stripe Elements card input styling */
-    #card-element {
-        padding: 12px;
-        border: 1px solid #ced4da;
-        border-radius: 0.375rem;
-        background-color: #fff;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    }
-    #card-element.StripeElement--focus {
-        border-color: #86b7fe;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-    }
-    #card-element.StripeElement--invalid {
-        border-color: #dc3545;
-    }
-    #card-errors {
-        min-height: 1.5em;
-    }
-    .payment-spinner {
-        display: none;
-    }
-    .payment-spinner.active {
-        display: inline-block;
-    }
-</style>
-{% endblock %}
+{% block extra_css %}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -143,43 +116,54 @@
                     </div>
 
                     {% else %}
-                    <!-- ===== STRIPE PAYMENT ===== -->
-                    <form id="payment-form" class="py-2" hx-boost="false">
-                        {% csrf_token %}
-
-                        <div class="mb-4">
-                            <label for="card-element" class="form-label fw-semibold">
-                                <i class="bi bi-credit-card-2-front me-1"></i>Dados do Cart&atilde;o
-                            </label>
-                            <div id="card-element">
-                                <!-- Stripe Elements card input will be mounted here -->
-                            </div>
-                            <div id="card-errors" class="text-danger small mt-2" role="alert"></div>
+                    <div class="text-center py-2">
+                        <div class="mb-3">
+                            <i class="bi bi-qr-code text-success" style="font-size: 3rem;"></i>
                         </div>
+                        <h5 class="fw-semibold mb-2">Pagamento via PIX</h5>
+                        <p class="text-muted mb-3">
+                            Escaneie o QR Code no app do banco ou copie o codigo PIX.
+                        </p>
 
-                        <button type="submit" id="submit-btn" class="btn btn-success btn-lg w-100"
-                                disabled>
-                            <span id="btn-text">
-                                <i class="bi bi-lock-fill me-2"></i>Pagar R$ {{ pedido.total|floatformat:2|intcomma }}
-                            </span>
-                            <span id="btn-spinner" class="payment-spinner">
-                                <span class="spinner-border spinner-border-sm me-2" role="status"
-                                      aria-hidden="true"></span>
-                                Processando...
-                            </span>
+                        {% if pix_qr_code_base64 %}
+                        <div class="mb-3">
+                            <img
+                                src="data:image/png;base64,{{ pix_qr_code_base64 }}"
+                                alt="QR Code PIX"
+                                class="img-fluid border rounded p-2 bg-white"
+                                style="max-width: 300px;"
+                            >
+                        </div>
+                        {% endif %}
+
+                        {% if pix_copia_cola %}
+                        <div class="mb-2 text-start">
+                            <label for="pix-copia-cola" class="form-label fw-semibold">PIX Copia e Cola</label>
+                            <textarea
+                                id="pix-copia-cola"
+                                class="form-control"
+                                rows="4"
+                                readonly
+                            >{{ pix_copia_cola }}</textarea>
+                        </div>
+                        <button type="button" class="btn btn-success w-100" id="btn-copiar-pix">
+                            <i class="bi bi-clipboard me-2"></i>Copiar codigo PIX
                         </button>
-
-                        <div id="payment-message" class="alert alert-danger mt-3 d-none" role="alert">
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                            <span id="payment-message-text"></span>
+                        {% elif pix_ticket_url %}
+                        <a href="{{ pix_ticket_url }}" class="btn btn-success btn-lg w-100" hx-boost="false" target="_blank" rel="noopener">
+                            <i class="bi bi-box-arrow-up-right me-2"></i>Abrir comprovante PIX
+                        </a>
+                        {% else %}
+                        <div class="alert alert-danger mb-0">
+                            Nao foi possivel gerar o PIX no momento. Tente novamente em instantes.
                         </div>
-                    </form>
+                        {% endif %}
 
-                    <div class="text-center mt-3">
-                        <small class="text-muted">
-                            <i class="bi bi-lock me-1"></i>
-                            Pagamento seguro processado via Stripe
-                        </small>
+                        {% if expira_em %}
+                        <div class="small text-muted mt-3">
+                            Expira em: {{ expira_em }}
+                        </div>
+                        {% endif %}
                     </div>
                     {% endif %}
 
@@ -192,92 +176,24 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if not use_mock %}
-<!-- Stripe.js -->
-<script src="https://js.stripe.com/v3/"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Initialize Stripe
-        var stripe = Stripe('{{ stripe_public_key }}');
-        var elements = stripe.elements();
+document.addEventListener('DOMContentLoaded', function () {
+    var btn = document.getElementById('btn-copiar-pix');
+    var campo = document.getElementById('pix-copia-cola');
+    if (!btn || !campo) return;
 
-        // Style for Stripe Elements
-        var style = {
-            base: {
-                color: '#212529',
-                fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
-                fontSmoothing: 'antialiased',
-                fontSize: '16px',
-                '::placeholder': {
-                    color: '#6c757d'
-                }
-            },
-            invalid: {
-                color: '#dc3545',
-                iconColor: '#dc3545'
-            }
-        };
-
-        // Create card Element and mount it
-        var cardElement = elements.create('card', { style: style });
-        cardElement.mount('#card-element');
-
-        var submitBtn = document.getElementById('submit-btn');
-        var btnText = document.getElementById('btn-text');
-        var btnSpinner = document.getElementById('btn-spinner');
-        var cardErrors = document.getElementById('card-errors');
-        var paymentMessage = document.getElementById('payment-message');
-        var paymentMessageText = document.getElementById('payment-message-text');
-
-        // Handle real-time validation errors from the card Element
-        cardElement.on('change', function (event) {
-            if (event.error) {
-                cardErrors.textContent = event.error.message;
-                submitBtn.disabled = true;
-            } else {
-                cardErrors.textContent = '';
-                if (event.complete) {
-                    submitBtn.disabled = false;
-                }
-            }
-        });
-
-        // Handle form submission
-        var form = document.getElementById('payment-form');
-        var clientSecret = '{{ client_secret }}';
-
-        form.addEventListener('submit', function (event) {
-            event.preventDefault();
-
-            // Disable button and show spinner
-            submitBtn.disabled = true;
-            btnText.style.display = 'none';
-            btnSpinner.classList.add('active');
-            paymentMessage.classList.add('d-none');
-
-            stripe.confirmCardPayment(clientSecret, {
-                payment_method: {
-                    card: cardElement
-                }
-            }).then(function (result) {
-                if (result.error) {
-                    // Show error to customer
-                    paymentMessageText.textContent = result.error.message;
-                    paymentMessage.classList.remove('d-none');
-
-                    // Re-enable button
-                    submitBtn.disabled = false;
-                    btnText.style.display = '';
-                    btnSpinner.classList.remove('active');
-                } else {
-                    if (result.paymentIntent.status === 'succeeded') {
-                        // Payment succeeded - redirect to success page
-                        window.location.href = "{% url 'pagamento_sucesso' pedido.id %}";
-                    }
-                }
-            });
-        });
+    btn.addEventListener('click', async function () {
+        try {
+            await navigator.clipboard.writeText(campo.value || '');
+            btn.innerHTML = '<i class="bi bi-check2 me-2"></i>Codigo copiado';
+            setTimeout(function () {
+                btn.innerHTML = '<i class="bi bi-clipboard me-2"></i>Copiar codigo PIX';
+            }, 1800);
+        } catch (e) {
+            campo.focus();
+            campo.select();
+        }
     });
+});
 </script>
-{% endif %}
 {% endblock %}

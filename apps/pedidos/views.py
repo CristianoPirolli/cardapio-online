@@ -8,7 +8,6 @@
 # - Acompanhamento de pedido
 # =============================================================================
 
-import json
 from decimal import Decimal
 from urllib.parse import urlsplit, urlunsplit, parse_qs, urlencode
 from django.shortcuts import render, redirect, get_object_or_404
@@ -18,8 +17,14 @@ from django.views.decorators.http import require_POST
 
 from apps.restaurantes.models import Restaurante, TamanhoPizza
 from apps.produtos.models import Produto
-from .models import Pedido, ItemPedido
+from .models import Pedido
 from apps.entregas.models import Entrega
+from .services import (
+    PedidoCheckoutError,
+    criar_pedido_do_carrinho,
+    montar_resumo_carrinho,
+    validar_dados_checkout,
+)
 
 
 def _get_carrinho(request):
@@ -42,13 +47,6 @@ def _salvar_carrinho(request, carrinho):
     """Salva o carrinho na sessão."""
     request.session['carrinho'] = carrinho
     request.session.modified = True
-
-
-def _produto_id_do_item(item_key, item_data):
-    """Retorna o ID de produto associado ao item do carrinho."""
-    if item_data.get('produto_id'):
-        return str(item_data['produto_id'])
-    return str(item_key).split(':')[0]
 
 
 def _item_key(produto_id, tamanho_id=None, sabor_ids=None):
@@ -379,104 +377,47 @@ def ver_carrinho(request):
     Exibe o carrinho de compras com cálculo de totais.
     """
     carrinho = _get_carrinho(request)
-    itens_carrinho = []
-    subtotal = Decimal('0.00')
     restaurante = None
+    resumo = {
+        'itens': [],
+        'subtotal': Decimal('0.00'),
+        'taxa_entrega': Decimal('0.00'),
+        'imposto': Decimal('0.00'),
+        'total': Decimal('0.00'),
+        'itens_removidos': [],
+    }
 
     if carrinho['restaurante_id']:
         restaurante = Restaurante.objects.filter(
             id=carrinho['restaurante_id'], ativo=True
         ).first()
 
-    itens_removidos = []
-
     if restaurante and carrinho['itens']:
-        itens_sessao = carrinho['itens']
-        itens_por_produto_id = {}
-        for item_key, item_data in itens_sessao.items():
-            pid = _produto_id_do_item(item_key, item_data)
-            if pid not in itens_por_produto_id:
-                itens_por_produto_id[pid] = []
-            itens_por_produto_id[pid].append((item_key, item_data))
-
-        produto_ids = list(itens_por_produto_id.keys())
-        produtos = Produto.objects.filter(
-            id__in=produto_ids,
-            disponivel=True
-        ).select_related('categoria')
-        produtos_por_id = {str(prod.id): prod for prod in produtos}
-
-        # Detecta itens indisponiveis em lote
-        ids_disponiveis = set(produtos_por_id.keys())
-        ids_indisponiveis = [pid for pid in produto_ids if pid not in ids_disponiveis]
-        keys_para_remover = []
-        if ids_indisponiveis:
-            nomes_indisponiveis = {
-                str(prod.id): prod.nome
-                for prod in Produto.objects.filter(id__in=ids_indisponiveis).only('id', 'nome')
-            }
-            for pid in ids_indisponiveis:
-                itens_removidos.append(nomes_indisponiveis.get(pid, f'Produto #{pid}'))
-                for item_key, _ in itens_por_produto_id.get(pid, []):
-                    keys_para_remover.append(item_key)
-
-        # Remove itens indisponiveis da sessao
-        if keys_para_remover:
-            for item_key in keys_para_remover:
-                if item_key in carrinho['itens']:
-                    del carrinho['itens'][item_key]
+        resumo = montar_resumo_carrinho(
+            restaurante=restaurante,
+            itens_sessao=carrinho['itens'],
+            tipo_entrega='delivery',
+        )
+        if resumo['keys_invalidas']:
+            for item_key in resumo['keys_invalidas']:
+                carrinho['itens'].pop(item_key, None)
             if not carrinho['itens']:
                 carrinho['restaurante_id'] = None
             _salvar_carrinho(request, carrinho)
-            itens_sessao = carrinho['itens']
-
-        for item_key, item_data in itens_sessao.items():
-            pid = _produto_id_do_item(item_key, item_data)
-            produto = produtos_por_id.get(pid)
-            if not produto:
-                continue
-
-            quantidade = item_data['quantidade']
-            preco_padrao = _preco_padrao_sabor(produto)
-            preco_unitario = Decimal(str(item_data.get('preco_unitario', preco_padrao)))
-            item_subtotal = preco_unitario * quantidade
-            subtotal += item_subtotal
-            sabores_nomes = item_data.get('sabores_nomes', [])
-            if not sabores_nomes:
-                sabores_ids = item_data.get('sabores', [])
-                sabores_nomes = [
-                    produtos_por_id[str(sid)].nome for sid in sabores_ids
-                    if str(sid) in produtos_por_id
-                ]
-
-            itens_carrinho.append({
-                'item_key': item_key,
-                'produto': produto,
-                'quantidade': quantidade,
-                'observacao': item_data.get('observacao', ''),
-                'preco_base': Decimal(str(item_data.get('preco_base', preco_unitario))),
-                'adicional_sabores': Decimal(str(item_data.get('adicional_sabores', '0'))),
-                'preco_unitario': preco_unitario,
-                'tamanho_nome': item_data.get('tamanho_nome', ''),
-                'sabores_nomes': sabores_nomes,
-                'subtotal': item_subtotal,
-            })
-
-    # Cálculos
-    taxa_entrega = restaurante.taxa_entrega if restaurante else Decimal('0.00')
-    imposto = Decimal('0.00')
-    if restaurante:
-        imposto = round(subtotal * restaurante.taxa_imposto / 100, 2)
-    total = subtotal + taxa_entrega + imposto
+            resumo = montar_resumo_carrinho(
+                restaurante=restaurante,
+                itens_sessao=carrinho['itens'],
+                tipo_entrega='delivery',
+            )
 
     return render(request, 'pedidos/carrinho.html', {
-        'itens': itens_carrinho,
+        'itens': resumo['itens'],
         'restaurante': restaurante,
-        'subtotal': subtotal,
-        'taxa_entrega': taxa_entrega,
-        'imposto': imposto,
-        'total': total,
-        'itens_removidos': itens_removidos,
+        'subtotal': resumo['subtotal'],
+        'taxa_entrega': resumo['taxa_entrega'],
+        'imposto': resumo['imposto'],
+        'total': resumo['total'],
+        'itens_removidos': resumo['itens_removidos'],
     })
 
 
@@ -503,89 +444,29 @@ def checkout(request):
         return redirect('ver_carrinho')
 
     if request.method == 'POST':
-        # Dados do cliente
-        cliente_nome = request.POST.get('cliente_nome', '').strip()
-        cliente_telefone = request.POST.get('cliente_telefone', '').strip()
-        cliente_email = request.POST.get('cliente_email', '').strip()
-        endereco_entrega = request.POST.get('endereco_entrega', '').strip()
-        tipo_entrega = request.POST.get('tipo_entrega', 'delivery')
-        observacoes = request.POST.get('observacoes', '').strip()
-
-        # Validação básica
-        if not cliente_nome or not cliente_telefone:
-            messages.error(request, 'Nome e telefone são obrigatórios.')
-            return redirect('checkout')
-
-        if tipo_entrega == 'delivery' and not endereco_entrega:
-            messages.error(request, 'Informe o endereço de entrega.')
-            return redirect('checkout')
-
-        # Cria o pedido
-        pedido = Pedido.objects.create(
-            restaurante=restaurante,
-            cliente_nome=cliente_nome,
-            cliente_telefone=cliente_telefone,
-            cliente_email=cliente_email,
-            endereco_entrega=endereco_entrega,
-            tipo_entrega=tipo_entrega,
-            observacoes=observacoes,
-        )
-
-        # Cria os itens (busca produtos em lote e insere em bulk)
-        itens_sessao = carrinho['itens']
-        produto_ids = list({
-            _produto_id_do_item(item_key, item_data)
-            for item_key, item_data in itens_sessao.items()
-        })
-        produtos_por_id = {
-            str(prod.id): prod
-            for prod in Produto.objects.filter(
-                id__in=produto_ids,
-                restaurante=restaurante,
-                disponivel=True
-            ).select_related('categoria')
+        dados_checkout = {
+            'cliente_nome': request.POST.get('cliente_nome', ''),
+            'cliente_telefone': request.POST.get('cliente_telefone', ''),
+            'cliente_email': request.POST.get('cliente_email', ''),
+            'endereco_entrega': request.POST.get('endereco_entrega', ''),
+            'tipo_entrega': request.POST.get('tipo_entrega', 'delivery'),
+            'observacoes': request.POST.get('observacoes', ''),
         }
+        try:
+            dados_checkout = validar_dados_checkout(dados_checkout)
+        except PedidoCheckoutError as exc:
+            messages.error(request, str(exc))
+            return redirect('checkout')
 
-        itens_pedido = []
-        for item_key, item_data in itens_sessao.items():
-            produto = produtos_por_id.get(_produto_id_do_item(item_key, item_data))
-            if not produto:
-                continue
-            sabores_nomes = item_data.get('sabores_nomes', [])
-            itens_pedido.append(ItemPedido(
-                pedido=pedido,
-                produto=produto,
-                quantidade=item_data['quantidade'],
-                preco_unitario=Decimal(str(item_data.get('preco_unitario', _preco_padrao_sabor(produto)))),
-                observacao=item_data.get('observacao', ''),
-                tamanho_nome=item_data.get('tamanho_nome', ''),
-                sabores_descricao=', '.join(sabores_nomes),
-            ))
-
-        if not itens_pedido:
-            pedido.delete()
-            messages.error(request, 'Os itens do carrinho ficaram indisponíveis. Revise seu carrinho.')
-            return redirect('ver_carrinho')
-
-        ItemPedido.objects.bulk_create(itens_pedido)
-
-        # Memoização (Cap. 8) + Big O (Cap. 1):
-        # Passa itens já em memória para calcular_totais evitando query N+1
-        pedido.calcular_totais(itens_prefetched=itens_pedido)
-
-        # Verifica pedido mínimo
-        if pedido.subtotal < restaurante.pedido_minimo:
-            pedido.delete()
-            messages.error(
-                request,
-                f'Pedido mínimo é R$ {restaurante.pedido_minimo:.2f}.'
+        try:
+            pedido = criar_pedido_do_carrinho(
+                restaurante=restaurante,
+                itens_sessao=carrinho['itens'],
+                dados_cliente=dados_checkout,
             )
+        except PedidoCheckoutError as exc:
+            messages.error(request, str(exc))
             return redirect('ver_carrinho')
-
-        # Cria registro de entrega para pedidos delivery
-        if pedido.tipo_entrega == 'delivery':
-            from apps.entregas.models import Entrega
-            Entrega.objects.create(pedido=pedido, status='aguardando')
 
         # Limpa o carrinho
         request.session['carrinho'] = {'restaurante_id': None, 'itens': {}}
@@ -595,54 +476,34 @@ def checkout(request):
         return redirect('pagamento_escolher', pedido_id=pedido.id)
 
     # GET: exibe formulário de checkout
-    # Calcula totais para exibição
-    itens_carrinho = []
-    subtotal = Decimal('0.00')
-
-    produto_ids = [
-        _produto_id_do_item(item_key, item_data)
-        for item_key, item_data in carrinho['itens'].items()
-    ]
-    produtos = Produto.objects.filter(id__in=produto_ids, disponivel=True)
-    produtos_por_id = {str(prod.id): prod for prod in produtos}
-
-    for item_key, item_data in carrinho['itens'].items():
-        pid = _produto_id_do_item(item_key, item_data)
-        produto = produtos_por_id.get(pid)
-        if produto:
-            quantidade = item_data['quantidade']
-            preco_unitario = Decimal(str(item_data.get('preco_unitario', _preco_padrao_sabor(produto))))
-            item_subtotal = preco_unitario * quantidade
-            subtotal += item_subtotal
-            sabores_nomes = item_data.get('sabores_nomes', [])
-            itens_carrinho.append({
-                'item_key': item_key,
-                'produto': produto,
-                'quantidade': quantidade,
-                'preco_base': Decimal(str(item_data.get('preco_base', preco_unitario))),
-                'adicional_sabores': Decimal(str(item_data.get('adicional_sabores', '0'))),
-                'preco_unitario': preco_unitario,
-                'tamanho_nome': item_data.get('tamanho_nome', ''),
-                'sabores_nomes': sabores_nomes,
-                'observacao': item_data.get('observacao', ''),
-                'subtotal': item_subtotal,
-            })
-
     tipo_entrega_inicial = request.GET.get('tipo_entrega', 'delivery')
     if tipo_entrega_inicial not in ('delivery', 'retirada'):
         tipo_entrega_inicial = 'delivery'
 
-    taxa_entrega = restaurante.taxa_entrega if tipo_entrega_inicial == 'delivery' else Decimal('0.00')
-    imposto = round(subtotal * restaurante.taxa_imposto / 100, 2)
-    total = subtotal + taxa_entrega + imposto
+    resumo = montar_resumo_carrinho(
+        restaurante=restaurante,
+        itens_sessao=carrinho['itens'],
+        tipo_entrega=tipo_entrega_inicial,
+    )
+    if resumo['keys_invalidas']:
+        for item_key in resumo['keys_invalidas']:
+            carrinho['itens'].pop(item_key, None)
+        if not carrinho['itens']:
+            carrinho['restaurante_id'] = None
+        _salvar_carrinho(request, carrinho)
+        resumo = montar_resumo_carrinho(
+            restaurante=restaurante,
+            itens_sessao=carrinho['itens'],
+            tipo_entrega=tipo_entrega_inicial,
+        )
 
     return render(request, 'pedidos/checkout.html', {
-        'itens': itens_carrinho,
+        'itens': resumo['itens'],
         'restaurante': restaurante,
-        'subtotal': subtotal,
-        'taxa_entrega': taxa_entrega,
-        'imposto': imposto,
-        'total': total,
+        'subtotal': resumo['subtotal'],
+        'taxa_entrega': resumo['taxa_entrega'],
+        'imposto': resumo['imposto'],
+        'total': resumo['total'],
         'tipo_entrega_inicial': tipo_entrega_inicial,
     })
 

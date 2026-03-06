@@ -96,7 +96,8 @@ class RestauranteViewSet(viewsets.ModelViewSet):
         from django.utils import timezone
 
         hoje = timezone.localdate()
-        pedidos = Pedido.objects.filter(restaurante=restaurante)
+        # Regra de negócio: métricas operacionais consideram apenas pedidos pagos.
+        pedidos = Pedido.objects.filter(restaurante=restaurante, pago=True)
         pedidos_hoje = pedidos.filter(criado_em__date=hoje)
 
         total_pedidos = pedidos.count()

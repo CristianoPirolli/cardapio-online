@@ -43,6 +43,9 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        # Regra de negócio: operações de consulta do estabelecimento só enxergam pedidos pagos.
+        if self.action in ('list', 'retrieve', 'status', 'partial_update', 'update'):
+            queryset = queryset.filter(pago=True)
         estabelecimento_id = self.request.query_params.get('estabelecimento')
         if estabelecimento_id and not self.request.query_params.get('restaurante'):
             queryset = queryset.filter(restaurante_id=estabelecimento_id)
@@ -138,8 +141,10 @@ class PedidoViewSet(viewsets.ModelViewSet):
             from apps.entregas.models import Entrega
             Entrega.objects.create(pedido=pedido, status='aguardando')
 
-        # Retorna o pedido criado
-        pedido = self.get_queryset().get(pk=pedido.pk)
+        # Retorna o pedido criado (independente de ainda não estar pago)
+        pedido = Pedido.objects.prefetch_related(
+            Prefetch('itens', queryset=ItemPedido.objects.select_related('produto'))
+        ).get(pk=pedido.pk)
         return Response(PedidoSerializer(pedido).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['patch'])
