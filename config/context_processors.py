@@ -15,7 +15,7 @@ def estabelecimento_context(request):
     Variáveis disponíveis nos templates:
     - {{ estabelecimento_atual }}: instância do tenant ou None
     - {{ restaurante_atual }}: alias legado para compatibilidade
-    - {{ stripe_public_key }}: chave pública do Stripe para o frontend
+    - {{ mercadopago_public_key }}: chave pública do Mercado Pago para o frontend
     - {{ base_domain }}: domínio base do sistema
     - {{ carrinho_total_itens }}: quantidade total de itens no carrinho da sessão
     """
@@ -35,7 +35,6 @@ def estabelecimento_context(request):
         'estabelecimento_atual': tenant,
         'restaurante_atual': tenant,
         'carrinho_total_itens': total_itens,
-        'stripe_public_key': settings.STRIPE_PUBLIC_KEY,
         'base_domain': settings.BASE_DOMAIN,
     }
 

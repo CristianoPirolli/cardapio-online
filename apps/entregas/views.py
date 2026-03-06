@@ -39,7 +39,8 @@ def painel_entregas(request):
         messages.warning(request, 'Acesso disponível apenas para gestores de restaurante.')
         return redirect('home')
     entregas = Entrega.objects.filter(
-        pedido__restaurante=restaurante
+        pedido__restaurante=restaurante,
+        pedido__pago=True,
     ).select_related('pedido', 'entregador').order_by('-criado_em')
 
     # Filtro por status
@@ -85,7 +86,7 @@ def atribuir_entregador(request, entrega_id):
         messages.warning(request, 'Acesso disponível apenas para gestores de restaurante.')
         return redirect('home')
     entrega = get_object_or_404(
-        Entrega, id=entrega_id, pedido__restaurante=restaurante
+        Entrega, id=entrega_id, pedido__restaurante=restaurante, pedido__pago=True
     )
 
     if request.method == 'POST':
@@ -242,9 +243,13 @@ def atualizar_status_entrega(request, entrega_id):
     entregador = _entregador_do_usuario(request.user)
 
     if restaurante:
-        entrega = get_object_or_404(Entrega, id=entrega_id, pedido__restaurante=restaurante)
+        entrega = get_object_or_404(
+            Entrega, id=entrega_id, pedido__restaurante=restaurante, pedido__pago=True
+        )
     elif entregador:
-        entrega = get_object_or_404(Entrega, id=entrega_id, entregador=entregador)
+        entrega = get_object_or_404(
+            Entrega, id=entrega_id, entregador=entregador, pedido__pago=True
+        )
     else:
         messages.error(request, 'Você não tem permissão para atualizar esta entrega.')
         return redirect('home')
@@ -281,7 +286,8 @@ def entregador_entregas(request):
         return redirect('home')
 
     entregas = Entrega.objects.filter(
-        entregador=entregador
+        entregador=entregador,
+        pedido__pago=True,
     ).select_related('pedido', 'pedido__restaurante').order_by('-criado_em')
 
     status_filtro = request.GET.get('status')

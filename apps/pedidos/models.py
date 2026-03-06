@@ -52,6 +52,7 @@ class Pedido(models.Model):
     """
 
     STATUS_CHOICES = [
+        ('aguardando', 'Aguardando Pagamento'),
         ('recebido', 'Recebido'),
         ('preparo', 'Em Preparo'),
         ('entrega', 'Saiu para Entrega'),
@@ -108,7 +109,7 @@ class Pedido(models.Model):
 
     # Status e pagamento
     status = models.CharField(
-        max_length=10, choices=STATUS_CHOICES, default='recebido',
+        max_length=10, choices=STATUS_CHOICES, default='aguardando',
         verbose_name='Status'
     )
     pago = models.BooleanField(default=False, verbose_name='Pago')

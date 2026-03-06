@@ -6,7 +6,7 @@
 # - Apps instalados (restaurantes, produtos, pedidos, pagamentos, entregas)
 # - Django REST Framework com autenticação JWT
 # - Configurações de arquivos estáticos e media
-# - Integração com Stripe
+# - Integração com Mercado Pago
 # - Middleware multi-tenant por subdomínio
 # =============================================================================
 
@@ -34,6 +34,24 @@ ALLOWED_HOSTS = [
 if DEBUG and '*' not in ALLOWED_HOSTS:
     # Em desenvolvimento local, permite acesso via IP da LAN (ex.: 192.168.x.x).
     ALLOWED_HOSTS.append('*')
+
+# Origens confiáveis para validação CSRF (relevante atrás de proxy/porta diferente).
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+if DEBUG:
+    for origin in (
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+        'http://localhost:8080',
+        'http://127.0.0.1:8080',
+        'http://localhost:8081',
+        'http://127.0.0.1:8081',
+    ):
+        if origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(origin)
 
 # ---------------------------------------------------------------------------
 # Aplicações instaladas
@@ -213,17 +231,25 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
 # ---------------------------------------------------------------------------
-# Stripe (pagamentos)
+# Banco do Brasil PIX (pagamentos)
 # ---------------------------------------------------------------------------
-STRIPE_PUBLIC_KEY = os.getenv('STRIPE_PUBLIC_KEY', '')
-STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY', '')
-STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
-USE_STRIPE_MOCK = os.getenv('USE_STRIPE_MOCK', 'True').lower() in ('true', '1', 'yes')
+# Credenciais obtidas em https://developers.bb.com.br
+BB_PIX_CLIENT_ID = os.getenv('BB_PIX_CLIENT_ID', '')
+BB_PIX_CLIENT_SECRET = os.getenv('BB_PIX_CLIENT_SECRET', '')
+BB_PIX_KEY = os.getenv('BB_PIX_KEY', '')          # chave PIX do recebedor
+BB_PIX_APP_KEY = os.getenv('BB_PIX_APP_KEY', '')  # gw-dev-app-key
+BB_PIX_ENV = os.getenv('BB_PIX_ENV', 'sandbox')   # 'sandbox' ou 'production'
+
+# Simulação de pagamento (USE_PIX_MOCK=True para desenvolvimento)
+USE_PIX_MOCK = (
+    DEBUG and os.getenv('USE_PIX_MOCK', 'True').lower() in ('true', '1', 'yes')
+)
 
 # ---------------------------------------------------------------------------
 # Multi-tenant
 # ---------------------------------------------------------------------------
 BASE_DOMAIN = os.getenv('BASE_DOMAIN', 'localhost')
+SITE_URL = os.getenv('SITE_URL', 'http://localhost')
 
 # ---------------------------------------------------------------------------
 # Segurança extra para produção

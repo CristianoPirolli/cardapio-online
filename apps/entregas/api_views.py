@@ -62,7 +62,7 @@ class EntregadorViewSet(viewsets.ModelViewSet):
         ]
         """
         entregador = self.get_object()
-        entregas = Entrega.objects.filter(entregador=entregador)
+        entregas = Entrega.objects.filter(entregador=entregador, pedido__pago=True)
         serializer = EntregaSerializer(entregas, many=True)
         return Response(serializer.data)
 
@@ -81,7 +81,7 @@ class EntregaViewSet(viewsets.ModelViewSet):
     Filtros: ?status=em_transito&entregador=1
     """
 
-    queryset = Entrega.objects.select_related('pedido', 'entregador').all()
+    queryset = Entrega.objects.select_related('pedido', 'entregador').filter(pedido__pago=True)
     serializer_class = EntregaSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filterset_fields = ['status', 'entregador', 'pedido']

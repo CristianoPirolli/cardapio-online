@@ -14,8 +14,8 @@ class PagamentoSerializer(serializers.ModelSerializer):
     {
         "id": 1,
         "pedido": 1,
-        "gateway": "stripe",
-        "stripe_payment_intent_id": "pi_xxx",
+        "gateway": "mp",
+        "stripe_payment_intent_id": "1234567890",
         "valor": "91.79",
         "status": "aprovado",
         "criado_em": "2024-01-01T10:00:00Z"

@@ -64,7 +64,8 @@ def painel_dashboard(request):
         return _redirecionar_sem_restaurante(request)
 
     hoje = timezone.localdate()
-    pedidos = Pedido.objects.filter(restaurante=restaurante)
+    # Regra de negócio: estabelecimento só opera pedidos com pagamento aprovado.
+    pedidos = Pedido.objects.filter(restaurante=restaurante, pago=True)
     pedidos_hoje = pedidos.filter(criado_em__date=hoje)
 
     # Métricas gerais
@@ -164,8 +165,10 @@ def painel_pedidos(request):
     if not restaurante:
         return _redirecionar_sem_restaurante(request)
 
+    # Regra de negócio: não listar pedidos sem pagamento aprovado.
     pedidos = Pedido.objects.filter(
-        restaurante=restaurante
+        restaurante=restaurante,
+        pago=True,
     ).select_related('restaurante').order_by('-criado_em')
 
     # Filtro por status
@@ -204,8 +207,9 @@ def painel_pedido_detalhe(request, pedido_id):
     restaurante = _restaurante_do_usuario(request)
     if not restaurante:
         return _redirecionar_sem_restaurante(request)
+    # Regra de negócio: detalhe só para pedidos já pagos.
     pedido = get_object_or_404(
-        Pedido, id=pedido_id, restaurante=restaurante
+        Pedido, id=pedido_id, restaurante=restaurante, pago=True
     )
 
     if request.method == 'POST':
