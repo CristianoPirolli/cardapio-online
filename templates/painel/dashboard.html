@@ -12,19 +12,22 @@
 {% block extra_css %}
 <style>
     .dashboard-hero {
-        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
-        border-radius: 16px;
+        background: linear-gradient(135deg, var(--cor-primaria) 0%, #5D3420 100%);
+        border-radius: var(--radius-xl);
         color: #fff;
         padding: 1.25rem 1.25rem;
-        box-shadow: 0 10px 30px rgba(13, 110, 253, 0.22);
+        box-shadow: 0 10px 30px rgba(75, 36, 18, 0.22);
     }
     .metric-card {
         border: 0;
-        border-radius: 14px;
+        border-radius: var(--radius-lg) !important;
         overflow: hidden;
     }
     .metric-card .card-body {
         padding: 1rem 1.1rem;
+    }
+    .metric-card:hover {
+        transform: translateY(-2px);
     }
     .metric-value {
         font-size: 2rem;
@@ -52,15 +55,52 @@
     .status-cancelado { background: #fdecef; color: #b02a37; border-color: #f1aeb5; }
     .panel-card {
         border: 0;
-        border-radius: 14px;
-        box-shadow: 0 .5rem 1.25rem rgba(0,0,0,.08);
+        border-radius: var(--radius-lg) !important;
+        box-shadow: var(--shadow-md);
+    }
+    .panel-card:hover {
+        transform: none;
     }
     .empty-state {
-        border: 1px dashed #ced4da;
-        border-radius: 12px;
+        border: 1px dashed var(--cor-borda);
+        border-radius: var(--radius-md);
         padding: 1.25rem;
         text-align: center;
-        color: #6c757d;
+        color: var(--cor-texto-muted);
+    }
+    .dash-row {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        margin-bottom: .85rem;
+    }
+    .dash-label {
+        min-width: 120px;
+        font-weight: 600;
+        color: var(--cor-texto);
+    }
+    .dash-track {
+        flex: 1;
+        height: 10px;
+        background: #eef1f6;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .dash-fill {
+        height: 100%;
+        border-radius: 999px;
+        min-width: 2px;
+    }
+    .fill-status { background: linear-gradient(90deg, #4b72ff, #6a8cff); }
+    .fill-entrega { background: linear-gradient(90deg, #f59f0a, #f7b84b); }
+    .fill-pedidos { background: linear-gradient(90deg, #13b381, #3dd4a6); }
+    .fill-sabor { background: linear-gradient(90deg, #7c4dff, #9a73ff); }
+    .dash-value {
+        min-width: 82px;
+        text-align: right;
+        font-weight: 600;
+        color: var(--cor-texto-muted);
+        font-size: .9rem;
     }
 </style>
 {% endblock %}
@@ -138,10 +178,10 @@
     </div>
 </div>
 
-<!-- Faturamento hoje -->
+<!-- Indicadores operacionais -->
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <div class="card panel-card">
+    <div class="col-md-3">
+        <div class="card panel-card h-100">
             <div class="card-body">
                 <h6 class="text-muted mb-2">Faturamento Hoje</h6>
                 <h3 class="text-success mb-1">R$ {{ faturamento_hoje|floatformat:2 }}</h3>
@@ -149,30 +189,291 @@
             </div>
         </div>
     </div>
-    <div class="col-md-8">
-        <div class="card panel-card">
+    <div class="col-md-3">
+        <div class="card panel-card h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Taxa de Conclusão</h6>
+                <h3 class="text-primary mb-1">{{ taxa_conclusao|floatformat:1 }}%</h3>
+                <small class="text-muted">{{ pedidos_concluidos }} pedidos concluídos.</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card panel-card h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Taxa de Cancelamento</h6>
+                <h3 class="text-danger mb-1">{{ taxa_cancelamento|floatformat:1 }}%</h3>
+                <small class="text-muted">{{ pedidos_cancelados }} pedidos cancelados.</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card panel-card h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Faturamento 7 Dias</h6>
+                <h3 class="mb-1">R$ {{ faturamento_7_dias|floatformat:2 }}</h3>
+                <small class="text-muted">Somente pedidos concluídos.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboards analíticos -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="card panel-card h-100">
             <div class="card-header bg-white border-0 pt-3 pb-0">
-                <h6 class="mb-0">Pedidos por Status</h6>
+                <h6 class="mb-0">Funil por Status</h6>
             </div>
             <div class="card-body">
                 {% if pedidos_por_status %}
-                <div class="d-flex flex-wrap gap-2">
                     {% for item in pedidos_por_status %}
-                    <span class="status-chip
-                        {% if item.status == 'recebido' %}status-recebido
-                        {% elif item.status == 'preparo' %}status-preparo
-                        {% elif item.status == 'entrega' %}status-entrega
-                        {% elif item.status == 'concluido' %}status-concluido
-                        {% elif item.status == 'cancelado' %}status-cancelado
-                        {% endif %}">
-                        {{ item.status|title }}: {{ item.count }}
-                    </span>
+                    <div class="dash-row">
+                        <span class="dash-label">{{ item.label }}</span>
+                        <div class="dash-track">
+                            <div class="dash-fill fill-status" style="width: {{ item.percentual|floatformat:0 }}%;"></div>
+                        </div>
+                        <span class="dash-value">{{ item.count }} ({{ item.percentual|floatformat:1 }}%)</span>
+                    </div>
                     {% endfor %}
-                </div>
                 {% else %}
                 <div class="empty-state">
                     <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                     Nenhum pedido ainda.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card panel-card h-100">
+            <div class="card-header bg-white border-0 pt-3 pb-0">
+                <h6 class="mb-0">Tendência dos Últimos 7 Dias</h6>
+            </div>
+            <div class="card-body">
+                {% if tendencia_7_dias %}
+                    {% for item in tendencia_7_dias %}
+                    <div class="dash-row">
+                        <span class="dash-label">{{ item.data|date:"d/m" }}</span>
+                        <div class="dash-track">
+                            {% if maior_volume_dia > 0 %}
+                            <div class="dash-fill fill-pedidos" style="width: {% widthratio item.total_pedidos maior_volume_dia 100 %}%;"></div>
+                            {% else %}
+                            <div class="dash-fill fill-pedidos" style="width: 0%;"></div>
+                            {% endif %}
+                        </div>
+                        <span class="dash-value">{{ item.total_pedidos }} pedidos</span>
+                    </div>
+                    {% endfor %}
+                    <small class="text-muted d-block mt-2">Pico diário no período: {{ maior_volume_dia }} pedidos.</small>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                    Nenhum pedido ainda.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-12">
+        <div class="card panel-card">
+            <div class="card-header bg-white border-0 pt-3 pb-0">
+                <h6 class="mb-0">Mix de Entrega</h6>
+            </div>
+            <div class="card-body">
+                {% if tipos_entrega %}
+                    {% for item in tipos_entrega %}
+                    <div class="dash-row">
+                        <span class="dash-label">{{ item.label }}</span>
+                        <div class="dash-track">
+                            <div class="dash-fill fill-entrega" style="width: {{ item.percentual|floatformat:0 }}%;"></div>
+                        </div>
+                        <span class="dash-value">{{ item.count }} ({{ item.percentual|floatformat:1 }}%)</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-truck fs-3 d-block mb-2"></i>
+                    Sem dados de entrega ainda.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="card panel-card h-100">
+            <div class="card-header bg-white border-0 pt-3 pb-0">
+                <h6 class="mb-0">Sabores de Pizza</h6>
+            </div>
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Mais pedidos</h6>
+                {% if sabores_mais_pedidos %}
+                    {% for item in sabores_mais_pedidos %}
+                    <div class="dash-row">
+                        <span class="dash-label">{{ item.nome }}</span>
+                        <div class="dash-track">
+                            {% if maior_sabor_count > 0 %}
+                            <div class="dash-fill fill-sabor" style="width: {% widthratio item.count maior_sabor_count 100 %}%;"></div>
+                            {% else %}
+                            <div class="dash-fill fill-sabor" style="width: 0%;"></div>
+                            {% endif %}
+                        </div>
+                        <span class="dash-value">{{ item.count }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state mb-3">
+                    <i class="bi bi-pie-chart fs-3 d-block mb-2"></i>
+                    Sem dados de sabores ainda.
+                </div>
+                {% endif %}
+
+                <h6 class="text-muted mb-3 mt-4">Menos pedidos</h6>
+                {% if sabores_menos_pedidos %}
+                    {% for item in sabores_menos_pedidos %}
+                    <div class="dash-row">
+                        <span class="dash-label">{{ item.nome }}</span>
+                        <div class="dash-track">
+                            {% if maior_sabor_count > 0 %}
+                            <div class="dash-fill fill-sabor" style="width: {% widthratio item.count maior_sabor_count 100 %}%;"></div>
+                            {% else %}
+                            <div class="dash-fill fill-sabor" style="width: 0%;"></div>
+                            {% endif %}
+                        </div>
+                        <span class="dash-value">{{ item.count }}</span>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card panel-card h-100">
+            <div class="card-header bg-white border-0 pt-3 pb-0">
+                <h6 class="mb-0">Combinações de Sabores</h6>
+            </div>
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Combos mais pedidos</h6>
+                {% if combinacoes_mais_pedidas %}
+                    {% for item in combinacoes_mais_pedidas %}
+                    <div class="dash-row">
+                        <span class="dash-label">{{ item.nome }}</span>
+                        <div class="dash-track">
+                            {% if maior_combinacao_count > 0 %}
+                            <div class="dash-fill fill-status" style="width: {% widthratio item.count maior_combinacao_count 100 %}%;"></div>
+                            {% else %}
+                            <div class="dash-fill fill-status" style="width: 0%;"></div>
+                            {% endif %}
+                        </div>
+                        <span class="dash-value">{{ item.count }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state mb-3">
+                    <i class="bi bi-diagram-3 fs-3 d-block mb-2"></i>
+                    Ainda não há combos com mais de 1 sabor.
+                </div>
+                {% endif %}
+
+                <h6 class="text-muted mb-3 mt-4">Combos menos pedidos</h6>
+                {% if combinacoes_menos_pedidas %}
+                    {% for item in combinacoes_menos_pedidas %}
+                    <div class="dash-row">
+                        <span class="dash-label">{{ item.nome }}</span>
+                        <div class="dash-track">
+                            {% if maior_combinacao_count > 0 %}
+                            <div class="dash-fill fill-status" style="width: {% widthratio item.count maior_combinacao_count 100 %}%;"></div>
+                            {% else %}
+                            <div class="dash-fill fill-status" style="width: 0%;"></div>
+                            {% endif %}
+                        </div>
+                        <span class="dash-value">{{ item.count }}</span>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card panel-card h-100">
+            <div class="card-header bg-white border-0 pt-3 pb-0">
+                <h6 class="mb-0">Picos por Faixa Horária (7 dias)</h6>
+            </div>
+            <div class="card-body">
+                {% if faixas_horarias %}
+                    {% for item in faixas_horarias %}
+                    <div class="dash-row">
+                        <span class="dash-label">{{ item.faixa }}</span>
+                        <div class="dash-track">
+                            {% if maior_faixa_horaria_count > 0 %}
+                            <div class="dash-fill fill-pedidos" style="width: {% widthratio item.count maior_faixa_horaria_count 100 %}%;"></div>
+                            {% else %}
+                            <div class="dash-fill fill-pedidos" style="width: 0%;"></div>
+                            {% endif %}
+                        </div>
+                        <span class="dash-value">{{ item.count }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-clock-history fs-3 d-block mb-2"></i>
+                    Sem dados de horários ainda.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card panel-card h-100">
+            <div class="card-header bg-white border-0 pt-3 pb-0">
+                <h6 class="mb-0">Tempo Médio de Ciclo</h6>
+            </div>
+            <div class="card-body">
+                <h2 class="mb-1 text-primary">{{ tempo_medio_ciclo_min|floatformat:1 }} min</h2>
+                <small class="text-muted d-block mb-3">Média de pedidos concluídos (criado até atualização final).</small>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="status-chip status-recebido">Recebido: {{ status_pipeline.recebido|default:0 }}</span>
+                    <span class="status-chip status-preparo">Preparo: {{ status_pipeline.preparo|default:0 }}</span>
+                    <span class="status-chip status-entrega">Entrega: {{ status_pipeline.entrega|default:0 }}</span>
+                    <span class="status-chip status-concluido">Concluído: {{ status_pipeline.concluido|default:0 }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card panel-card h-100">
+            <div class="card-header bg-white border-0 pt-3 pb-0">
+                <h6 class="mb-0">Faturamento por Categoria</h6>
+            </div>
+            <div class="card-body">
+                {% if categorias_faturamento %}
+                    {% for item in categorias_faturamento %}
+                    <div class="dash-row">
+                        <span class="dash-label">{{ item.nome }}</span>
+                        <div class="dash-track">
+                            {% if maior_categoria_faturamento > 0 %}
+                            <div class="dash-fill fill-entrega" style="width: {% widthratio item.faturamento maior_categoria_faturamento 100 %}%;"></div>
+                            {% else %}
+                            <div class="dash-fill fill-entrega" style="width: 0%;"></div>
+                            {% endif %}
+                        </div>
+                        <span class="dash-value">R$ {{ item.faturamento|floatformat:0 }}</span>
+                    </div>
+                    {% endfor %}
+                    <small class="text-muted d-block mt-2">Proxy de margem: sem custo unitário cadastrado.</small>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-tags fs-3 d-block mb-2"></i>
+                    Sem dados de categoria ainda.
                 </div>
                 {% endif %}
             </div>

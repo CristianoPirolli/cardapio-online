@@ -18,19 +18,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Cardápio Online{% endblock %}</title>
 
-    <!-- Preconnect: resolve DNS + TLS antes de precisar dos recursos -->
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <!-- Bootstrap 5 CSS (local) -->
+    <link href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" rel="stylesheet">
 
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-          rel="stylesheet"
-          integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
-          crossorigin="anonymous">
-
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css"
-          rel="stylesheet">
+    <!-- Bootstrap Icons (local) -->
+    <link href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}" rel="stylesheet">
 
     <!-- CSS customizado -->
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
@@ -117,6 +109,15 @@
         };
     })();
     </script>
+
+    <!-- Bootstrap 5 JS Bundle (no <head> para carregar UMA vez e sobreviver ao HTMX body swap) -->
+    <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}" defer></script>
+
+    <!-- HTMX (no <head> para carregar UMA vez) -->
+    <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+
+    <!-- instant.page: prefetch de links no hover -->
+    <script src="{% static 'vendor/instantpage.js' %}" type="module" defer></script>
 </head>
 <body class="d-flex flex-column min-vh-100 {% block body_class %}{% endblock %}" hx-boost="true" hx-indicator="#page-progress" hx-swap="innerHTML show:window:top" hx-target="body">
 
@@ -251,61 +252,41 @@
     </main>
 
     <!-- ===== FOOTER ===== -->
-    <footer class="bg-dark text-light py-4 mt-auto">
+    <footer class="py-4 mt-auto">
         <div class="container">
-            <div class="row">
+            <div class="row align-items-center">
                 <div class="col-md-6">
                     <p class="mb-0">&copy; 2026 Powered by Cristiano Pirolli</p>
                 </div>
                 <div class="col-md-6 text-md-end">
-                    <small class="text-muted">
-                        Sistema de pedidos online para estabelecimentos
-                    </small>
                 </div>
             </div>
         </div>
     </footer>
 
     {% if carrinho_total_itens %}
-    <div class="d-lg-none position-fixed start-0 end-0 bottom-0 p-3 bg-body border-top shadow-lg" style="z-index: 1050;">
+    <div class="d-lg-none position-fixed start-0 end-0 bottom-0 p-3 shadow-lg" style="z-index: 1050; background: rgba(255, 248, 240, 0.95); backdrop-filter: blur(10px); border-top: 1px solid var(--cor-borda);">
         <a href="{% url 'ver_carrinho' %}" class="btn btn-warning btn-lg w-100 fw-semibold">
             <i class="bi bi-cart3 me-2"></i>Ir para o Carrinho ({{ carrinho_total_itens }})
         </a>
     </div>
     {% endif %}
 
-    <!-- Bootstrap 5 JS Bundle (inclui Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
-            crossorigin="anonymous"></script>
-
-    <!-- HTMX: transições instantâneas SPA-like (hx-boost troca só o body via AJAX) -->
-    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"
-            crossorigin="anonymous"></script>
-
-    <!-- instant.page: prefetch de links no hover (~100ms antes do clique) -->
-    <script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.js"
-            type="module" defer></script>
+    <!-- Vendor scripts carregados no <head> com defer para evitar re-execução no HTMX body swap -->
 
     <script>
-    /* ---- HTMX: Configurações para transições instantâneas ----
-       Usa flag global para evitar listeners duplicados após body swap */
+    /* ---- HTMX: Configuracoes para transicoes instantaneas ----
+       Usa flag global para registrar listeners apenas uma vez no window,
+       pois o window sobrevive ao body swap do HTMX. */
     if (!window.__htmxConfigured) {
         window.__htmxConfigured = true;
 
-        // Re-inicializa Bootstrap após cada troca de página HTMX
+        // Apos troca de pagina HTMX
         document.addEventListener('htmx:afterSwap', function(evt) {
-            // Re-ativa dropdowns do Bootstrap (perdidos no swap)
-            var dropdowns = document.querySelectorAll('[data-bs-toggle="dropdown"]');
-            for (var i = 0; i < dropdowns.length; i++) {
-                new bootstrap.Dropdown(dropdowns[i]);
-            }
-
             // Fecha navbar mobile se estava aberta
             var navbarCollapse = document.getElementById('navbarMain');
             if (navbarCollapse && navbarCollapse.classList.contains('show')) {
-                var bsCollapse = bootstrap.Collapse.getInstance(navbarCollapse);
-                if (bsCollapse) bsCollapse.hide();
+                navbarCollapse.classList.remove('show');
             }
 
             // Scroll para o topo instantaneamente

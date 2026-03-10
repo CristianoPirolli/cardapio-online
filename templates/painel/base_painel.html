@@ -11,10 +11,10 @@
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar -->
-        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar py-3"
-             style="min-height: calc(100vh - 120px);">
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar py-3"
+             style="min-height: calc(100vh - 120px); background: var(--cor-fundo-card);">
             <div class="position-sticky">
-                <h6 class="sidebar-heading px-3 mt-2 mb-2 text-muted text-uppercase">
+                <h6 class="sidebar-heading px-3 mt-2 mb-2 text-uppercase" style="color: var(--cor-texto-muted); font-family: 'Karla', sans-serif; font-size: 0.75rem; letter-spacing: 0.08em;">
                     <i class="bi bi-speedometer2"></i> Painel
                 </h6>
                 {% with current=request.resolver_match.url_name %}

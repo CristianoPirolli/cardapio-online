@@ -26,9 +26,14 @@
     }
 
     .checkout-option {
-        border: 2px solid #dee2e6;
-        border-radius: 0.75rem;
+        border: 2px solid var(--cor-borda);
+        border-radius: var(--radius-md);
         transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer;
+    }
+
+    .checkout-option:hover {
+        border-color: var(--cor-secundaria);
     }
 
     .checkout-option .form-check-input {
@@ -36,7 +41,8 @@
     }
 
     .checkout-option.border-primary {
-        box-shadow: 0 0 0 0.18rem rgba(13, 110, 253, 0.15);
+        border-color: var(--cor-secundaria) !important;
+        box-shadow: 0 0 0 0.18rem rgba(166, 130, 59, 0.15);
     }
 
     .checkout-summary {
@@ -69,7 +75,7 @@
 
 {% block content %}
 <div class="container py-4 checkout-wrapper">
-    <h1 class="mb-4">
+    <h1 class="mb-4" style="color: var(--cor-primaria);">
         <i class="bi bi-bag-check me-2"></i>Finalizar Pedido
     </h1>
 
