@@ -10,12 +10,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q, F, Avg, DurationField, ExpressionWrapper, DecimalField
 from django.utils import timezone
+from django.db.models.functions import TruncDate, ExtractHour
+from datetime import timedelta
+from collections import Counter
 
 from .models import Restaurante
 from .forms import RestauranteForm, TamanhoPizzaFormSet
-from apps.pedidos.models import Pedido
+from apps.pedidos.models import Pedido, ItemPedido
 from apps.core.algorithms import GRAFO_STATUS_PEDIDO, bfs_status_alcancaveis
 
 
@@ -70,6 +73,8 @@ def painel_dashboard(request):
 
     # Métricas gerais
     total_pedidos = pedidos.count()
+    pedidos_concluidos = pedidos.filter(status='concluido').count()
+    pedidos_cancelados = pedidos.filter(status='cancelado').count()
     faturamento_total = pedidos.filter(
         status='concluido'
     ).aggregate(total=Sum('total'))['total'] or 0
@@ -77,11 +82,166 @@ def painel_dashboard(request):
         status='concluido'
     ).aggregate(total=Sum('total'))['total'] or 0
     ticket_medio = faturamento_total / total_pedidos if total_pedidos > 0 else 0
+    taxa_conclusao = (pedidos_concluidos / total_pedidos * 100) if total_pedidos > 0 else 0
+    taxa_cancelamento = (pedidos_cancelados / total_pedidos * 100) if total_pedidos > 0 else 0
 
     # Pedidos por status
-    pedidos_por_status = pedidos.values('status').annotate(
+    pedidos_por_status_qs = pedidos.values('status').annotate(
         count=Count('id')
     ).order_by('status')
+    status_labels = dict(Pedido.STATUS_CHOICES)
+    pedidos_por_status = [
+        {
+            'status': item['status'],
+            'label': status_labels.get(item['status'], item['status'].title()),
+            'count': item['count'],
+            'percentual': (item['count'] / total_pedidos * 100) if total_pedidos > 0 else 0,
+        }
+        for item in pedidos_por_status_qs
+    ]
+
+    # Tendência diária dos últimos 7 dias (pedidos e faturamento concluído)
+    inicio_periodo = hoje - timedelta(days=6)
+    pedidos_7d = pedidos.filter(criado_em__date__gte=inicio_periodo, criado_em__date__lte=hoje)
+    faturamento_7_dias = pedidos_7d.filter(status='concluido').aggregate(total=Sum('total'))['total'] or 0
+    pedidos_por_dia_qs = pedidos_7d.annotate(dia=TruncDate('criado_em')).values('dia').annotate(
+        total_pedidos=Count('id'),
+        faturamento=Sum('total', filter=Q(status='concluido')),
+    ).order_by('dia')
+
+    pedidos_por_dia_map = {
+        item['dia']: {
+            'total_pedidos': item['total_pedidos'],
+            'faturamento': item['faturamento'] or 0,
+        }
+        for item in pedidos_por_dia_qs
+    }
+    tendencia_7_dias = []
+    for i in range(7):
+        dia = inicio_periodo + timedelta(days=i)
+        dados_dia = pedidos_por_dia_map.get(dia, {'total_pedidos': 0, 'faturamento': 0})
+        tendencia_7_dias.append({
+            'data': dia,
+            'total_pedidos': dados_dia['total_pedidos'],
+            'faturamento': dados_dia['faturamento'],
+        })
+
+    maior_volume_dia = max((item['total_pedidos'] for item in tendencia_7_dias), default=0)
+
+    # Mix de tipo de entrega
+    tipos_entrega_qs = pedidos.values('tipo_entrega').annotate(count=Count('id')).order_by('tipo_entrega')
+    labels_tipo_entrega = dict(Pedido.TIPO_ENTREGA_CHOICES)
+    tipos_entrega = [
+        {
+            'tipo': item['tipo_entrega'],
+            'label': labels_tipo_entrega.get(item['tipo_entrega'], item['tipo_entrega'].title()),
+            'count': item['count'],
+            'percentual': (item['count'] / total_pedidos * 100) if total_pedidos > 0 else 0,
+        }
+        for item in tipos_entrega_qs
+    ]
+
+    # Ranking de sabores e combinações de pizza
+    itens_pizza = ItemPedido.objects.filter(
+        pedido__restaurante=restaurante,
+        pedido__pago=True,
+    ).exclude(
+        pedido__status='cancelado'
+    ).exclude(
+        sabores_descricao=''
+    ).values_list('sabores_descricao', 'quantidade')
+
+    contador_sabores = Counter()
+    contador_combinacoes = Counter()
+
+    for sabores_descricao, quantidade in itens_pizza:
+        sabores = [s.strip() for s in sabores_descricao.split(',') if s.strip()]
+        if not sabores:
+            continue
+
+        for sabor in sabores:
+            contador_sabores[sabor] += quantidade
+
+        if len(sabores) > 1:
+            combinacao = ' + '.join(sorted(sabores))
+            contador_combinacoes[combinacao] += quantidade
+
+    sabores_ordenados = sorted(contador_sabores.items(), key=lambda x: x[1], reverse=True)
+    sabores_mais_pedidos = [
+        {'nome': nome, 'count': count}
+        for nome, count in sabores_ordenados[:5]
+    ]
+    sabores_menos_pedidos = [
+        {'nome': nome, 'count': count}
+        for nome, count in sorted(contador_sabores.items(), key=lambda x: (x[1], x[0]))[:5]
+    ]
+
+    combinacoes_ordenadas = sorted(contador_combinacoes.items(), key=lambda x: x[1], reverse=True)
+    combinacoes_mais_pedidas = [
+        {'nome': nome, 'count': count}
+        for nome, count in combinacoes_ordenadas[:5]
+    ]
+    combinacoes_menos_pedidas = [
+        {'nome': nome, 'count': count}
+        for nome, count in sorted(contador_combinacoes.items(), key=lambda x: (x[1], x[0]))[:5]
+    ]
+
+    maior_sabor_count = max((item['count'] for item in sabores_mais_pedidos), default=0)
+    maior_combinacao_count = max((item['count'] for item in combinacoes_mais_pedidas), default=0)
+
+    # Faixa horária de pedidos (0h-23h)
+    pedidos_por_hora_qs = pedidos_7d.annotate(hora=ExtractHour('criado_em')).values('hora').annotate(
+        count=Count('id')
+    ).order_by('hora')
+    pedidos_por_hora_map = {int(item['hora']): item['count'] for item in pedidos_por_hora_qs if item['hora'] is not None}
+    faixas_horarias = []
+    for hora_inicio in range(0, 24, 3):
+        hora_fim = hora_inicio + 2
+        total_faixa = sum(pedidos_por_hora_map.get(h, 0) for h in range(hora_inicio, hora_fim + 1))
+        faixas_horarias.append({
+            'faixa': f'{hora_inicio:02d}h-{hora_fim:02d}h',
+            'count': total_faixa,
+        })
+    maior_faixa_horaria_count = max((item['count'] for item in faixas_horarias), default=0)
+
+    # Tempo médio de ciclo (criado -> atualizado) para pedidos concluídos
+    duracao_expr = ExpressionWrapper(
+        F('atualizado_em') - F('criado_em'),
+        output_field=DurationField(),
+    )
+    tempo_medio_ciclo = pedidos.filter(status='concluido').annotate(
+        duracao=duracao_expr
+    ).aggregate(media=Avg('duracao'))['media']
+    tempo_medio_ciclo_min = round(tempo_medio_ciclo.total_seconds() / 60, 1) if tempo_medio_ciclo else 0
+
+    tempo_ciclo_por_status_qs = pedidos.filter(status__in=['recebido', 'preparo', 'entrega', 'concluido']).values('status').annotate(
+        count=Count('id')
+    )
+    status_pipeline = {item['status']: item['count'] for item in tempo_ciclo_por_status_qs}
+
+    # Faturamento por categoria (proxy de margem sem custo cadastrado)
+    faturamento_item_expr = ExpressionWrapper(
+        F('preco_unitario') * F('quantidade'),
+        output_field=DecimalField(max_digits=12, decimal_places=2),
+    )
+    categorias_qs = ItemPedido.objects.filter(
+        pedido__restaurante=restaurante,
+        pedido__pago=True,
+        pedido__status='concluido',
+        produto__categoria__isnull=False,
+    ).values('produto__categoria__nome').annotate(
+        faturamento=Sum(faturamento_item_expr),
+        itens=Sum('quantidade')
+    ).order_by('-faturamento')[:6]
+    categorias_faturamento = [
+        {
+            'nome': item['produto__categoria__nome'],
+            'faturamento': item['faturamento'] or 0,
+            'itens': item['itens'] or 0,
+        }
+        for item in categorias_qs
+    ]
+    maior_categoria_faturamento = max((item['faturamento'] for item in categorias_faturamento), default=0)
 
     # Pedidos recentes (últimos 10)
     pedidos_recentes = pedidos.select_related('restaurante').order_by('-criado_em')[:10]
@@ -93,7 +253,27 @@ def painel_dashboard(request):
         'faturamento_total': faturamento_total,
         'faturamento_hoje': faturamento_hoje,
         'ticket_medio': ticket_medio,
+        'pedidos_concluidos': pedidos_concluidos,
+        'pedidos_cancelados': pedidos_cancelados,
+        'taxa_conclusao': taxa_conclusao,
+        'taxa_cancelamento': taxa_cancelamento,
         'pedidos_por_status': pedidos_por_status,
+        'tendencia_7_dias': tendencia_7_dias,
+        'faturamento_7_dias': faturamento_7_dias,
+        'maior_volume_dia': maior_volume_dia,
+        'tipos_entrega': tipos_entrega,
+        'sabores_mais_pedidos': sabores_mais_pedidos,
+        'sabores_menos_pedidos': sabores_menos_pedidos,
+        'combinacoes_mais_pedidas': combinacoes_mais_pedidas,
+        'combinacoes_menos_pedidas': combinacoes_menos_pedidas,
+        'maior_sabor_count': maior_sabor_count,
+        'maior_combinacao_count': maior_combinacao_count,
+        'faixas_horarias': faixas_horarias,
+        'maior_faixa_horaria_count': maior_faixa_horaria_count,
+        'tempo_medio_ciclo_min': tempo_medio_ciclo_min,
+        'status_pipeline': status_pipeline,
+        'categorias_faturamento': categorias_faturamento,
+        'maior_categoria_faturamento': maior_categoria_faturamento,
         'pedidos_recentes': pedidos_recentes,
     }
     return render(request, 'painel/dashboard.html', context)
