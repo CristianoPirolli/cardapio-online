@@ -3,7 +3,6 @@ from decimal import Decimal
 from django.contrib.auth.models import User
 from django.test import TestCase
 
-from apps.entregas.models import Entrega
 from apps.pedidos.models import Pedido
 from apps.pedidos.services import (
     PedidoCheckoutError,
@@ -85,7 +84,6 @@ class PedidoServicesTests(TestCase):
         self.assertEqual(pedido.itens.count(), 1)
         self.assertEqual(pedido.subtotal, self.produto.preco)
         self.assertEqual(pedido.taxa_entrega, self.restaurante.taxa_entrega)
-        self.assertTrue(Entrega.objects.filter(pedido=pedido).exists())
 
     def test_criar_pedido_do_carrinho_faz_rollback_quando_minimo_nao_atingido(self):
         self.restaurante.pedido_minimo = Decimal('50.00')
@@ -114,4 +112,3 @@ class PedidoServicesTests(TestCase):
             criar_pedido_do_carrinho(self.restaurante, itens_sessao, dados)
 
         self.assertEqual(Pedido.objects.count(), 0)
-        self.assertEqual(Entrega.objects.count(), 0)

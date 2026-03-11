@@ -11,7 +11,6 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 
 from .models import Restaurante
-from apps.entregas.models import Entregador
 
 def registro_view(request):
     """
@@ -42,9 +41,6 @@ def login_view(request):
 
             if user.is_superuser:
                 return redirect('/admin/')
-
-            if Entregador.objects.filter(usuario=user, ativo=True).exists():
-                return redirect('entregador_entregas')
 
             if not Restaurante.objects.filter(proprietario=user).exists():
                 messages.warning(

@@ -136,11 +136,6 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Cria registro de entrega para pedidos delivery
-        if pedido.tipo_entrega == 'delivery':
-            from apps.entregas.models import Entrega
-            Entrega.objects.create(pedido=pedido, status='aguardando')
-
         # Retorna o pedido criado (independente de ainda não estar pago)
         pedido = Pedido.objects.prefetch_related(
             Prefetch('itens', queryset=ItemPedido.objects.select_related('produto'))

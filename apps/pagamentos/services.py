@@ -1,39 +1,30 @@
 # =============================================================================
-# apps/pagamentos/services.py - Serviços de pagamento (BB PIX e Mock)
+# apps/pagamentos/services.py - Serviços de pagamento (Stripe e Mock)
 #
-# Camada de serviço que abstrai a lógica de pagamento.
-# Se USE_PIX_MOCK=True no .env, usa simulação local.
-# Se USE_PIX_MOCK=False, usa a API PIX do Banco do Brasil.
-#
-# ============ COMO ALTERNAR ENTRE PIX REAL E MOCK ============
-# No arquivo .env, altere a variável USE_PIX_MOCK:
-#   USE_PIX_MOCK=True   -> Usa mock (desenvolvimento)
-#   USE_PIX_MOCK=False  -> Usa BB PIX real (produção)
-# Também configure as variáveis BB_PIX_* no .env.
+# Configure PAYMENT_GATEWAY no .env:
+#   PAYMENT_GATEWAY=stripe  -> Stripe Checkout (cartão + PIX)
+#   PAYMENT_GATEWAY=mock    -> Simulação local (desenvolvimento)
 # =============================================================================
 
 import uuid
 from decimal import Decimal, ROUND_HALF_UP
-import ipaddress
-from urllib.parse import urlparse
+
+import stripe
 from django.conf import settings
+
 from .models import Pagamento
 
+STRIPE_METODOS_VALIDOS = ('card', 'pix')
 
-def criar_pagamento(pedido):
+
+def criar_pagamento(pedido, metodo='card'):
     """
     Cria uma sessão/intent de pagamento para um pedido.
-    Reutiliza pagamento pendente existente (idempotencia).
+    Reutiliza pagamento pendente existente se for o mesmo método.
 
-    Se USE_PIX_MOCK=True, simula um pagamento local.
-    Se USE_PIX_MOCK=False, cria uma cobrança PIX no Banco do Brasil.
-
-    Returns:
-        dict com:
-        - 'pagamento': Instância do model Pagamento
-        - 'checkout_url': URL de checkout (ou None)
-        - 'client_secret': ID técnico para compatibilidade de API
-        - 'gateway': 'bb_pix' ou 'mock'
+    Args:
+        pedido: instância de Pedido
+        metodo: 'card' ou 'pix' (usado apenas para gateway Stripe)
     """
     pagamento_existente = Pagamento.objects.filter(
         pedido=pedido, status='pendente'
@@ -41,28 +32,27 @@ def criar_pagamento(pedido):
 
     if pagamento_existente:
         dados = pagamento_existente.dados_resposta or {}
-        pix_copia_cola = dados.get('pix_copia_cola')
+        metodo_existente = dados.get('metodo')
 
-        # Se for gateway real sem payload PIX (fluxo antigo), gera novo PIX.
-        if pagamento_existente.gateway == 'bb_pix' and not pix_copia_cola:
-            pagamento_existente.status = 'recusado'
-            pagamento_existente.save(update_fields=['status', 'atualizado_em'])
-        else:
+        # Mesmo gateway e mesmo método → reutiliza
+        if metodo_existente == metodo or pagamento_existente.gateway == 'mock':
             return {
                 'pagamento': pagamento_existente,
                 'checkout_url': dados.get('checkout_url'),
                 'client_secret': pagamento_existente.stripe_payment_intent_id,
                 'gateway': pagamento_existente.gateway,
-                'pix_qr_code_base64': dados.get('pix_qr_code_base64'),
-                'pix_copia_cola': pix_copia_cola,
-                'pix_ticket_url': dados.get('pix_ticket_url'),
-                'expira_em': dados.get('expira_em'),
             }
 
-    if settings.USE_PIX_MOCK:
-        return _criar_pagamento_mock(pedido)
+        # Método diferente → cancela o antigo e cria novo
+        pagamento_existente.status = 'recusado'
+        pagamento_existente.save(update_fields=['status', 'atualizado_em'])
+
+    gateway = settings.PAYMENT_GATEWAY
+
+    if gateway == 'stripe':
+        return _criar_pagamento_stripe(pedido, metodo)
     else:
-        return _criar_pagamento_bb_pix(pedido)
+        return _criar_pagamento_mock(pedido)
 
 
 def _build_absolute_url(path):
@@ -76,215 +66,162 @@ def _to_money_2(value):
     return Decimal(value).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
-def _is_public_url(url):
-    try:
-        parsed = urlparse(url or '')
-    except Exception:
-        return False
-
-    if parsed.scheme not in ('http', 'https'):
-        return False
-
-    host = (parsed.hostname or '').lower()
-    if not host or host in ('localhost', '127.0.0.1', '::1'):
-        return False
-
-    try:
-        ip = ipaddress.ip_address(host)
-        if ip.is_private or ip.is_loopback:
-            return False
-    except ValueError:
-        pass
-
-    return True
-
-
 # =============================================================================
-# Banco do Brasil PIX
+# Stripe Checkout
 # =============================================================================
 
-def _get_bb_access_token():
+def _criar_pagamento_stripe(pedido, metodo='card'):
     """
-    Obtém access token OAuth2 do Banco do Brasil (Client Credentials).
+    Cria uma Stripe Checkout Session para o pedido.
 
-    TODO: Implementar quando as credenciais BB estiverem configuradas.
-    Documentação: https://developers.bb.com.br/apis-e-sdks/integracao/oauth-client-credentials
-
-    Variáveis necessárias no .env:
-      BB_PIX_CLIENT_ID     - Client ID da aplicação no portal BB Developers
-      BB_PIX_CLIENT_SECRET - Client Secret da aplicação
-      BB_PIX_ENV           - 'sandbox' ou 'production'
+    Args:
+        metodo: 'card' (cartão de crédito/débito) ou 'pix'
     """
-    # TODO: descomentar e implementar quando as credenciais estiverem disponíveis
-    # import requests, base64
-    # env = settings.BB_PIX_ENV
-    # base_url = (
-    #     'https://oauth.hm.bb.com.br'
-    #     if env == 'sandbox'
-    #     else 'https://oauth.bb.com.br'
-    # )
-    # credentials = base64.b64encode(
-    #     f'{settings.BB_PIX_CLIENT_ID}:{settings.BB_PIX_CLIENT_SECRET}'.encode()
-    # ).decode()
-    # response = requests.post(
-    #     f'{base_url}/oauth/token',
-    #     headers={
-    #         'Authorization': f'Basic {credentials}',
-    #         'Content-Type': 'application/x-www-form-urlencoded',
-    #     },
-    #     data={'grant_type': 'client_credentials', 'scope': 'cob.write cob.read pix.read'},
-    # )
-    # response.raise_for_status()
-    # return response.json()['access_token']
-    raise NotImplementedError(
-        'Integração BB PIX não implementada. '
-        'Configure BB_PIX_* no .env ou ative USE_PIX_MOCK=True.'
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+
+    if not stripe.api_key or stripe.api_key.startswith('sk_test_COLOQUE'):
+        raise RuntimeError(
+            'STRIPE_SECRET_KEY não configurada. '
+            'Obtenha sua chave em https://dashboard.stripe.com/test/apikeys '
+            'e configure no .env'
+        )
+
+    if metodo not in STRIPE_METODOS_VALIDOS:
+        metodo = 'card'
+
+    valor_total = _to_money_2(pedido.total)
+    valor_centavos = int(valor_total * 100)
+
+    success_url = _build_absolute_url(
+        f'/pagamentos/stripe-return/{pedido.id}/'
+    ) + '?session_id={CHECKOUT_SESSION_ID}'
+
+    cancel_url = _build_absolute_url(f'/pagamentos/{pedido.id}/')
+
+    descricao_itens = ', '.join(
+        f'{item.quantidade}x {item.produto.nome}'
+        for item in pedido.itens.all()[:10]
     )
 
-
-def _criar_pagamento_bb_pix(pedido):
-    """
-    Cria uma cobrança PIX imediata (COB) no Banco do Brasil.
-
-    TODO: Implementar quando as credenciais BB estiverem disponíveis.
-    Documentação: https://developers.bb.com.br/apis-e-sdks/api-pix
-
-    Variáveis necessárias no .env:
-      BB_PIX_CLIENT_ID     - Client ID da aplicação
-      BB_PIX_CLIENT_SECRET - Client Secret da aplicação
-      BB_PIX_KEY           - Chave PIX do recebedor (CNPJ, CPF, email, tel. ou aleatória)
-      BB_PIX_APP_KEY       - gw-dev-app-key (portal de developers do BB)
-      BB_PIX_ENV           - 'sandbox' ou 'production'
-    """
-    # TODO: descomentar e adaptar quando as credenciais BB estiverem configuradas
-    # import requests
-    # valor_total = _to_money_2(pedido.total)
-    # txid = uuid.uuid4().hex[:35]  # txid: máximo 35 chars alfanumérico
-    #
-    # access_token = _get_bb_access_token()
-    # env = settings.BB_PIX_ENV
-    # base_url = (
-    #     'https://api.hm.bb.com.br'
-    #     if env == 'sandbox'
-    #     else 'https://api.bb.com.br'
-    # )
-    #
-    # payload = {
-    #     'calendario': {'expiracao': 1800},  # expira em 30 minutos
-    #     'valor': {'original': str(valor_total)},
-    #     'chave': settings.BB_PIX_KEY,
-    #     'solicitacaoPagador': f'Pedido #{pedido.id} - {pedido.restaurante.nome}',
-    #     'infoAdicionais': [
-    #         {'nome': 'Pedido', 'valor': str(pedido.id)},
-    #     ],
-    # }
-    #
-    # webhook_url = _build_absolute_url('/api/pagamentos/webhook/')
-    # if _is_public_url(webhook_url):
-    #     # Webhook no BB exige certificado mTLS — configurar no portal
-    #     payload['webhookUrl'] = webhook_url
-    #
-    # headers = {
-    #     'Authorization': f'Bearer {access_token}',
-    #     'Content-Type': 'application/json',
-    # }
-    # response = requests.put(
-    #     f'{base_url}/pix/v2/cob/{txid}?gw-dev-app-key={settings.BB_PIX_APP_KEY}',
-    #     json=payload,
-    #     headers=headers,
-    # )
-    # if not response.ok:
-    #     raise RuntimeError(f'Falha ao criar cobrança PIX no BB: {response.text}')
-    #
-    # data = response.json()
-    # pix_copia_cola = data.get('pixCopiaECola')
-    # pix_ticket_url = data.get('location')
-    # expira_em = data.get('calendario', {}).get('criacao')
-    #
-    # pagamento = Pagamento.objects.create(
-    #     pedido=pedido,
-    #     gateway='bb_pix',
-    #     stripe_payment_intent_id=txid,
-    #     valor=valor_total,
-    #     status='pendente',
-    #     dados_resposta={
-    #         'txid': txid,
-    #         'pix_copia_cola': pix_copia_cola,
-    #         'pix_ticket_url': pix_ticket_url,
-    #         'expira_em': expira_em,
-    #         'raw': data,
-    #     },
-    # )
-    # pedido.stripe_payment_intent_id = txid
-    # pedido.save()
-    #
-    # return {
-    #     'pagamento': pagamento,
-    #     'checkout_url': None,
-    #     'client_secret': txid,
-    #     'gateway': 'bb_pix',
-    #     'pix_copia_cola': pix_copia_cola,
-    #     'pix_ticket_url': pix_ticket_url,
-    #     'expira_em': expira_em,
-    # }
-    raise NotImplementedError(
-        'Integração BB PIX não implementada. '
-        'Ative USE_PIX_MOCK=True no .env para usar simulação.'
+    session_params = dict(
+        payment_method_types=[metodo],
+        line_items=[{
+            'price_data': {
+                'currency': 'brl',
+                'product_data': {
+                    'name': f'Pedido #{pedido.id} - {pedido.restaurante.nome}',
+                    'description': descricao_itens or 'Pedido do cardápio',
+                },
+                'unit_amount': valor_centavos,
+            },
+            'quantity': 1,
+        }],
+        mode='payment',
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={
+            'pedido_id': str(pedido.id),
+            'restaurante': pedido.restaurante.nome,
+            'metodo': metodo,
+        },
     )
 
-
-def processar_webhook_bb(request):
-    """
-    Processa webhook do Banco do Brasil para confirmar pagamentos PIX.
-
-    TODO: Implementar quando BB PIX estiver configurado.
-    O BB envia notificações via POST com lista de PIX confirmados.
-    Requer certificado mTLS configurado no servidor para produção.
-
-    Documentação: https://developers.bb.com.br/apis-e-sdks/api-pix#section/Webhooks
-
-    Payload esperado:
-    {
-      "pix": [
-        {
-          "endToEndId": "Exxxxxxxxx",
-          "txid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-          "valor": "100.00",
-          "horario": "2023-01-01T12:00:00.000Z",
-          "infoPagador": "..."
+    # PIX: expiração de 30 minutos
+    if metodo == 'pix':
+        session_params['payment_method_options'] = {
+            'pix': {'expires_after_seconds': 1800},
         }
-      ]
-    }
-    """
-    # TODO: descomentar e implementar quando BB PIX estiver configurado
-    # data = request.data if isinstance(request.data, dict) else {}
-    # pix_list = data.get('pix', [])
-    #
-    # for pix_item in pix_list:
-    #     txid = pix_item.get('txid')
-    #     if not txid:
-    #         continue
-    #
-    #     pagamento = Pagamento.objects.filter(
-    #         stripe_payment_intent_id=txid
-    #     ).first()
-    #     if not pagamento:
-    #         continue
-    #
-    #     pagamento.status = 'aprovado'
-    #     pagamento.dados_resposta = {
-    #         **(pagamento.dados_resposta or {}),
-    #         'bb_pix_confirmado': pix_item,
-    #     }
-    #     pagamento.save()
-    #
-    #     pedido = pagamento.pedido
-    #     pedido.pago = True
-    #     if pedido.status == 'aguardando':
-    #         pedido.status = 'recebido'
-    #     pedido.save()
 
-    return {'status': 200, 'message': 'Webhook BB PIX recebido (implementação pendente)'}
+    session = stripe.checkout.Session.create(**session_params)
+
+    pagamento = Pagamento.objects.create(
+        pedido=pedido,
+        gateway='stripe',
+        stripe_payment_intent_id=session.id,
+        valor=valor_total,
+        status='pendente',
+        dados_resposta={
+            'session_id': session.id,
+            'checkout_url': session.url,
+            'metodo': metodo,
+        },
+    )
+
+    pedido.stripe_payment_intent_id = session.id
+    pedido.save()
+
+    return {
+        'pagamento': pagamento,
+        'checkout_url': session.url,
+        'client_secret': session.id,
+        'gateway': 'stripe',
+    }
+
+
+def confirmar_pagamento_stripe(session_id):
+    """
+    Verifica o status de uma Stripe Checkout Session e confirma o pagamento.
+    Idempotente: se já confirmado, não faz nada.
+    """
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    session = stripe.checkout.Session.retrieve(session_id)
+
+    if session.payment_status != 'paid':
+        return None
+
+    pagamento = Pagamento.objects.filter(
+        stripe_payment_intent_id=session_id,
+        gateway='stripe',
+    ).first()
+
+    if not pagamento or pagamento.status != 'pendente':
+        return pagamento
+
+    pagamento.status = 'aprovado'
+    pagamento.dados_resposta = {
+        **(pagamento.dados_resposta or {}),
+        'payment_status': session.payment_status,
+        'payment_intent': session.payment_intent,
+        'customer_email': (
+            session.customer_details.email
+            if session.customer_details else None
+        ),
+    }
+    pagamento.save()
+
+    pedido = pagamento.pedido
+    pedido.pago = True
+    if pedido.status == 'aguardando':
+        pedido.status = 'recebido'
+    pedido.save()
+
+    return pagamento
+
+
+def processar_webhook_stripe(payload, sig_header):
+    """
+    Processa webhook do Stripe para confirmar pagamentos.
+    """
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+
+    webhook_secret = settings.STRIPE_WEBHOOK_SECRET
+    if not webhook_secret:
+        return {'status': 400, 'error': 'STRIPE_WEBHOOK_SECRET não configurado'}
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, webhook_secret
+        )
+    except ValueError:
+        return {'status': 400, 'error': 'Payload inválido'}
+    except stripe.error.SignatureVerificationError:
+        return {'status': 400, 'error': 'Assinatura inválida'}
+
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        confirmar_pagamento_stripe(session['id'])
+
+    return {'status': 200, 'message': 'Webhook processado'}
 
 
 # =============================================================================
@@ -294,7 +231,6 @@ def processar_webhook_bb(request):
 def _criar_pagamento_mock(pedido):
     """
     Simula um pagamento para desenvolvimento/testes.
-    Gera um ID fictício e retorna imediatamente.
     """
     mock_id = f'mock_pi_{uuid.uuid4().hex[:16]}'
     valor_total = _to_money_2(pedido.total)
@@ -322,7 +258,6 @@ def _criar_pagamento_mock(pedido):
 def confirmar_pagamento_mock(pagamento):
     """
     Confirma um pagamento mock (simula sucesso).
-    Usado na view de confirmação quando USE_PIX_MOCK=True.
     """
     pagamento.status = 'aprovado'
     pagamento.dados_resposta = {
