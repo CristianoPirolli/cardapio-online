@@ -18,7 +18,6 @@ from django.views.decorators.http import require_POST
 from apps.restaurantes.models import Restaurante, TamanhoPizza
 from apps.produtos.models import Produto
 from .models import Pedido
-from apps.entregas.models import Entrega
 from .services import (
     PedidoCheckoutError,
     criar_pedido_do_carrinho,
@@ -560,7 +559,6 @@ def concluir_pedido_cliente(request, pedido_id):
 
     Regras:
     - Só conclui se estiver em entrega.
-    - Se existir registro de Entrega, sincroniza para status "entregue".
     """
     pedido = get_object_or_404(Pedido, id=pedido_id)
 
@@ -568,14 +566,9 @@ def concluir_pedido_cliente(request, pedido_id):
         messages.warning(request, 'Este pedido ainda não está pronto para conclusão.')
         return redirect('acompanhar_pedido', pedido_id=pedido.id)
 
-    entrega = Entrega.objects.filter(pedido=pedido).first()
-    if entrega and entrega.status != 'entregue':
-        entrega.status = 'entregue'
-        entrega.save()
-    else:
-        pedido._skip_status_validation = True
-        pedido.status = 'concluido'
-        pedido.save()
+    pedido._skip_status_validation = True
+    pedido.status = 'concluido'
+    pedido.save()
 
     messages.success(request, 'Pedido marcado como concluído. Obrigado!')
     return redirect('acompanhar_pedido', pedido_id=pedido.id)

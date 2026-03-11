@@ -7,14 +7,12 @@
 # Cria:
 # - 1 superusuário (admin)
 # - 2 restaurantes com categorias e produtos
-# - 1 entregador por restaurante
 # =============================================================================
 
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from apps.restaurantes.models import Restaurante
 from apps.produtos.models import Categoria, Produto
-from apps.entregas.models import Entregador
 
 
 class Command(BaseCommand):
@@ -192,16 +190,6 @@ class Command(BaseCommand):
                     'categoria': cat_acomp, 'descricao': desc, 'preco': preco,
                 }
             )
-
-        # --- Entregadores ---
-        Entregador.objects.get_or_create(
-            restaurante=rest1, nome='Carlos Motoboy',
-            defaults={'telefone': '(11) 98888-0001', 'veiculo': 'moto'}
-        )
-        Entregador.objects.get_or_create(
-            restaurante=rest2, nome='Ana Ciclista',
-            defaults={'telefone': '(11) 98888-0002', 'veiculo': 'bicicleta'}
-        )
 
         self.stdout.write(self.style.SUCCESS('Seed concluído com sucesso!'))
         self.stdout.write('')

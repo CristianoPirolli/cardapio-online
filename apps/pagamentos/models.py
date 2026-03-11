@@ -2,7 +2,7 @@
 # apps/pagamentos/models.py - Model de Pagamento
 #
 # Registra cada tentativa/confirmação de pagamento associada a um pedido.
-# Suporta Mercado Pago e mock (simulação local).
+# Suporta Stripe, BB PIX e mock (simulação local).
 # =============================================================================
 
 from django.db import models
@@ -14,7 +14,7 @@ class Pagamento(models.Model):
     Registro de pagamento para um pedido.
 
     Tipos de gateway:
-    - mp: Pagamento real via Mercado Pago
+    - stripe: Pagamento via Stripe Checkout (cartão)
     - mock: Simulação local para desenvolvimento/testes
 
     Status:
@@ -22,18 +22,10 @@ class Pagamento(models.Model):
     - aprovado: Pagamento confirmado com sucesso
     - recusado: Pagamento recusado pelo gateway
     - reembolsado: Pagamento estornado
-
-    Campos:
-    - pedido: FK para o pedido associado
-    - gateway: Tipo do gateway ('mp' ou 'mock')
-    - stripe_payment_intent_id: ID externo da transação no gateway
-    - valor: Valor cobrado em reais
-    - status: Status atual do pagamento
-    - dados_resposta: JSON com a resposta completa do gateway
     """
 
     GATEWAY_CHOICES = [
-        ('mp', 'Mercado Pago'),
+        ('stripe', 'Stripe'),
         ('mock', 'Mock (Simulação)'),
     ]
 

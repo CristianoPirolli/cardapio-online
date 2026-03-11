@@ -2,7 +2,10 @@
 # apps/pagamentos/views.py - Views HTML para pagamento
 #
 # Views para:
-# - Página de pagamento PIX (BB PIX ou simulação)
+# - Página de escolha de método (Cartão / PIX / Mock)
+# - Iniciar pagamento Stripe (cria session e redireciona)
+# - Retorno do Stripe Checkout
+# - Webhook do Stripe
 # - Confirmação de pagamento mock
 # - Página de sucesso/erro
 # =============================================================================
@@ -10,18 +13,26 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.conf import settings
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from apps.pedidos.models import Pedido
 from .models import Pagamento
-from .services import criar_pagamento, confirmar_pagamento_mock
+from .services import (
+    criar_pagamento,
+    confirmar_pagamento_mock,
+    confirmar_pagamento_stripe,
+    processar_webhook_stripe,
+)
 
 
 def pagamento_escolher(request, pedido_id):
     """
-    Página de pagamento do pedido.
+    Página de escolha do método de pagamento.
 
-    Se USE_PIX_MOCK=True, mostra botão de simulação.
-    Se USE_PIX_MOCK=False, exibe QR Code / PIX copia e cola do BB.
+    - stripe: Mostra opções Cartão e PIX
+    - mock: Mostra botão de simulação
     """
     pedido = get_object_or_404(Pedido, id=pedido_id)
 
@@ -29,35 +40,117 @@ def pagamento_escolher(request, pedido_id):
         messages.info(request, 'Este pedido já foi pago.')
         return redirect('acompanhar_pedido', pedido_id=pedido.id)
 
+    gateway = settings.PAYMENT_GATEWAY
+
+    if gateway == 'mock':
+        try:
+            resultado = criar_pagamento(pedido)
+        except Exception as exc:
+            messages.error(request, f'Não foi possível iniciar o pagamento: {exc}')
+            return redirect('pagamento_erro', pedido_id=pedido.id)
+
+        context = {
+            'pedido': pedido,
+            'restaurante': pedido.restaurante,
+            'pagamento': resultado['pagamento'],
+            'gateway': 'mock',
+        }
+    else:
+        # Stripe: apenas mostra a página de escolha (sem criar session ainda)
+        context = {
+            'pedido': pedido,
+            'restaurante': pedido.restaurante,
+            'gateway': 'stripe',
+        }
+
+    return render(request, 'pagamentos/pagamento.html', context)
+
+
+@require_POST
+def iniciar_pagamento_stripe(request, pedido_id):
+    """
+    Cria a Stripe Checkout Session com o método escolhido e redireciona.
+
+    POST com campo 'metodo': 'card' ou 'pix'
+    """
+    pedido = get_object_or_404(Pedido, id=pedido_id)
+
+    if pedido.pago:
+        messages.info(request, 'Este pedido já foi pago.')
+        return redirect('acompanhar_pedido', pedido_id=pedido.id)
+
+    metodo = request.POST.get('metodo', 'card')
+    if metodo not in ('card', 'pix'):
+        metodo = 'card'
+
     try:
-        resultado = criar_pagamento(pedido)
+        resultado = criar_pagamento(pedido, metodo=metodo)
     except Exception as exc:
         messages.error(request, f'Não foi possível iniciar o pagamento: {exc}')
         return redirect('pagamento_erro', pedido_id=pedido.id)
 
-    context = {
-        'pedido': pedido,
-        'restaurante': pedido.restaurante,
-        'pagamento': resultado['pagamento'],
-        'checkout_url': resultado.get('checkout_url'),
-        'pix_qr_code_base64': resultado.get('pix_qr_code_base64'),
-        'pix_copia_cola': resultado.get('pix_copia_cola'),
-        'pix_ticket_url': resultado.get('pix_ticket_url'),
-        'expira_em': resultado.get('expira_em'),
-        'client_secret': resultado['client_secret'],
-        'gateway': resultado['gateway'],
-        'use_mock': settings.USE_PIX_MOCK,
-    }
+    checkout_url = resultado.get('checkout_url')
+    if checkout_url:
+        return redirect(checkout_url)
 
-    return render(request, 'pagamentos/pagamento.html', context)
+    messages.error(request, 'Não foi possível criar a sessão de pagamento.')
+    return redirect('pagamento_erro', pedido_id=pedido.id)
+
+
+def stripe_checkout_return(request, pedido_id):
+    """
+    Retorno do Stripe Checkout após pagamento.
+
+    Verifica o status direto na API do Stripe e confirma.
+    Funciona mesmo sem webhook (ideal para desenvolvimento local).
+    """
+    pedido = get_object_or_404(Pedido, id=pedido_id)
+    session_id = request.GET.get('session_id')
+
+    if not session_id:
+        messages.error(request, 'Sessão de pagamento não encontrada.')
+        return redirect('pagamento_erro', pedido_id=pedido.id)
+
+    try:
+        confirmar_pagamento_stripe(session_id)
+    except Exception:
+        pass  # Pode já ter sido confirmado via webhook
+
+    pedido.refresh_from_db()
+
+    if pedido.pago:
+        messages.success(request, 'Pagamento confirmado com sucesso!')
+        return redirect('pagamento_sucesso', pedido_id=pedido.id)
+
+    messages.error(request, 'Não foi possível confirmar o pagamento.')
+    return redirect('pagamento_erro', pedido_id=pedido.id)
+
+
+@csrf_exempt
+@require_POST
+def stripe_webhook(request):
+    """
+    Webhook do Stripe para confirmar pagamentos automaticamente.
+
+    Em desenvolvimento local, use o Stripe CLI:
+        stripe listen --forward-to localhost:8081/pagamentos/stripe-webhook/
+    """
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE', '')
+
+    resultado = processar_webhook_stripe(payload, sig_header)
+
+    return JsonResponse(
+        {'message': resultado.get('message', resultado.get('error'))},
+        status=resultado.get('status', 200)
+    )
 
 
 def pagamento_confirmar_mock(request, pagamento_id):
     """
     Confirma um pagamento mock (simulação).
-    Redireciona para a página de sucesso após "pagamento".
     """
-    if not settings.USE_PIX_MOCK:
+    if settings.PAYMENT_GATEWAY != 'mock':
         messages.error(request, 'Modo de pagamento simulado indisponivel neste ambiente.')
         return redirect('home')
 

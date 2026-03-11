@@ -9,7 +9,6 @@
 # - /cardapio/         → Views do cardápio público
 # - /pedidos/          → Views de pedidos
 # - /pagamentos/       → Views de pagamento
-# - /entregas/         → Views de entregas
 # - /painel/           → Painel do restaurante (admin customizado)
 # - /auth/             → Login/Logout/Registro
 # =============================================================================
@@ -47,14 +46,12 @@ urlpatterns = [
     path('api/produtos/', include('apps.produtos.api_urls')),
     path('api/pedidos/', include('apps.pedidos.api_urls')),
     path('api/pagamentos/', include('apps.pagamentos.api_urls')),
-    path('api/entregas/', include('apps.entregas.api_urls')),
 
     # --- Views HTML (templates) ---
     path('', restaurante_views.home, name='home'),
     path('cardapio/', include('apps.produtos.urls')),
     path('pedidos/', include('apps.pedidos.urls')),
     path('pagamentos/', include('apps.pagamentos.urls')),
-    path('entregas/', include('apps.entregas.urls')),
     path('painel/', include('apps.restaurantes.urls')),
 
     # --- Autenticação (login/logout/registro) ---

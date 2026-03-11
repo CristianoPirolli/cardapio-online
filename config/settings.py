@@ -6,7 +6,7 @@
 # - Apps instalados (restaurantes, produtos, pedidos, pagamentos, entregas)
 # - Django REST Framework com autenticação JWT
 # - Configurações de arquivos estáticos e media
-# - Integração com Mercado Pago
+# - Integração com Stripe
 # - Middleware multi-tenant por subdomínio
 # =============================================================================
 
@@ -79,7 +79,6 @@ INSTALLED_APPS = [
     'apps.produtos',
     'apps.pedidos',
     'apps.pagamentos',
-    'apps.entregas',
 ]
 
 # ---------------------------------------------------------------------------
@@ -231,19 +230,17 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
 # ---------------------------------------------------------------------------
-# Banco do Brasil PIX (pagamentos)
+# Gateway de Pagamento
 # ---------------------------------------------------------------------------
-# Credenciais obtidas em https://developers.bb.com.br
-BB_PIX_CLIENT_ID = os.getenv('BB_PIX_CLIENT_ID', '')
-BB_PIX_CLIENT_SECRET = os.getenv('BB_PIX_CLIENT_SECRET', '')
-BB_PIX_KEY = os.getenv('BB_PIX_KEY', '')          # chave PIX do recebedor
-BB_PIX_APP_KEY = os.getenv('BB_PIX_APP_KEY', '')  # gw-dev-app-key
-BB_PIX_ENV = os.getenv('BB_PIX_ENV', 'sandbox')   # 'sandbox' ou 'production'
+# Opções: 'stripe' ou 'mock'
+PAYMENT_GATEWAY = os.getenv('PAYMENT_GATEWAY', 'mock')
 
-# Simulação de pagamento (USE_PIX_MOCK=True para desenvolvimento)
-USE_PIX_MOCK = (
-    DEBUG and os.getenv('USE_PIX_MOCK', 'True').lower() in ('true', '1', 'yes')
-)
+# ---------------------------------------------------------------------------
+# Stripe
+# ---------------------------------------------------------------------------
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY', '')
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY', '')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
 
 # ---------------------------------------------------------------------------
 # Multi-tenant

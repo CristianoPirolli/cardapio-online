@@ -2,7 +2,6 @@ from decimal import Decimal
 
 from django.db import transaction
 
-from apps.entregas.models import Entrega
 from apps.produtos.models import Produto
 
 from .models import ItemPedido, Pedido
@@ -166,9 +165,6 @@ def criar_pedido_do_carrinho(restaurante, itens_sessao, dados_cliente):
         pedido_minimo = Decimal(str(restaurante.pedido_minimo or 0))
         if pedido.subtotal < pedido_minimo:
             raise PedidoCheckoutError(f'Pedido minimo e R$ {pedido_minimo:.2f}.')
-
-        if pedido.tipo_entrega == 'delivery':
-            Entrega.objects.create(pedido=pedido, status='aguardando')
 
     return pedido
 

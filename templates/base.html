@@ -196,13 +196,6 @@
                                 {{ user.first_name|default:user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                {% if user.entregador %}
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'entregador_entregas' %}">
-                                            <i class="bi bi-truck"></i> Minhas Entregas
-                                        </a>
-                                    </li>
-                                {% else %}
                                     <li>
                                         <a class="dropdown-item" href="{% url 'painel_dashboard' %}">
                                             <i class="bi bi-speedometer2"></i> Painel
@@ -213,7 +206,6 @@
                                             <i class="bi bi-gear"></i> Configurações
                                         </a>
                                     </li>
-                                {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <a class="dropdown-item" href="{% url 'logout' %}" hx-boost="false">

@@ -1,21 +1,17 @@
 <!-- ==========================================================================
      templates/pagamentos/pagamento.html - Payment page for an order
 
-     Displays the order summary (items, total) and a payment form.
-     If use_mock is True, shows a simulated payment button.
-     If use_mock is False, renders a button that redirects to
-     Mercado Pago Checkout using checkout_url.
+     Displays the order summary and payment method selection.
+     Stripe: shows Card and PIX options.
+     Mock: shows simulation button.
 
-     Context: pedido, restaurante, pagamento, checkout_url, client_secret,
-              gateway, mercadopago_public_key, use_mock
+     Context: pedido, restaurante, gateway, pagamento (mock only)
      ========================================================================== -->
 {% extends 'base.html' %}
 {% load static %}
 {% load humanize %}
 
 {% block title %}Pagamento - Pedido #{{ pedido.id }}{% endblock %}
-
-{% block extra_css %}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -86,17 +82,17 @@
             </div>
         </div>
 
-        <!-- ===== PAYMENT FORM ===== -->
+        <!-- ===== PAYMENT METHOD SELECTION ===== -->
         <div class="col-lg-6 col-md-6 order-md-1">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
-                        <i class="bi bi-credit-card me-2"></i>Pagamento
+                        <i class="bi bi-wallet2 me-2"></i>Forma de Pagamento
                     </h5>
                 </div>
                 <div class="card-body">
 
-                    {% if use_mock %}
+                    {% if gateway == 'mock' %}
                     <!-- ===== MOCK PAYMENT ===== -->
                     <div class="text-center py-4">
                         <div class="mb-4">
@@ -116,54 +112,57 @@
                     </div>
 
                     {% else %}
-                    <div class="text-center py-2">
-                        <div class="mb-3">
-                            <i class="bi bi-qr-code text-success" style="font-size: 3rem;"></i>
-                        </div>
-                        <h5 class="fw-semibold mb-2">Pagamento via PIX</h5>
-                        <p class="text-muted mb-3">
-                            Escaneie o QR Code no app do banco ou copie o codigo PIX.
+                    <!-- ===== STRIPE: CARD + PIX ===== -->
+                    <div class="py-3">
+                        <p class="text-center text-muted mb-4">
+                            Escolha como deseja pagar <strong>R$ {{ pedido.total|floatformat:2|intcomma }}</strong>
                         </p>
 
-                        {% if pix_qr_code_base64 %}
-                        <div class="mb-3">
-                            <img
-                                src="data:image/png;base64,{{ pix_qr_code_base64 }}"
-                                alt="QR Code PIX"
-                                class="img-fluid border rounded p-2 bg-white"
-                                style="max-width: 300px;"
-                            >
-                        </div>
-                        {% endif %}
+                        <div class="row g-3">
+                            <!-- Cart&atilde;o de Cr&eacute;dito -->
+                            <div class="col-6">
+                                <form method="post"
+                                      action="{% url 'iniciar_pagamento_stripe' pedido.id %}"
+                                      hx-boost="false">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="metodo" value="card">
+                                    <button type="submit"
+                                            class="btn btn-outline-primary w-100 py-4 d-flex flex-column align-items-center gap-2">
+                                        <i class="bi bi-credit-card-2-front" style="font-size: 2.5rem;"></i>
+                                        <span class="fw-semibold">Cart&atilde;o</span>
+                                        <small class="text-muted">Cr&eacute;dito ou D&eacute;bito</small>
+                                    </button>
+                                </form>
+                            </div>
 
-                        {% if pix_copia_cola %}
-                        <div class="mb-2 text-start">
-                            <label for="pix-copia-cola" class="form-label fw-semibold">PIX Copia e Cola</label>
-                            <textarea
-                                id="pix-copia-cola"
-                                class="form-control"
-                                rows="4"
-                                readonly
-                            >{{ pix_copia_cola }}</textarea>
+                            <!-- PIX -->
+                            <div class="col-6">
+                                <form method="post"
+                                      action="{% url 'iniciar_pagamento_stripe' pedido.id %}"
+                                      hx-boost="false">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="metodo" value="pix">
+                                    <button type="submit"
+                                            class="btn btn-outline-success w-100 py-4 d-flex flex-column align-items-center gap-2">
+                                        <i class="bi bi-qr-code" style="font-size: 2.5rem;"></i>
+                                        <span class="fw-semibold">PIX</span>
+                                        <small class="text-muted">Pagamento instant&acirc;neo</small>
+                                    </button>
+                                </form>
+                            </div>
                         </div>
-                        <button type="button" class="btn btn-success w-100" id="btn-copiar-pix">
-                            <i class="bi bi-clipboard me-2"></i>Copiar codigo PIX
-                        </button>
-                        {% elif pix_ticket_url %}
-                        <a href="{{ pix_ticket_url }}" class="btn btn-success btn-lg w-100" hx-boost="false" target="_blank" rel="noopener">
-                            <i class="bi bi-box-arrow-up-right me-2"></i>Abrir comprovante PIX
-                        </a>
-                        {% else %}
-                        <div class="alert alert-danger mb-0">
-                            Nao foi possivel gerar o PIX no momento. Tente novamente em instantes.
-                        </div>
-                        {% endif %}
 
-                        {% if expira_em %}
-                        <div class="small text-muted mt-3">
-                            Expira em: {{ expira_em }}
+                        <div class="text-center mt-4">
+                            <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                                <img src="https://img.icons8.com/color/28/visa.png" alt="Visa">
+                                <img src="https://img.icons8.com/color/28/mastercard-logo.png" alt="Mastercard">
+                                <img src="https://img.icons8.com/color/28/amex.png" alt="Amex">
+                            </div>
+                            <p class="text-muted small mb-0">
+                                <i class="bi bi-shield-lock me-1"></i>
+                                Pagamento seguro processado pelo Stripe
+                            </p>
                         </div>
-                        {% endif %}
                     </div>
                     {% endif %}
 
@@ -173,27 +172,4 @@
 
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var btn = document.getElementById('btn-copiar-pix');
-    var campo = document.getElementById('pix-copia-cola');
-    if (!btn || !campo) return;
-
-    btn.addEventListener('click', async function () {
-        try {
-            await navigator.clipboard.writeText(campo.value || '');
-            btn.innerHTML = '<i class="bi bi-check2 me-2"></i>Codigo copiado';
-            setTimeout(function () {
-                btn.innerHTML = '<i class="bi bi-clipboard me-2"></i>Copiar codigo PIX';
-            }, 1800);
-        } catch (e) {
-            campo.focus();
-            campo.select();
-        }
-    });
-});
-</script>
 {% endblock %}
