@@ -16,6 +16,8 @@ urlpatterns = [
     path('pizzas/', views.painel_pizzas, name='painel_pizzas'),
     # Lista de pedidos no painel
     path('pedidos/', views.painel_pedidos, name='painel_pedidos'),
+    # Contador de pedidos em aberto (notificação do menu)
+    path('pedidos/abertos/count/', views.painel_pedidos_abertos_count, name='painel_pedidos_abertos_count'),
     # Detalhe de pedido no painel
     path('pedidos/<int:pedido_id>/', views.painel_pedido_detalhe, name='painel_pedido_detalhe'),
 ]

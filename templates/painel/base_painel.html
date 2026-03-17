@@ -25,8 +25,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if current == 'painel_pedidos' or current == 'painel_pedido_detalhe' %}active{% endif %}" href="{% url 'painel_pedidos' %}">
-                            <i class="bi bi-receipt"></i> Pedidos
+                        <a class="nav-link d-flex align-items-center justify-content-between {% if current == 'painel_pedidos' or current == 'painel_pedido_detalhe' %}active{% endif %}" href="{% url 'painel_pedidos' %}">
+                            <span><i class="bi bi-receipt"></i> Pedidos</span>
+                            <span id="painel-pedidos-badge"
+                                  class="badge bg-danger rounded-pill ms-2 {% if not painel_pedidos_abertos_count %}d-none{% endif %}">
+                                {{ painel_pedidos_abertos_count }}
+                            </span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -60,4 +64,103 @@
         </main>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function() {
+    var badge = document.getElementById('painel-pedidos-badge');
+    if (!badge) return;
+
+    if (window.__painelPedidosBadgePolling) {
+        clearInterval(window.__painelPedidosBadgePolling);
+    }
+
+    var url = "{% url 'painel_pedidos_abertos_count' %}";
+    var notificacoesSuportadas = 'Notification' in window;
+    var contadorInicial = Number(badge.textContent || 0);
+
+    if (typeof window.__painelPedidosPrevCount === 'undefined') {
+        window.__painelPedidosPrevCount = contadorInicial;
+    }
+    if (typeof window.__painelPedidosPollingInicializado === 'undefined') {
+        window.__painelPedidosPollingInicializado = false;
+    }
+
+    function solicitarPermissaoNotificacao() {
+        if (!notificacoesSuportadas) return;
+        if (Notification.permission !== 'default') return;
+        Notification.requestPermission().catch(function() {
+            // Ignora falhas de permissao em navegadores restritivos.
+        });
+    }
+
+    function notificarNovoPedido(quantidadeNovos, totalEmAberto) {
+        if (!notificacoesSuportadas) return;
+        if (Notification.permission !== 'granted') return;
+        if (quantidadeNovos <= 0) return;
+
+        var titulo = quantidadeNovos === 1
+            ? 'Novo pedido recebido'
+            : 'Novos pedidos recebidos';
+        var corpo = quantidadeNovos === 1
+            ? 'Voce recebeu 1 novo pedido em aberto.'
+            : 'Voce recebeu ' + quantidadeNovos + ' novos pedidos em aberto.';
+
+        if (totalEmAberto > 0) {
+            corpo += ' Total em aberto: ' + totalEmAberto + '.';
+        }
+
+        var notification = new Notification(titulo, {
+            body: corpo
+        });
+
+        notification.onclick = function() {
+            window.focus();
+            window.location.href = "{% url 'painel_pedidos' %}";
+        };
+    }
+
+    function atualizarBadge() {
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(function(response) {
+            if (!response.ok) throw new Error('Falha ao consultar pedidos em aberto.');
+            return response.json();
+        })
+        .then(function(data) {
+            var total = Number(data.pedidos_abertos || 0);
+            var anterior = Number(window.__painelPedidosPrevCount || 0);
+            var novos = total - anterior;
+
+            badge.textContent = total;
+            if (total > 0) {
+                badge.classList.remove('d-none');
+            } else {
+                badge.classList.add('d-none');
+            }
+
+            if (window.__painelPedidosPollingInicializado && novos > 0) {
+                notificarNovoPedido(novos, total);
+            }
+
+            window.__painelPedidosPrevCount = total;
+            window.__painelPedidosPollingInicializado = true;
+        })
+        .catch(function() {
+            // Silencia erro para nao interromper a navegacao do painel.
+        });
+    }
+
+    document.addEventListener('click', solicitarPermissaoNotificacao, { once: true });
+    solicitarPermissaoNotificacao();
+    atualizarBadge();
+    window.__painelPedidosBadgePolling = setInterval(atualizarBadge, 15000);
+})();
+</script>
 {% endblock %}

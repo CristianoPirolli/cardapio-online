@@ -5,6 +5,7 @@
 # =============================================================================
 
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 
 
 def estabelecimento_context(request):
@@ -31,10 +32,35 @@ def estabelecimento_context(request):
         itens = request.session['carrinho'].get('itens', {})
         total_itens = sum(int(item.get('quantidade', 0)) for item in itens.values())
 
+    pedidos_abertos_count = 0
+    if (
+        getattr(request, 'user', None)
+        and request.user.is_authenticated
+        and request.path.startswith('/painel/')
+    ):
+        restaurante = getattr(request, 'restaurante', None)
+        if not restaurante:
+            try:
+                restaurante = request.user.restaurante
+            except ObjectDoesNotExist:
+                restaurante = None
+
+        if restaurante:
+            # Import local para evitar acoplamento no carregamento inicial.
+            from apps.pedidos.models import Pedido
+
+            pedidos_abertos_count = Pedido.objects.filter(
+                restaurante=restaurante,
+                pago=True,
+            ).exclude(
+                status__in=['concluido', 'cancelado']
+            ).count()
+
     return {
         'estabelecimento_atual': tenant,
         'restaurante_atual': tenant,
         'carrinho_total_itens': total_itens,
+        'painel_pedidos_abertos_count': pedidos_abertos_count,
         'base_domain': settings.BASE_DOMAIN,
     }
 
