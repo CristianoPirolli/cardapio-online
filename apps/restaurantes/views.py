@@ -8,6 +8,7 @@
 # =============================================================================
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Sum, Count, Q, F, Avg, DurationField, ExpressionWrapper, DecimalField
@@ -373,6 +374,27 @@ def painel_pedidos(request):
         'status_filtro': status_filtro,
         'paginator': paginator,
     })
+
+
+@login_required
+def painel_pedidos_abertos_count(request):
+    """
+    Retorna em JSON a quantidade de pedidos em aberto do restaurante logado.
+
+    Considera em aberto: pedidos pagos com status diferente de concluído/cancelado.
+    """
+    restaurante = _restaurante_do_usuario(request)
+    if not restaurante:
+        return JsonResponse({'pedidos_abertos': 0})
+
+    pedidos_abertos = Pedido.objects.filter(
+        restaurante=restaurante,
+        pago=True,
+    ).exclude(
+        status__in=['concluido', 'cancelado']
+    ).count()
+
+    return JsonResponse({'pedidos_abertos': pedidos_abertos})
 
 
 @login_required
