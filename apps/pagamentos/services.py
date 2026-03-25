@@ -201,21 +201,43 @@ def confirmar_pagamento_stripe(session_id):
 def processar_webhook_stripe(payload, sig_header):
     """
     Processa webhook do Stripe para confirmar pagamentos.
+
+    Em desenvolvimento (DEBUG=True) sem STRIPE_WEBHOOK_SECRET configurado,
+    aceita o evento sem verificar assinatura — útil sem o Stripe CLI.
+
+    Em produção (DEBUG=False), o STRIPE_WEBHOOK_SECRET é obrigatório.
+    Para registrar o endpoint: https://dashboard.stripe.com/webhooks
+    Para dev local com assinatura: stripe listen --forward-to localhost:8081/pagamentos/stripe-webhook/
     """
+    import json
+    import logging
+
+    logger = logging.getLogger(__name__)
     stripe.api_key = settings.STRIPE_SECRET_KEY
 
     webhook_secret = settings.STRIPE_WEBHOOK_SECRET
-    if not webhook_secret:
-        return {'status': 400, 'error': 'STRIPE_WEBHOOK_SECRET não configurado'}
 
-    try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, webhook_secret
+    if webhook_secret:
+        # Verifica assinatura (dev com Stripe CLI ou produção)
+        try:
+            event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+        except ValueError:
+            return {'status': 400, 'error': 'Payload inválido'}
+        except stripe.error.SignatureVerificationError:
+            return {'status': 400, 'error': 'Assinatura inválida'}
+    elif settings.DEBUG:
+        # Dev sem Stripe CLI: aceita sem assinatura, loga aviso
+        logger.warning(
+            'STRIPE_WEBHOOK_SECRET não configurado. '
+            'Processando webhook sem verificação de assinatura (apenas em DEBUG).'
         )
-    except ValueError:
-        return {'status': 400, 'error': 'Payload inválido'}
-    except stripe.error.SignatureVerificationError:
-        return {'status': 400, 'error': 'Assinatura inválida'}
+        try:
+            event = json.loads(payload)
+        except (ValueError, TypeError):
+            return {'status': 400, 'error': 'Payload inválido'}
+    else:
+        # Produção sem secret: bloqueia
+        return {'status': 400, 'error': 'STRIPE_WEBHOOK_SECRET não configurado'}
 
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']

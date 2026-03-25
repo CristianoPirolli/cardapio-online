@@ -113,8 +113,9 @@ def stripe_checkout_return(request, pedido_id):
 
     try:
         confirmar_pagamento_stripe(session_id)
-    except Exception:
-        pass  # Pode já ter sido confirmado via webhook
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning('stripe_checkout_return: %s', exc)
 
     pedido.refresh_from_db()
 
