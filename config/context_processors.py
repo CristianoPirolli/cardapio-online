@@ -33,6 +33,7 @@ def estabelecimento_context(request):
         total_itens = sum(int(item.get('quantidade', 0)) for item in itens.values())
 
     pedidos_abertos_count = 0
+    aguardando_confirmacao_count = 0
     if (
         getattr(request, 'user', None)
         and request.user.is_authenticated
@@ -56,11 +57,17 @@ def estabelecimento_context(request):
                 status__in=['concluido', 'cancelado']
             ).count()
 
+            aguardando_confirmacao_count = Pedido.objects.filter(
+                restaurante=restaurante,
+                status='aguardando_confirmacao',
+            ).count()
+
     return {
         'estabelecimento_atual': tenant,
         'restaurante_atual': tenant,
         'carrinho_total_itens': total_itens,
         'painel_pedidos_abertos_count': pedidos_abertos_count,
+        'aguardando_confirmacao_count': aguardando_confirmacao_count,
         'base_domain': settings.BASE_DOMAIN,
     }
 
