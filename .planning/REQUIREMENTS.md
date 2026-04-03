@@ -12,10 +12,10 @@
 - [x] **REQ-03**: Sessão/pedido permanece acessível após cliente sair para app do banco e retornar
 - [x] **REQ-04**: Cliente envia comprovante de pagamento em imagem ou PDF
 - [x] **REQ-05**: Pedido enviado com comprovante fica em estado aguardando confirmação
-- [ ] **REQ-06**: Restaurante visualiza pedidos aguardando confirmação antes do pipeline de produção
-- [ ] **REQ-07**: Restaurante visualiza o arquivo de comprovante para validar pagamento  <!-- upload validation implemented; view is in plan 01-04 -->
-- [ ] **REQ-08**: Restaurante aceita pedido validado e pedido segue para fluxo existente
-- [ ] **REQ-09**: Restaurante recusa pedido inválido e pedido é cancelado
+- [x] **REQ-06**: Restaurante visualiza pedidos aguardando confirmação antes do pipeline de produção
+- [x] **REQ-07**: Restaurante visualiza o arquivo de comprovante para validar pagamento
+- [x] **REQ-08**: Restaurante aceita pedido validado e pedido segue para fluxo existente
+- [x] **REQ-09**: Restaurante recusa pedido inválido e pedido é cancelado
 - [ ] **REQ-10**: Valor de pedidos aceitos compõe totais do painel como no fluxo atual
 - [ ] **REQ-11**: Integrações de gateway (Mercado Pago/Stripe) são removidas do fluxo ativo
 - [ ] **REQ-12**: Chave PIX é configurável por ambiente/configuração do sistema
@@ -45,10 +45,10 @@
 | REQ-03 | Phase 1 | Done (01-03) |
 | REQ-04 | Phase 1 | Done (01-03) |
 | REQ-05 | Phase 1 | Done (01-03) |
-| REQ-06 | Phase 1 | Pending (01-04) |
-| REQ-07 | Phase 1 | Partial (01-03 upload, 01-04 view) |
-| REQ-08 | Phase 1 | Pending (01-04) |
-| REQ-09 | Phase 1 | Pending (01-04) |
+| REQ-06 | Phase 1 | Done (01-04) |
+| REQ-07 | Phase 1 | Done (01-04) |
+| REQ-08 | Phase 1 | Done (01-04) |
+| REQ-09 | Phase 1 | Done (01-04) |
 | REQ-10 | Phase 1 | Pending (01-05) |
 | REQ-11 | Phase 1 | Done (01-01) |
 | REQ-12 | Phase 1 | Done (01-01) |

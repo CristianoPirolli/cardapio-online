@@ -24,11 +24,11 @@ Plans:
 - [x] 01-01: Pre-flight (migracoes pendentes, limpeza de referencias gateway e configuracao PIX_KEY)
 - [x] 01-02: Modelo de dados e grafo de status (aguardando_confirmacao + comprovante)
 - [x] 01-03: Fluxo cliente PIX manual (pagina, copia, upload)
-- [ ] 01-04: Fluxo restaurante (filtro, visualizacao comprovante, aceitar/recusar)
+- [x] 01-04: Fluxo restaurante (filtro, visualizacao comprovante, aceitar/recusar)
 - [ ] 01-05: Integracao final, limpeza e validacao E2E
 
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pagamento PIX Manual | 3/5 | In progress | - |
+| 1. Pagamento PIX Manual | 4/5 | In progress | - |
