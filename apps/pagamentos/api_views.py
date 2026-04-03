@@ -67,8 +67,6 @@ def criar_pagamento_api(request):
 
     return Response({
         'pagamento_id': resultado['pagamento'].id,
-        'client_secret': resultado['client_secret'],
         'gateway': resultado['gateway'],
         'valor': str(resultado['pagamento'].valor),
-        'checkout_url': resultado.get('checkout_url'),
     }, status=status.HTTP_201_CREATED)

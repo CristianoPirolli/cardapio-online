@@ -50,7 +50,7 @@ class PedidoAdmin(admin.ModelAdmin):
             'fields': ('subtotal', 'taxa_entrega', 'imposto', 'total')
         }),
         ('Status e Pagamento', {
-            'fields': ('status', 'pago', 'stripe_payment_intent_id')
+            'fields': ('status', 'pago', 'external_payment_id')
         }),
         ('Datas', {
             'fields': ('criado_em', 'atualizado_em'),
