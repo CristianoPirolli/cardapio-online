@@ -14,8 +14,8 @@ class PagamentoSerializer(serializers.ModelSerializer):
     {
         "id": 1,
         "pedido": 1,
-        "gateway": "mp",
-        "stripe_payment_intent_id": "1234567890",
+        "gateway": "pix_manual",
+        "external_payment_id": "",
         "valor": "91.79",
         "status": "aprovado",
         "criado_em": "2024-01-01T10:00:00Z"
@@ -25,7 +25,7 @@ class PagamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pagamento
         fields = [
-            'id', 'pedido', 'gateway', 'stripe_payment_intent_id',
+            'id', 'pedido', 'gateway', 'external_payment_id',
             'valor', 'status', 'criado_em', 'atualizado_em'
         ]
         read_only_fields = ['id', 'criado_em', 'atualizado_em']
