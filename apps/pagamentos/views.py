@@ -1,144 +1,156 @@
 # =============================================================================
-# apps/pagamentos/views.py - Views HTML para pagamento
+# apps/pagamentos/views.py - Views HTML para pagamento PIX Manual
 #
-# Views para:
-# - Página de pagamento PIX manual (escolha e exibição da chave PIX)
-# - Verificação de status do pagamento
-# - Confirmação de pagamento mock (desenvolvimento)
-# - Página de sucesso/erro
+# Fluxo do cliente:
+#   GET  /pagamentos/<id>/        → Exibe chave PIX + botão copiar
+#   GET  /pagamentos/<id>/upload/ → Formulário de upload de comprovante
+#   POST /pagamentos/<id>/upload/ → Processa upload, avança status para aguardando_confirmacao
+#   GET  /pagamentos/sucesso/<id>/ → Página de sucesso
+#   GET  /pagamentos/erro/<id>/   → Página de erro
 # =============================================================================
 
 import logging
 
 from django.conf import settings
 from django.contrib import messages
-from django.http import JsonResponse
+from django.core.validators import FileExtensionValidator
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 
 from apps.pedidos.models import Pedido
 
 from .models import Pagamento
-from .services import (
-    confirmar_pagamento_mock,
-    criar_pagamento,
-)
+from .services import criar_pagamento_pix_manual
 
 logger = logging.getLogger(__name__)
 
+# Maximum comprovante file size: 10 MB
+MAX_COMPROVANTE_SIZE_BYTES = 10 * 1024 * 1024
+ALLOWED_COMPROVANTE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'pdf']
 
-def pagamento_escolher(request, pedido_id):
+
+def pagamento_pix_manual(request, pedido_id):
     """
-    Página de pagamento PIX manual.
-    Exibe a chave PIX do estabelecimento para o cliente realizar o pagamento.
+    Página principal do pagamento PIX.
+    Exibe a chave PIX fixa do estabelecimento com botão de cópia.
+    O cliente copia, vai ao app do banco, e retorna para fazer o upload.
+
+    A sessão não é necessária para retornar — o pedido_id na URL é o único estado.
     """
     pedido = get_object_or_404(Pedido, id=pedido_id)
 
     if pedido.pago:
-        messages.info(request, 'Este pedido já foi pago.')
+        messages.info(request, 'Este pedido já foi confirmado.')
         return redirect('acompanhar_pedido', pedido_id=pedido.id)
+
+    # Cria (ou reutiliza) o registro de pagamento pendente.
+    # Idempotente: o cliente pode recarregar a página sem criar duplicatas.
+    criar_pagamento_pix_manual(pedido)
+
+    pix_key = getattr(settings, 'PIX_KEY', '')
 
     return render(request, 'pagamentos/pagamento.html', {
         'pedido': pedido,
         'restaurante': pedido.restaurante,
-        'pix_key': getattr(settings, 'PIX_KEY', ''),
-    })
-
-
-def pagamento_pix(request, pedido_id):
-    """
-    Página de PIX manual. Exibe a chave PIX e instrucoes para o cliente.
-    """
-    pedido = get_object_or_404(Pedido, id=pedido_id)
-
-    if pedido.pago:
-        return redirect('pagamento_sucesso', pedido_id=pedido.id)
-
-    pagamento = Pagamento.objects.filter(
-        pedido=pedido,
-        status='pendente',
-    ).first()
-
-    if not pagamento:
-        # Cria o pagamento pendente se nao existir
-        try:
-            resultado = criar_pagamento(pedido)
-            pagamento = resultado['pagamento']
-        except Exception as exc:
-            messages.error(request, f'Nao foi possivel iniciar o pagamento: {exc}')
-            return redirect('pagamento_escolher', pedido_id=pedido.id)
-
-    pix_key = getattr(settings, 'PIX_KEY', '')
-
-    return render(request, 'pagamentos/pix.html', {
-        'pedido': pedido,
-        'restaurante': pedido.restaurante,
-        'pagamento': pagamento,
         'pix_key': pix_key,
-        'is_mock': pagamento.gateway == 'mock',
     })
 
 
-def verificar_status_pagamento(request, pagamento_id):
+def upload_comprovante(request, pedido_id):
     """
-    Endpoint de polling para a pagina do PIX.
-    Retorna JSON: {pago, status, redirect_url}
-    """
-    pagamento = get_object_or_404(Pagamento, id=pagamento_id)
+    Formulário de upload do comprovante de pagamento.
 
-    pago = pagamento.status == 'aprovado'
-    pedido = pagamento.pedido
-
-    return JsonResponse({
-        'pago': pago,
-        'status': pagamento.status,
-        'redirect_url': (
-            reverse('pagamento_sucesso', args=[pedido.id]) if pago else None
-        ),
-    })
-
-
-def mock_cartao_checkout(request, pedido_id):
-    """
-    Pagina de simulacao de checkout para modo mock.
+    GET:  Exibe o formulário de upload.
+    POST: Valida o arquivo (tipo e tamanho), salva em Pagamento.comprovante,
+          avança pedido.status para 'aguardando_confirmacao'.
+          Não define pedido.pago=True — isso é responsabilidade do restaurante.
     """
     pedido = get_object_or_404(Pedido, id=pedido_id)
 
     if pedido.pago:
-        return redirect('pagamento_sucesso', pedido_id=pedido.id)
+        return redirect('acompanhar_pedido', pedido_id=pedido.id)
+
+    if pedido.status not in ('aguardando', 'aguardando_confirmacao'):
+        messages.warning(request, 'Seu pedido está em um estado que não permite upload de comprovante.')
+        return redirect('acompanhar_pedido', pedido_id=pedido.id)
 
     pagamento = Pagamento.objects.filter(
         pedido=pedido,
+        gateway='pix_manual',
         status='pendente',
-        gateway='mock',
     ).first()
 
     if not pagamento:
-        messages.error(request, 'Sessao de simulacao nao encontrada.')
-        return redirect('pagamento_escolher', pedido_id=pedido.id)
+        # Segurança: se o cliente chegou aqui sem passar pela página de PIX,
+        # cria o registro de pagamento agora.
+        pagamento = criar_pagamento_pix_manual(pedido)
 
-    return render(request, 'pagamentos/mock_cartao.html', {
+    if request.method == 'POST':
+        arquivo = request.FILES.get('comprovante')
+
+        if not arquivo:
+            messages.error(request, 'Selecione um arquivo de comprovante.')
+            return render(request, 'pagamentos/pix_upload.html', {
+                'pedido': pedido,
+                'restaurante': pedido.restaurante,
+            })
+
+        # Validação de tamanho (max 10 MB)
+        if arquivo.size > MAX_COMPROVANTE_SIZE_BYTES:
+            messages.error(
+                request,
+                f'O arquivo é muito grande. Tamanho máximo: 10 MB. '
+                f'Seu arquivo: {arquivo.size // 1024 // 1024} MB.'
+            )
+            return render(request, 'pagamentos/pix_upload.html', {
+                'pedido': pedido,
+                'restaurante': pedido.restaurante,
+            })
+
+        # Validação de extensão
+        validator = FileExtensionValidator(
+            allowed_extensions=ALLOWED_COMPROVANTE_EXTENSIONS
+        )
+        try:
+            validator(arquivo)
+        except ValidationError:
+            messages.error(
+                request,
+                'Tipo de arquivo não permitido. '
+                'Envie uma imagem (JPG, PNG, WEBP) ou PDF.'
+            )
+            return render(request, 'pagamentos/pix_upload.html', {
+                'pedido': pedido,
+                'restaurante': pedido.restaurante,
+            })
+
+        # Salva o comprovante e avança o status
+        pagamento.comprovante = arquivo
+        pagamento.save(update_fields=['comprovante', 'atualizado_em'])
+
+        pedido.status = 'aguardando_confirmacao'
+        pedido.save()  # BFS: aguardando → aguardando_confirmacao (valid)
+
+        logger.info(
+            "upload_comprovante: pedido %s comprovante recebido, aguardando_confirmacao",
+            pedido.id
+        )
+        messages.success(
+            request,
+            'Comprovante enviado com sucesso! '
+            'O restaurante irá verificar seu pagamento em breve.'
+        )
+        return redirect('pagamento_sucesso', pedido_id=pedido.id)
+
+    return render(request, 'pagamentos/pix_upload.html', {
         'pedido': pedido,
         'restaurante': pedido.restaurante,
         'pagamento': pagamento,
     })
-
-
-def pagamento_confirmar_mock(request, pagamento_id):
-    """Confirma um pagamento mock (simulacao de desenvolvimento)."""
-    pagamento = get_object_or_404(Pagamento, id=pagamento_id, gateway='mock')
-
-    if pagamento.status == 'aprovado':
-        messages.info(request, 'Este pagamento ja foi confirmado.')
-    else:
-        confirmar_pagamento_mock(pagamento)
-        messages.success(request, 'Pagamento simulado confirmado com sucesso!')
-
-    return redirect('pagamento_sucesso', pedido_id=pagamento.pedido_id)
 
 
 def pagamento_sucesso(request, pedido_id):
-    """Pagina de sucesso apos pagamento confirmado."""
+    """Página exibida após o cliente submeter o comprovante."""
     pedido = get_object_or_404(Pedido, id=pedido_id)
     return render(request, 'pagamentos/sucesso.html', {
         'pedido': pedido,
@@ -147,7 +159,7 @@ def pagamento_sucesso(request, pedido_id):
 
 
 def pagamento_erro(request, pedido_id):
-    """Pagina de erro quando o pagamento falha."""
+    """Página de erro genérica."""
     pedido = get_object_or_404(Pedido, id=pedido_id)
     return render(request, 'pagamentos/erro.html', {
         'pedido': pedido,

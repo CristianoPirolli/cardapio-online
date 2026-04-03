@@ -1,175 +1,110 @@
-<!-- ==========================================================================
-     templates/pagamentos/pagamento.html - Payment page for an order
-
-     Displays the order summary and payment method selection.
-     Stripe: shows Card and PIX options.
-     Mock: shows simulation button.
-
-     Context: pedido, restaurante, gateway, pagamento (mock only)
-     ========================================================================== -->
+<!-- templates/pagamentos/pagamento.html -->
+<!-- Página de pagamento PIX: exibe a chave PIX fixa com botão copiar -->
 {% extends 'base.html' %}
-{% load static %}
-{% load humanize %}
 
-{% block title %}Pagamento - Pedido #{{ pedido.id }}{% endblock %}
+{% block title %}Pagamento PIX - Pedido #{{ pedido.id }}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-5">
     <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
 
-        <!-- ===== ORDER SUMMARY ===== -->
-        <div class="col-lg-5 col-md-6 mb-4 mb-md-0 order-md-2">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-dark text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-receipt me-2"></i>Resumo do Pedido
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted mb-3">
-                        <i class="bi bi-hash"></i> Pedido <strong>#{{ pedido.id }}</strong>
-                    </p>
+            <div class="text-center mb-4">
+                <h2 class="fw-bold">
+                    <i class="bi bi-qr-code-scan text-success me-2"></i>
+                    Pague com PIX
+                </h2>
+                <p class="text-muted">Copie a chave PIX abaixo e pague pelo seu app do banco</p>
+            </div>
 
-                    {% if restaurante %}
-                    <p class="mb-3">
-                        <i class="bi bi-shop me-1 text-primary"></i>
-                        <strong>{{ restaurante.nome }}</strong>
-                    </p>
-                    {% endif %}
-
-                    <hr>
-
-                    <!-- Order items -->
-                    <ul class="list-group list-group-flush mb-3">
-                        {% for item in pedido.itens.all %}
-                        <li class="list-group-item d-flex justify-content-between align-items-start px-0">
-                            <div class="me-auto">
-                                <span class="fw-semibold">{{ item.produto.nome }}</span>
-                                <br>
-                                <small class="text-muted">
-                                    {{ item.quantidade }}x R$ {{ item.preco_unitario|floatformat:2|intcomma }}
-                                </small>
-                            </div>
-                            <span class="text-nowrap fw-semibold">
-                                R$ {{ item.subtotal|floatformat:2|intcomma }}
-                            </span>
-                        </li>
-                        {% empty %}
-                        <li class="list-group-item px-0 text-muted">
-                            <i class="bi bi-info-circle me-1"></i>Nenhum item encontrado.
-                        </li>
-                        {% endfor %}
-                    </ul>
-
-                    {% if pedido.taxa_entrega %}
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">
-                            <i class="bi bi-truck me-1"></i>Taxa de entrega
-                        </span>
-                        <span>R$ {{ pedido.taxa_entrega|floatformat:2|intcomma }}</span>
+            <!-- Resumo do pedido -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted">Pedido #{{ pedido.id }}</span><br>
+                        <span class="fw-bold">{{ pedido.restaurante.nome }}</span>
                     </div>
-                    {% endif %}
-
-                    <hr>
-
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="fs-5 fw-bold">Total</span>
-                        <span class="fs-4 fw-bold text-success">
-                            R$ {{ pedido.total|floatformat:2|intcomma }}
-                        </span>
+                    <div class="text-end">
+                        <span class="text-muted small">Total</span><br>
+                        <span class="fs-4 fw-bold text-success">R$ {{ pedido.total|floatformat:2 }}</span>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- ===== PAYMENT METHOD SELECTION ===== -->
-        <div class="col-lg-6 col-md-6 order-md-1">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-wallet2 me-2"></i>Forma de Pagamento
-                    </h5>
-                </div>
+            <!-- Chave PIX -->
+            <div class="card shadow-sm mb-4">
                 <div class="card-body">
-
-                    {% if gateway == 'mock' %}
-                    <!-- ===== MOCK PAYMENT ===== -->
-                    <div class="text-center py-4">
-                        <div class="mb-4">
-                            <i class="bi bi-shield-check text-warning" style="font-size: 3rem;"></i>
-                        </div>
-                        <h5 class="fw-semibold mb-3">Ambiente de Teste</h5>
-                        <p class="text-muted mb-4">
-                            Este pagamento utiliza o modo de simula&ccedil;&atilde;o.
-                            Nenhuma cobran&ccedil;a real ser&aacute; efetuada.
-                        </p>
-                        <form method="post" action="{% url 'pagamento_confirmar_mock' pagamento.id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-success btn-lg w-100">
-                                <i class="bi bi-check-circle me-2"></i>Simular Pagamento
-                            </button>
-                        </form>
+                    <label class="form-label fw-semibold">
+                        <i class="bi bi-key me-1"></i>Chave PIX
+                    </label>
+                    <div class="input-group">
+                        <input type="text"
+                               id="pix-code"
+                               class="form-control font-monospace"
+                               value="{{ pix_key }}"
+                               readonly
+                               aria-label="Chave PIX">
+                        <button class="btn btn-success"
+                                type="button"
+                                id="btn-copiar"
+                                onclick="copiarPix()">
+                            <i class="bi bi-clipboard me-1"></i>Copiar
+                        </button>
                     </div>
-
-                    {% else %}
-                    <!-- ===== STRIPE: CARD + PIX ===== -->
-                    <div class="py-3">
-                        <p class="text-center text-muted mb-4">
-                            Escolha como deseja pagar <strong>R$ {{ pedido.total|floatformat:2|intcomma }}</strong>
-                        </p>
-
-                        <div class="row g-3">
-                            <!-- Cart&atilde;o de Cr&eacute;dito -->
-                            <div class="col-6">
-                                <form method="post"
-                                      action="{% url 'iniciar_pagamento_stripe' pedido.id %}"
-                                      hx-boost="false">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="metodo" value="card">
-                                    <button type="submit"
-                                            class="btn btn-outline-primary w-100 py-4 d-flex flex-column align-items-center gap-2">
-                                        <i class="bi bi-credit-card-2-front" style="font-size: 2.5rem;"></i>
-                                        <span class="fw-semibold">Cart&atilde;o</span>
-                                        <small class="text-muted">Cr&eacute;dito ou D&eacute;bito</small>
-                                    </button>
-                                </form>
-                            </div>
-
-                            <!-- PIX -->
-                            <div class="col-6">
-                                <form method="post"
-                                      action="{% url 'iniciar_pagamento_stripe' pedido.id %}"
-                                      hx-boost="false">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="metodo" value="pix">
-                                    <button type="submit"
-                                            class="btn btn-outline-success w-100 py-4 d-flex flex-column align-items-center gap-2">
-                                        <i class="bi bi-qr-code" style="font-size: 2.5rem;"></i>
-                                        <span class="fw-semibold">PIX</span>
-                                        <small class="text-muted">Pagamento instant&acirc;neo</small>
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-
-                        <div class="text-center mt-4">
-                            <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
-                                <img src="https://img.icons8.com/color/28/visa.png" alt="Visa">
-                                <img src="https://img.icons8.com/color/28/mastercard-logo.png" alt="Mastercard">
-                                <img src="https://img.icons8.com/color/28/amex.png" alt="Amex">
-                            </div>
-                            <p class="text-muted small mb-0">
-                                <i class="bi bi-shield-lock me-1"></i>
-                                Pagamento seguro processado pelo Stripe
-                            </p>
-                        </div>
+                    {% if not pix_key %}
+                    <div class="alert alert-warning mt-2 mb-0">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Chave PIX não configurada. Entre em contato com o restaurante.
                     </div>
                     {% endif %}
-
                 </div>
             </div>
-        </div>
 
+            <!-- Instruções -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Como pagar:</h6>
+                    <ol class="mb-0">
+                        <li class="mb-2">Copie a chave PIX acima</li>
+                        <li class="mb-2">Abra o app do seu banco e faça um PIX para esta chave</li>
+                        <li class="mb-2">Volte aqui e clique em <strong>"Já paguei"</strong></li>
+                        <li>Envie o comprovante para confirmarmos seu pedido</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Ação principal -->
+            <div class="d-grid">
+                <a href="{% url 'upload_comprovante' pedido.id %}"
+                   class="btn btn-success btn-lg">
+                    <i class="bi bi-check2-circle me-2"></i>Já paguei — Enviar Comprovante
+                </a>
+            </div>
+
+            <div class="text-center mt-3">
+                <small class="text-muted">
+                    <i class="bi bi-shield-check me-1"></i>
+                    Seu pedido está salvo. Você pode fechar esta página e voltar depois.
+                </small>
+            </div>
+
+        </div>
     </div>
 </div>
+
+<script>
+function copiarPix() {
+    var input = document.getElementById('pix-code');
+    navigator.clipboard.writeText(input.value).then(function () {
+        var btn = document.getElementById('btn-copiar');
+        btn.innerHTML = '<i class="bi bi-check me-1"></i>Copiado!';
+        setTimeout(function () {
+            btn.innerHTML = '<i class="bi bi-clipboard me-1"></i>Copiar';
+        }, 2000);
+    }).catch(function () {
+        input.select();
+        document.execCommand('copy');
+    });
+}
+</script>
 {% endblock %}

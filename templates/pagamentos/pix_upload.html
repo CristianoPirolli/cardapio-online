@@ -1,0 +1,77 @@
+<!-- templates/pagamentos/pix_upload.html -->
+<!-- Formulário de upload do comprovante de pagamento PIX -->
+{% extends 'base.html' %}
+
+{% block title %}Enviar Comprovante - Pedido #{{ pedido.id }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+
+            <div class="text-center mb-4">
+                <h2 class="fw-bold">
+                    <i class="bi bi-upload text-primary me-2"></i>
+                    Enviar Comprovante
+                </h2>
+                <p class="text-muted">
+                    Pedido #{{ pedido.id }} — R$ {{ pedido.total|floatformat:2 }}
+                </p>
+            </div>
+
+            {% if messages %}
+            <div class="mb-3">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <!-- hx-boost="false" is required for multipart/form-data (HTMX does not support file uploads) -->
+                    <form method="post"
+                          enctype="multipart/form-data"
+                          hx-boost="false"
+                          action="{% url 'upload_comprovante' pedido.id %}">
+                        {% csrf_token %}
+
+                        <div class="mb-4">
+                            <label for="comprovante" class="form-label fw-semibold">
+                                <i class="bi bi-file-earmark-image me-1"></i>
+                                Comprovante de pagamento
+                            </label>
+                            <input class="form-control"
+                                   type="file"
+                                   id="comprovante"
+                                   name="comprovante"
+                                   accept=".jpg,.jpeg,.png,.webp,.pdf"
+                                   required>
+                            <div class="form-text">
+                                Formatos aceitos: JPG, PNG, WEBP, PDF. Tamanho máximo: 10 MB.
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-send me-2"></i>Confirmar Pagamento
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="text-center mt-3">
+                <a href="{% url 'pagamento_pix_manual' pedido.id %}"
+                   class="text-muted small">
+                    <i class="bi bi-arrow-left me-1"></i>Voltar para a chave PIX
+                </a>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
