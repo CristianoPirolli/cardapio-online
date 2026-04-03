@@ -472,7 +472,7 @@ def checkout(request):
         request.session.modified = True
 
         # Redireciona para pagamento
-        return redirect('pagamento_escolher', pedido_id=pedido.id)
+        return redirect('pagamento_pix_manual', pedido_id=pedido.id)
 
     # GET: exibe formulário de checkout
     tipo_entrega_inicial = request.GET.get('tipo_entrega', 'delivery')

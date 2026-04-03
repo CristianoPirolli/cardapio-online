@@ -15,7 +15,7 @@ from django.shortcuts import get_object_or_404
 from apps.pedidos.models import Pedido
 from .models import Pagamento
 from .serializers import PagamentoSerializer
-from .services import criar_pagamento
+from .services import criar_pagamento_pix_manual
 
 
 class PagamentoViewSet(viewsets.ReadOnlyModelViewSet):
@@ -58,7 +58,7 @@ def criar_pagamento_api(request):
         )
 
     try:
-        resultado = criar_pagamento(pedido)
+        pagamento = criar_pagamento_pix_manual(pedido)
     except Exception as exc:
         return Response(
             {'error': str(exc)},
@@ -66,7 +66,7 @@ def criar_pagamento_api(request):
         )
 
     return Response({
-        'pagamento_id': resultado['pagamento'].id,
-        'gateway': resultado['gateway'],
-        'valor': str(resultado['pagamento'].valor),
+        'pagamento_id': pagamento.id,
+        'gateway': pagamento.gateway,
+        'valor': str(pagamento.valor),
     }, status=status.HTTP_201_CREATED)
