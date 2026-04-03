@@ -22,7 +22,7 @@ class PagamentoViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet somente leitura para consultar pagamentos.
 
-    Filtros: ?pedido=1&status=aprovado&gateway=stripe
+    Filtros: ?pedido=1&status=aprovado&gateway=pix_manual
     """
 
     queryset = Pagamento.objects.all()
@@ -40,7 +40,7 @@ def criar_pagamento_api(request):
     Cria um pagamento para um pedido existente.
 
     Request:  {"pedido_id": 1}
-    Response: {"pagamento_id": 1, "gateway": "stripe", "checkout_url": "..."}
+    Response: {"pagamento_id": 1, "gateway": "pix_manual", "valor": "55.00"}
     """
     pedido_id = request.data.get('pedido_id')
     if not pedido_id:
