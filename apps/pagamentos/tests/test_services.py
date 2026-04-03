@@ -32,3 +32,37 @@ def _make_pedido(restaurante):
         imposto='0.00',
         total='55.00',
     )
+
+
+class PagamentoModelTest(TestCase):
+    """Tests for Pagamento model fields added in Wave 1."""
+
+    def setUp(self):
+        self.restaurante = _make_restaurante()
+        self.pedido = _make_pedido(self.restaurante)
+
+    def test_can_create_pix_manual_pagamento(self):
+        """Pagamento with gateway='pix_manual' must be creatable."""
+        pagamento = Pagamento.objects.create(
+            pedido=self.pedido,
+            gateway='pix_manual',
+            valor='55.00',
+            status='pendente',
+        )
+        pagamento.refresh_from_db()
+        self.assertEqual(pagamento.gateway, 'pix_manual')
+
+    def test_comprovante_is_nullable(self):
+        """Pagamento created without comprovante must have comprovante='' or None."""
+        pagamento = Pagamento.objects.create(
+            pedido=self.pedido,
+            gateway='pix_manual',
+            valor='55.00',
+            status='pendente',
+        )
+        self.assertFalse(bool(pagamento.comprovante))
+
+    def test_pix_manual_in_gateway_choices(self):
+        """GATEWAY_CHOICES must include pix_manual."""
+        choices_values = [c[0] for c in Pagamento.GATEWAY_CHOICES]
+        self.assertIn('pix_manual', choices_values)

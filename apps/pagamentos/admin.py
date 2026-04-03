@@ -3,6 +3,7 @@
 # =============================================================================
 
 from django.contrib import admin
+
 from .models import Pagamento
 
 
@@ -12,7 +13,7 @@ class PagamentoAdmin(admin.ModelAdmin):
 
     list_display = ('id', 'pedido', 'gateway', 'valor', 'status', 'criado_em')
     list_filter = ('gateway', 'status', 'criado_em')
-    search_fields = ('pedido__cliente_nome', 'stripe_payment_intent_id')
+    search_fields = ('pedido__cliente_nome', 'external_payment_id')
     readonly_fields = ('criado_em', 'atualizado_em', 'dados_resposta')
 
     fieldsets = (
@@ -20,7 +21,7 @@ class PagamentoAdmin(admin.ModelAdmin):
             'fields': ('pedido',)
         }),
         ('Pagamento', {
-            'fields': ('gateway', 'valor', 'status', 'stripe_payment_intent_id')
+            'fields': ('gateway', 'valor', 'status', 'external_payment_id', 'comprovante')
         }),
         ('Dados do Gateway', {
             'fields': ('dados_resposta',),
