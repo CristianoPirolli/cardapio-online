@@ -15,12 +15,13 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.pedidos.models import Pedido
 
 from .models import Pagamento
-from .services import criar_pagamento_pix_manual
+from .services import criar_pagamento_pix_manual, confirmar_pix_manual, rejeitar_pix_manual
 
 logger = logging.getLogger(__name__)
 
@@ -165,3 +166,75 @@ def pagamento_erro(request, pedido_id):
         'pedido': pedido,
         'restaurante': pedido.restaurante,
     })
+
+
+@login_required
+def aceitar_pix(request, pedido_id):
+    """
+    Restaurante aceita o comprovante PIX.
+    POST only. Calls confirmar_pix_manual(), then redirects to painel_pedido_detalhe.
+    Only accessible to logged-in restaurant owner.
+    """
+    from apps.restaurantes.models import Restaurante
+
+    restaurante = Restaurante.objects.filter(proprietario=request.user).first()
+    if not restaurante:
+        messages.error(request, 'Acesso não autorizado.')
+        return redirect('home')
+
+    pedido = get_object_or_404(
+        Pedido, id=pedido_id, restaurante=restaurante,
+        status='aguardando_confirmacao'
+    )
+
+    pagamento = Pagamento.objects.filter(
+        pedido=pedido, gateway='pix_manual', status='pendente'
+    ).first()
+
+    if not pagamento:
+        messages.error(request, 'Pagamento PIX não encontrado para este pedido.')
+        return redirect('painel_pedido_detalhe', pedido_id=pedido.id)
+
+    try:
+        confirmar_pix_manual(pagamento)
+        messages.success(request, f'Pedido #{pedido.id} confirmado! Entrando na fila de produção.')
+    except Exception as exc:
+        logger.error("aceitar_pix: %s", exc)
+        messages.error(request, f'Erro ao confirmar pagamento: {exc}')
+
+    return redirect('painel_pedido_detalhe', pedido_id=pedido.id)
+
+
+@login_required
+def rejeitar_pix(request, pedido_id):
+    """
+    Restaurante rejeita o comprovante PIX.
+    POST only. Calls rejeitar_pix_manual(), then redirects to painel_pedidos.
+    """
+    from apps.restaurantes.models import Restaurante
+
+    restaurante = Restaurante.objects.filter(proprietario=request.user).first()
+    if not restaurante:
+        messages.error(request, 'Acesso não autorizado.')
+        return redirect('home')
+
+    pedido = get_object_or_404(
+        Pedido, id=pedido_id, restaurante=restaurante,
+        status='aguardando_confirmacao'
+    )
+
+    pagamento = Pagamento.objects.filter(
+        pedido=pedido, gateway='pix_manual', status='pendente'
+    ).first()
+
+    if pagamento:
+        try:
+            rejeitar_pix_manual(pagamento)
+            messages.success(request, f'Pedido #{pedido.id} rejeitado e cancelado.')
+        except Exception as exc:
+            logger.error("rejeitar_pix: %s", exc)
+            messages.error(request, f'Erro ao rejeitar pagamento: {exc}')
+    else:
+        messages.warning(request, 'Pagamento não encontrado; o pedido não foi alterado.')
+
+    return redirect('painel_pedidos')
