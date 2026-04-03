@@ -4,9 +4,9 @@ phase: "01"
 phase_name: pagamento-pix-manual
 last_activity: 2026-04-03
 current_focus: "Phase 01: Pagamento PIX Manual"
-current_position: "Wave 1 — Plan 01-02 (Modelo de dados e grafo de status)"
+current_position: "Wave 2 — Plan 01-03 (Fluxo cliente PIX manual)"
 plans_total: 5
-plans_complete: 1
+plans_complete: 2
 ---
 
 # State: Cardapio Online
@@ -15,11 +15,11 @@ plans_complete: 1
 Phase 01: Pagamento PIX Manual
 
 ## Position
-Wave 1 — Plan 01-02 (Modelo de dados e grafo de status: aguardando_confirmacao + comprovante)
+Wave 2 — Plan 01-03 (Fluxo cliente PIX manual: pagina, copia, upload)
 
 ## Plans
 - [x] 01-01: Pre-flight (migracoes pendentes, limpeza de referencias gateway e configuracao PIX_KEY)
-- [ ] 01-02: Modelo de dados e grafo de status (aguardando_confirmacao + comprovante)
+- [x] 01-02: Modelo de dados e grafo de status (aguardando_confirmacao + comprovante)
 - [ ] 01-03: Fluxo cliente PIX manual (pagina, copia, upload)
 - [ ] 01-04: Fluxo restaurante (filtro, visualizacao comprovante, aceitar/recusar)
 - [ ] 01-05: Integracao final, limpeza e validacao E2E
@@ -28,7 +28,18 @@ Wave 1 — Plan 01-02 (Modelo de dados e grafo de status: aguardando_confirmacao
 - Rewrote services.py as PIX manual only — no external gateway API calls
 - Removed mp-webhook and mp-return URL patterns (MP flow eliminated)
 - Replaced stale Stripe test_services.py with PIX manual scaffold
+- BFS graph: aguardando now routes exclusively through aguardando_confirmacao before recebido
+- Pedido.status max_length extended from 10 to 25 to fit aguardando_confirmacao (21 chars)
+- mercadopago GATEWAY_CHOICES label changed to descontinuado to preserve existing DB rows
+- FileExtensionValidator restricts comprovante to jpg, jpeg, png, webp, pdf only
+
+## Performance Metrics
+
+| Phase | Plan | Duration (min) | Tasks | Files |
+|-------|------|----------------|-------|-------|
+| 01 | 01 | 6 | 3 | 10 |
+| 01 | 02 | 4 | 2 | 8 |
 
 ## Last Session
-Stopped at: Completed Phase 01 Plan 01-01 (Pre-flight)
+Stopped at: Completed Phase 01 Plan 01-02 (Modelo de dados e grafo de status)
 Date: 2026-04-03
