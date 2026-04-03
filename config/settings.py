@@ -230,17 +230,10 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
 # ---------------------------------------------------------------------------
-# Gateway de Pagamento
+# PIX Manual
 # ---------------------------------------------------------------------------
-# Opções: 'stripe' ou 'mock'
-PAYMENT_GATEWAY = os.getenv('PAYMENT_GATEWAY', 'mock')
-
-# ---------------------------------------------------------------------------
-# Stripe
-# ---------------------------------------------------------------------------
-STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY', '')
-STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY', '')
-STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
+# Chave PIX fixa do estabelecimento (CNPJ, CPF, email, telefone ou chave aleatória)
+PIX_KEY = os.getenv('PIX_KEY', '')
 
 # ---------------------------------------------------------------------------
 # Multi-tenant
