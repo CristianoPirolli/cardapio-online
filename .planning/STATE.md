@@ -4,9 +4,9 @@ phase: "01"
 phase_name: pagamento-pix-manual
 last_activity: 2026-04-03
 current_focus: "Phase 01: Pagamento PIX Manual"
-current_position: "Wave 3 — Plan 01-04 (Fluxo restaurante: filtro, visualizacao comprovante, aceitar/recusar)"
+current_position: "Wave 4 — Plan 01-05 (Integracao final, limpeza e validacao E2E)"
 plans_total: 5
-plans_complete: 3
+plans_complete: 4
 ---
 
 # State: Cardapio Online
@@ -21,7 +21,7 @@ Wave 3 — Plan 01-04 (Fluxo restaurante: filtro, visualizacao comprovante, acei
 - [x] 01-01: Pre-flight (migracoes pendentes, limpeza de referencias gateway e configuracao PIX_KEY)
 - [x] 01-02: Modelo de dados e grafo de status (aguardando_confirmacao + comprovante)
 - [x] 01-03: Fluxo cliente PIX manual (pagina, copia, upload)
-- [ ] 01-04: Fluxo restaurante (filtro, visualizacao comprovante, aceitar/recusar)
+- [x] 01-04: Fluxo restaurante (filtro, visualizacao comprovante, aceitar/recusar)
 - [ ] 01-05: Integracao final, limpeza e validacao E2E
 
 ## Decisions
@@ -35,6 +35,9 @@ Wave 3 — Plan 01-04 (Fluxo restaurante: filtro, visualizacao comprovante, acei
 - services.py replaced with criar_pagamento_pix_manual, confirmar_pix_manual, rejeitar_pix_manual (all idempotent)
 - upload_comprovante transitions pedido to aguardando_confirmacao; pago stays False until restaurant confirms
 - pagamento_escolher URL name replaced by pagamento_pix_manual
+- painel_pedido_detalhe pago=True gate replaced by Http404 guard allowing aguardando_confirmacao orders
+- painel_pedidos now shows pendentes_pix section above main table; paginate only pago=True orders
+- aguardando_confirmacao_count surfaced via context processor for nav badge
 
 ## Performance Metrics
 
@@ -43,7 +46,8 @@ Wave 3 — Plan 01-04 (Fluxo restaurante: filtro, visualizacao comprovante, acei
 | 01 | 01 | 6 | 3 | 10 |
 | 01 | 02 | 4 | 2 | 8 |
 | 01 | 03 | 9 | 2 | 8 |
+| 01 | 04 | 5 | 2 | 7 |
 
 ## Last Session
-Stopped at: Completed Phase 01 Plan 01-03 (Fluxo cliente PIX manual)
+Stopped at: Completed Phase 01 Plan 01-04 (Fluxo restaurante: filtro, visualizacao comprovante, aceitar/recusar)
 Date: 2026-04-03
