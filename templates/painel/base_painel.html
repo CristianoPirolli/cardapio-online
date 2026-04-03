@@ -27,9 +27,14 @@
                     <li class="nav-item">
                         <a class="nav-link d-flex align-items-center justify-content-between {% if current == 'painel_pedidos' or current == 'painel_pedido_detalhe' %}active{% endif %}" href="{% url 'painel_pedidos' %}">
                             <span><i class="bi bi-receipt"></i> Pedidos</span>
-                            <span id="painel-pedidos-badge"
-                                  class="badge bg-danger rounded-pill ms-2 {% if not painel_pedidos_abertos_count %}d-none{% endif %}">
-                                {{ painel_pedidos_abertos_count }}
+                            <span class="d-flex gap-1">
+                                {% if aguardando_confirmacao_count %}
+                                <span class="badge bg-warning text-dark ms-1">{{ aguardando_confirmacao_count }}</span>
+                                {% endif %}
+                                <span id="painel-pedidos-badge"
+                                      class="badge bg-danger rounded-pill ms-2 {% if not painel_pedidos_abertos_count %}d-none{% endif %}">
+                                    {{ painel_pedidos_abertos_count }}
+                                </span>
                             </span>
                         </a>
                     </li>
