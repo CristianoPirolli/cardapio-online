@@ -22,7 +22,7 @@ Evolucao incremental do fluxo de pedidos online com foco em pagamento PIX manual
 
 Plans:
 - [x] 01-01: Pre-flight (migracoes pendentes, limpeza de referencias gateway e configuracao PIX_KEY)
-- [ ] 01-02: Modelo de dados e grafo de status (aguardando_confirmacao + comprovante)
+- [x] 01-02: Modelo de dados e grafo de status (aguardando_confirmacao + comprovante)
 - [ ] 01-03: Fluxo cliente PIX manual (pagina, copia, upload)
 - [ ] 01-04: Fluxo restaurante (filtro, visualizacao comprovante, aceitar/recusar)
 - [ ] 01-05: Integracao final, limpeza e validacao E2E
@@ -31,4 +31,4 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pagamento PIX Manual | 1/5 | In progress | - |
+| 1. Pagamento PIX Manual | 2/5 | In progress | - |
