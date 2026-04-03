@@ -346,33 +346,46 @@ def painel_pedidos(request):
     if not restaurante:
         return _redirecionar_sem_restaurante(request)
 
-    # Regra de negócio: não listar pedidos sem pagamento aprovado.
+    # Pedidos em produção (já pagos)
     pedidos = Pedido.objects.filter(
         restaurante=restaurante,
         pago=True,
     ).select_related('restaurante').order_by('-criado_em')
 
+    # Pedidos aguardando confirmação PIX (pago=False, status especial)
+    pendentes_pix = Pedido.objects.filter(
+        restaurante=restaurante,
+        status='aguardando_confirmacao',
+    ).select_related('restaurante').order_by('-criado_em')
+
     # Filtro por status
     status_filtro = request.GET.get('status')
-    if status_filtro:
-        pedidos = pedidos.filter(status=status_filtro)
 
     # Filtro por data
     data_filtro = request.GET.get('data')
     if data_filtro:
         pedidos = pedidos.filter(criado_em__date=data_filtro)
 
+    if status_filtro == 'aguardando_confirmacao':
+        pedidos_filtrados = pendentes_pix
+    elif status_filtro:
+        pedidos_filtrados = pedidos.filter(status=status_filtro)
+    else:
+        pedidos_filtrados = pedidos
+
     # Paginação: limita a 50 pedidos por página
     from django.core.paginator import Paginator
-    paginator = Paginator(pedidos, 50)
+    paginator = Paginator(pedidos_filtrados, 50)
     page_number = request.GET.get('page')
     pedidos_page = paginator.get_page(page_number)
 
     return render(request, 'painel/pedidos.html', {
         'restaurante': restaurante,
         'pedidos': pedidos_page,
+        'pendentes_pix': pendentes_pix if not status_filtro or status_filtro == 'aguardando_confirmacao' else [],
         'status_filtro': status_filtro,
         'paginator': paginator,
+        'pendentes_pix_count': pendentes_pix.count(),
     })
 
 
@@ -409,10 +422,14 @@ def painel_pedido_detalhe(request, pedido_id):
     restaurante = _restaurante_do_usuario(request)
     if not restaurante:
         return _redirecionar_sem_restaurante(request)
-    # Regra de negócio: detalhe só para pedidos já pagos.
+
     pedido = get_object_or_404(
-        Pedido, id=pedido_id, restaurante=restaurante, pago=True
+        Pedido, id=pedido_id, restaurante=restaurante
     )
+    # Guard: only show to restaurant if the order is either paid or awaiting PIX confirmation
+    if not pedido.pago and pedido.status != 'aguardando_confirmacao':
+        from django.http import Http404
+        raise Http404("Pedido não disponível.")
 
     if request.method == 'POST':
         novo_status = request.POST.get('status')
@@ -431,6 +448,14 @@ def painel_pedido_detalhe(request, pedido_id):
     transicoes_diretas = GRAFO_STATUS_PEDIDO.get(pedido.status, [])
     caminho_conclusao = pedido.caminho_ate_status('concluido')
 
+    # Add comprovante to context when awaiting PIX confirmation
+    pagamento_pix = None
+    if pedido.status == 'aguardando_confirmacao':
+        from apps.pagamentos.models import Pagamento
+        pagamento_pix = Pagamento.objects.filter(
+            pedido=pedido, gateway='pix_manual'
+        ).first()
+
     return render(request, 'painel/pedido_detalhe.html', {
         'restaurante': restaurante,
         'pedido': pedido,
@@ -443,4 +468,5 @@ def painel_pedido_detalhe(request, pedido_id):
             {'status': s, 'nome': nomes_status.get(s, s)}
             for s in transicoes_diretas
         ],
+        'pagamento_pix': pagamento_pix,
     })
