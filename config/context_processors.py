@@ -16,9 +16,10 @@ def estabelecimento_context(request):
     Variáveis disponíveis nos templates:
     - {{ estabelecimento_atual }}: instância do tenant ou None
     - {{ restaurante_atual }}: alias legado para compatibilidade
-    - {{ mercadopago_public_key }}: chave pública do Mercado Pago para o frontend
     - {{ base_domain }}: domínio base do sistema
     - {{ carrinho_total_itens }}: quantidade total de itens no carrinho da sessão
+    - {{ aguardando_confirmacao_count }}: pedidos aguardando confirmação PIX (painel)
+    - {{ painel_pedidos_abertos_count }}: pedidos em aberto com pago=True (painel)
     """
     # Evita acessar a sessão em requests que não precisam (AJAX de status, etc.)
     if getattr(request, '_skip_context', False):
