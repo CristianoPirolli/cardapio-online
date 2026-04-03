@@ -93,7 +93,8 @@ cache_produtos = HashCache(ttl_seconds=10)
 
 # Grafo de transições de pedido (lista de adjacência)
 GRAFO_STATUS_PEDIDO = {
-    'aguardando': ['recebido', 'cancelado'],
+    'aguardando': ['aguardando_confirmacao', 'cancelado'],
+    'aguardando_confirmacao': ['recebido', 'cancelado'],
     'recebido': ['preparo', 'cancelado'],
     'preparo': ['entrega', 'cancelado'],
     'entrega': ['concluido', 'cancelado'],

@@ -53,6 +53,7 @@ class Pedido(models.Model):
 
     STATUS_CHOICES = [
         ('aguardando', 'Aguardando Pagamento'),
+        ('aguardando_confirmacao', 'Aguardando Confirmação'),
         ('recebido', 'Recebido'),
         ('preparo', 'Em Preparo'),
         ('entrega', 'Saiu para Entrega'),
@@ -109,13 +110,13 @@ class Pedido(models.Model):
 
     # Status e pagamento
     status = models.CharField(
-        max_length=10, choices=STATUS_CHOICES, default='aguardando',
+        max_length=25, choices=STATUS_CHOICES, default='aguardando',
         verbose_name='Status'
     )
     pago = models.BooleanField(default=False, verbose_name='Pago')
-    stripe_payment_intent_id = models.CharField(
+    external_payment_id = models.CharField(
         max_length=255, blank=True,
-        verbose_name='Stripe Payment Intent ID'
+        verbose_name='ID do Pagamento (Gateway)'
     )
 
     # Timestamps
@@ -133,7 +134,7 @@ class Pedido(models.Model):
             models.Index(fields=['restaurante', 'status'], name='idx_pedido_rest_status'),
             models.Index(fields=['restaurante', 'criado_em'], name='idx_pedido_rest_criado'),
             models.Index(fields=['status', 'criado_em'], name='idx_pedido_status_criado'),
-            models.Index(fields=['stripe_payment_intent_id'], name='idx_pedido_stripe'),
+            models.Index(fields=['external_payment_id'], name='idx_pedido_ext_payment'),
         ]
 
     def __str__(self):
