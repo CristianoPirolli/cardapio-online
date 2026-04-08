@@ -16,11 +16,11 @@
 - [x] **REQ-07**: Restaurante visualiza o arquivo de comprovante para validar pagamento
 - [x] **REQ-08**: Restaurante aceita pedido validado e pedido segue para fluxo existente
 - [x] **REQ-09**: Restaurante recusa pedido inválido e pedido é cancelado
-- [ ] **REQ-10**: Valor de pedidos aceitos compõe totais do painel como no fluxo atual
-- [ ] **REQ-11**: Integrações de gateway (Mercado Pago/Stripe) são removidas do fluxo ativo
-- [ ] **REQ-12**: Chave PIX é configurável por ambiente/configuração do sistema
+- [x] **REQ-10**: Valor de pedidos aceitos compõe totais do painel como no fluxo atual
+- [x] **REQ-11**: Integrações de gateway (Mercado Pago/Stripe) são removidas do fluxo ativo
+- [x] **REQ-12**: Chave PIX é configurável por ambiente/configuração do sistema
 - [x] **REQ-13**: Upload aceita apenas jpg/jpeg/png/webp/pdf com limite de tamanho
-- [ ] **REQ-14**: Fluxo de produção existente permanece intacto após confirmação manual
+- [x] **REQ-14**: Fluxo de produção existente permanece intacto após confirmação manual
 
 ## v2 Requirements
 
@@ -49,11 +49,11 @@
 | REQ-07 | Phase 1 | Done (01-04) |
 | REQ-08 | Phase 1 | Done (01-04) |
 | REQ-09 | Phase 1 | Done (01-04) |
-| REQ-10 | Phase 1 | Pending (01-05) |
+| REQ-10 | Phase 1 | Done (01-05) |
 | REQ-11 | Phase 1 | Done (01-01) |
 | REQ-12 | Phase 1 | Done (01-01) |
 | REQ-13 | Phase 1 | Done (01-03) |
-| REQ-14 | Phase 1 | Pending (01-05) |
+| REQ-14 | Phase 1 | Done (01-05) |
 
 **Coverage:**
 - v1 requirements: 14 total
@@ -62,4 +62,4 @@
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after phase-1 planning bootstrap*
+*Last updated: 2026-04-08 after phase-1 completion (01-05)*

@@ -6,7 +6,7 @@ Evolucao incremental do fluxo de pedidos online com foco em pagamento PIX manual
 
 ## Phases
 
-- [ ] **Phase 1: Pagamento PIX Manual** - Remover gateway e implementar confirmacao manual por comprovante
+- [x] **Phase 1: Pagamento PIX Manual** - Remover gateway e implementar confirmacao manual por comprovante (completed 2026-04-08)
 
 ## Phase Details
 
@@ -25,10 +25,10 @@ Plans:
 - [x] 01-02: Modelo de dados e grafo de status (aguardando_confirmacao + comprovante)
 - [x] 01-03: Fluxo cliente PIX manual (pagina, copia, upload)
 - [x] 01-04: Fluxo restaurante (filtro, visualizacao comprovante, aceitar/recusar)
-- [ ] 01-05: Integracao final, limpeza e validacao E2E
+- [x] 01-05: Integracao final, limpeza e validacao E2E
 
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pagamento PIX Manual | 4/5 | In progress | - |
+| 1. Pagamento PIX Manual | 5/5 | Complete   | 2026-04-08 |
