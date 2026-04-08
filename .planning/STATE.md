@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase 01
-stopped_at: Phase 01 Plan 01-05 Task 2 human-verify approved — finalizing summary and state updates
-last_updated: "2026-04-07T23:39:59.519Z"
+status: Phase 01 Complete
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-04-08T00:15:11.962Z"
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # State: Cardapio Online
@@ -28,7 +28,7 @@ Wave 5 — Plan 01-05 (Integracao final, limpeza e validacao E2E)
 - [x] 01-02: Modelo de dados e grafo de status (aguardando_confirmacao + comprovante)
 - [x] 01-03: Fluxo cliente PIX manual (pagina, copia, upload)
 - [x] 01-04: Fluxo restaurante (filtro, visualizacao comprovante, aceitar/recusar)
-- [ ] 01-05: Integracao final, limpeza e validacao E2E
+- [x] 01-05: Integracao final, limpeza e validacao E2E
 
 ## Decisions
 
@@ -45,6 +45,8 @@ Wave 5 — Plan 01-05 (Integracao final, limpeza e validacao E2E)
 - painel_pedido_detalhe pago=True gate replaced by Http404 guard allowing aguardando_confirmacao orders
 - painel_pedidos now shows pendentes_pix section above main table; paginate only pago=True orders
 - aguardando_confirmacao_count surfaced via context processor for nav badge
+- [Phase 01]: Success page now clarifies aguardando_confirmacao: upload received, restaurant confirms before production.
+- [Phase 01]: Checkpoint human-verify approved as blocking gate before phase completion.
 
 ## Performance Metrics
 
@@ -54,8 +56,9 @@ Wave 5 — Plan 01-05 (Integracao final, limpeza e validacao E2E)
 | 01 | 02 | 4 | 2 | 8 |
 | 01 | 03 | 9 | 2 | 8 |
 | 01 | 04 | 5 | 2 | 7 |
+| Phase 01 P05 | 8 | 2 tasks | 4 files |
 
 ## Last Session
 
-Stopped at: Phase 01 Plan 01-05 Task 1 complete (cleanup + stale ref audit) — Task 2 awaiting human-verify checkpoint
-Date: 2026-04-03
+Stopped at: Completed 01-05-PLAN.md
+Date: 2026-04-08
