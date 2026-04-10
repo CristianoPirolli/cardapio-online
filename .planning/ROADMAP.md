@@ -2,33 +2,51 @@
 
 ## Overview
 
-Evolucao incremental do fluxo de pedidos online com foco em pagamento PIX manual validado pelo restaurante antes da entrada no pipeline de producao.
+Roadmap do v1.1 focado em reduzir confirmação manual de pagamento e ampliar flexibilidade de cobrança com múltiplas chaves PIX por restaurante.
+
+## Milestones
+
+- ✅ **v1.0 milestone** — Phase 1 (shipped 2026-04-08)
+- 🚧 **v1.1 Conciliação PIX** — Phases 2-3 (in progress)
 
 ## Phases
 
-- [x] **Phase 1: Pagamento PIX Manual** - Remover gateway e implementar confirmacao manual por comprovante (completed 2026-04-08)
+<details>
+<summary>✅ v1.0 milestone (Phase 1) — SHIPPED 2026-04-08</summary>
+
+- [x] Phase 1: Pagamento PIX Manual (5/5 plans)
+
+</details>
+
+- [ ] **Phase 2: Conciliação Automática PIX** - Integrar webhooks e validação automática com trilha de auditoria
+- [ ] **Phase 3: Múltiplas Chaves e Fila de Divergências** - Gestão de chaves PIX e operação assistida para exceções
 
 ## Phase Details
 
-### Phase 1: Pagamento PIX Manual
-**Goal**: Substituir gateway por PIX manual com chave fixa, upload de comprovante e aprovacao manual do restaurante antes do pipeline existente.
-**Depends on**: Nothing (first phase)
-**Requirements**: [REQ-01, REQ-02, REQ-03, REQ-04, REQ-05, REQ-06, REQ-07, REQ-08, REQ-09, REQ-10, REQ-11, REQ-12, REQ-13, REQ-14]
+### Phase 2: Conciliação Automática PIX
+**Goal**: Confirmar pagamentos automaticamente a partir de eventos PIX válidos sem quebrar o fluxo atual.
+**Depends on**: Phase 1
+**Requirements**: [PAY-15, PAY-16, PAY-17]
 **Success Criteria** (what must be TRUE):
-  1. Cliente consegue copiar chave PIX, retornar ao pedido e enviar comprovante
-  2. Restaurante revisa comprovante e aceita/rejeita antes da producao
-  3. Pedido aceito entra no fluxo existente e soma no painel
-**Plans**: 5 plans
+  1. Pagamento válido conciliado atualiza pedido para pago sem ação manual
+  2. Divergência de valor/identificador não confirma automaticamente
+  3. Toda conciliação gera histórico auditável de evento e decisão
+**Plans**: TBD
 
-Plans:
-- [x] 01-01: Pre-flight (migracoes pendentes, limpeza de referencias gateway e configuracao PIX_KEY)
-- [x] 01-02: Modelo de dados e grafo de status (aguardando_confirmacao + comprovante)
-- [x] 01-03: Fluxo cliente PIX manual (pagina, copia, upload)
-- [x] 01-04: Fluxo restaurante (filtro, visualizacao comprovante, aceitar/recusar)
-- [x] 01-05: Integracao final, limpeza e validacao E2E
+### Phase 3: Múltiplas Chaves e Fila de Divergências
+**Goal**: Permitir múltiplas chaves PIX por restaurante e operar exceções de conciliação no painel.
+**Depends on**: Phase 2
+**Requirements**: [PAY-18, PAY-19, PAY-20, OPS-01, OPS-02]
+**Success Criteria** (what must be TRUE):
+  1. Restaurante cadastra e gerencia chaves PIX ativas/inativas
+  2. Checkout usa chave correta conforme regra configurada
+  3. Divergências aparecem em fila com ação de aprovação/rejeição registrada
+**Plans**: TBD
 
 ## Progress
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Pagamento PIX Manual | 5/5 | Complete   | 2026-04-08 |
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 1. Pagamento PIX Manual | v1.0 | 5/5 | Complete | 2026-04-08 |
+| 2. Conciliação Automática PIX | v1.1 | 0/TBD | Not started | - |
+| 3. Múltiplas Chaves e Fila de Divergências | v1.1 | 0/TBD | Not started | - |

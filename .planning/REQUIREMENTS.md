@@ -1,65 +1,58 @@
 # Requirements: Cardapio Online
 
-**Defined:** 2026-04-02
-**Core Value:** Restaurante recebe pedidos online com fluxo operacional simples e confiável
+**Defined:** 2026-04-10
+**Milestone:** v1.1 Conciliação PIX
+**Core Value:** Receber pedidos pagos com segurança e baixo atrito operacional
 
-## v1 Requirements
+## v1.1 Requirements
 
-### Payments (PIX Manual)
+### Payments Automation
 
-- [x] **REQ-01**: Cliente visualiza chave PIX fixa na etapa de pagamento
-- [x] **REQ-02**: Cliente consegue copiar a chave PIX com ação explícita de cópia
-- [x] **REQ-03**: Sessão/pedido permanece acessível após cliente sair para app do banco e retornar
-- [x] **REQ-04**: Cliente envia comprovante de pagamento em imagem ou PDF
-- [x] **REQ-05**: Pedido enviado com comprovante fica em estado aguardando confirmação
-- [x] **REQ-06**: Restaurante visualiza pedidos aguardando confirmação antes do pipeline de produção
-- [x] **REQ-07**: Restaurante visualiza o arquivo de comprovante para validar pagamento
-- [x] **REQ-08**: Restaurante aceita pedido validado e pedido segue para fluxo existente
-- [x] **REQ-09**: Restaurante recusa pedido inválido e pedido é cancelado
-- [x] **REQ-10**: Valor de pedidos aceitos compõe totais do painel como no fluxo atual
-- [x] **REQ-11**: Integrações de gateway (Mercado Pago/Stripe) são removidas do fluxo ativo
-- [x] **REQ-12**: Chave PIX é configurável por ambiente/configuração do sistema
-- [x] **REQ-13**: Upload aceita apenas jpg/jpeg/png/webp/pdf com limite de tamanho
-- [x] **REQ-14**: Fluxo de produção existente permanece intacto após confirmação manual
+- [ ] **PAY-15**: Sistema processa webhook PIX válido e marca pedido como pago automaticamente
+- [ ] **PAY-16**: Sistema impede confirmação automática quando valor/identificador do pagamento divergir
+- [ ] **PAY-17**: Sistema registra trilha de auditoria para cada evento de conciliação
 
-## v2 Requirements
+### Multi-Key PIX
 
-### Payments
+- [ ] **PAY-18**: Restaurante cadastra múltiplas chaves PIX ativas no painel
+- [ ] **PAY-19**: Checkout seleciona chave PIX conforme regra configurada pelo restaurante
+- [ ] **PAY-20**: Restaurante consegue ativar/desativar chaves sem quebrar pedidos em andamento
 
-- **REQ-V2-01**: Validação automática de PIX via webhook/conciliação
-- **REQ-V2-02**: Suporte a múltiplas chaves PIX por restaurante
+### Operations
+
+- [ ] **OPS-01**: Divergências de conciliação entram em fila de revisão manual no painel
+- [ ] **OPS-02**: Restaurante consegue aprovar/rejeitar divergência com justificativa
+
+## Future Requirements
+
+- **PAY-21**: Reembolso parcial/total com rastreabilidade
+- **PAY-22**: Suporte a múltiplos provedores de webhook PIX
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Validação automática de PIX | Fora do escopo da fase 1 |
-| Reembolso automatizado | Fora do escopo da fase 1 |
+| Split de pagamento | Regras de negócio e fiscais ainda não definidas |
+| Reembolso automático | Exige fluxo financeiro e antifraude não planejados para v1.1 |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-01 | Phase 1 | Done (01-03) |
-| REQ-02 | Phase 1 | Done (01-03) |
-| REQ-03 | Phase 1 | Done (01-03) |
-| REQ-04 | Phase 1 | Done (01-03) |
-| REQ-05 | Phase 1 | Done (01-03) |
-| REQ-06 | Phase 1 | Done (01-04) |
-| REQ-07 | Phase 1 | Done (01-04) |
-| REQ-08 | Phase 1 | Done (01-04) |
-| REQ-09 | Phase 1 | Done (01-04) |
-| REQ-10 | Phase 1 | Done (01-05) |
-| REQ-11 | Phase 1 | Done (01-01) |
-| REQ-12 | Phase 1 | Done (01-01) |
-| REQ-13 | Phase 1 | Done (01-03) |
-| REQ-14 | Phase 1 | Done (01-05) |
+| PAY-15 | Phase 2 | Pending |
+| PAY-16 | Phase 2 | Pending |
+| PAY-17 | Phase 2 | Pending |
+| PAY-18 | Phase 3 | Pending |
+| PAY-19 | Phase 3 | Pending |
+| PAY-20 | Phase 3 | Pending |
+| OPS-01 | Phase 3 | Pending |
+| OPS-02 | Phase 3 | Pending |
 
 **Coverage:**
-- v1 requirements: 14 total
-- Mapped to phases: 14
+- v1.1 requirements: 8 total
+- Mapped to phases: 8
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-04-02*
-*Last updated: 2026-04-08 after phase-1 completion (01-05)*
+*Requirements defined: 2026-04-10*
+*Last updated: 2026-04-10 after milestone initialization*
