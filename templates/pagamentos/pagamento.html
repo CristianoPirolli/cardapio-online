@@ -51,6 +51,16 @@
                             <i class="bi bi-clipboard me-1"></i>Copiar
                         </button>
                     </div>
+                    {% if pix_key %}
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        {% if pix_key_tipo %}
+                        <span class="badge text-bg-light border text-uppercase">{{ pix_key_tipo }}</span>
+                        {% endif %}
+                        {% if pix_key_masked %}
+                        <small class="text-muted">Exibição protegida: {{ pix_key_masked }}</small>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                     {% if not pix_key %}
                     <div class="alert alert-warning mt-2 mb-0">
                         <i class="bi bi-exclamation-triangle me-1"></i>
@@ -74,11 +84,19 @@
             </div>
 
             <!-- Ação principal -->
-            <div class="d-grid">
+            <div class="d-grid gap-2">
                 <a href="{% url 'upload_comprovante' pedido.id %}"
                    class="btn btn-success btn-lg">
                     <i class="bi bi-check2-circle me-2"></i>Já paguei — Enviar Comprovante
                 </a>
+                {% if feature_whatsapp_link %}
+                <a href="https://wa.me/?text=Acompanhe+seu+pedido+%23{{ pedido.id }}+aqui%3A+{{ pedido_url|urlencode }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="btn btn-outline-success">
+                    <i class="bi bi-whatsapp me-2"></i>Salvar link do pedido no WhatsApp
+                </a>
+                {% endif %}
             </div>
 
             <div class="text-center mt-3">
