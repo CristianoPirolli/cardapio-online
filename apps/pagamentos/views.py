@@ -177,7 +177,7 @@ def painel_pix_keys_create(request):
                 chave=chave,
                 acao=ChavePixHistorico.Acao.CRIACAO,
                 ator=request.user,
-                antes=None,
+                antes={},
                 depois=_snapshot_chave(chave),
             )
     except IntegrityError:
