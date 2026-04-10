@@ -14,14 +14,17 @@ import re
 
 from django.conf import settings
 from django.contrib import messages
+from django.db import IntegrityError, transaction
 from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.pedidos.models import Pedido
+from apps.restaurantes.models import Restaurante
 
-from .models import Pagamento
+from .forms import ChavePixForm
+from .models import ChavePix, ChavePixHistorico, Pagamento
 from .services import criar_pagamento_pix_manual, confirmar_pix_manual, rejeitar_pix_manual
 
 logger = logging.getLogger(__name__)
@@ -29,6 +32,45 @@ logger = logging.getLogger(__name__)
 # Maximum comprovante file size: 10 MB
 MAX_COMPROVANTE_SIZE_BYTES = 10 * 1024 * 1024
 ALLOWED_COMPROVANTE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'pdf']
+
+
+def _restaurante_do_usuario(request):
+    return Restaurante.objects.filter(proprietario=request.user).first()
+
+
+def _snapshot_chave(chave):
+    return {
+        'id': chave.id,
+        'tipo': chave.tipo,
+        'valor': chave.valor,
+        'valor_normalizado': chave.valor_normalizado,
+        'ativo': chave.ativo,
+        'padrao': chave.padrao,
+        'prioridade': chave.prioridade,
+    }
+
+
+def _registrar_historico(chave, acao, ator, antes=None, depois=None):
+    ChavePixHistorico.objects.create(
+        chave_pix=chave,
+        acao=acao,
+        ator=ator,
+        antes=antes,
+        depois=depois,
+    )
+
+
+def _contexto_painel_pix_keys(restaurante, form=None, edit_form=None, chave_editando=None):
+    return {
+        'restaurante': restaurante,
+        'form': form or ChavePixForm(restaurante=restaurante),
+        'edit_form': edit_form,
+        'chave_editando': chave_editando,
+        'chaves': ChavePix.objects.filter(restaurante=restaurante).order_by('prioridade', 'id'),
+        'historico': ChavePixHistorico.objects.filter(
+            chave_pix__restaurante=restaurante,
+        ).select_related('ator', 'chave_pix').order_by('-criado_em', '-id'),
+    }
 
 
 def pagamento_pix_manual(request, pedido_id):
@@ -77,6 +119,274 @@ def pagamento_pix_manual(request, pedido_id):
         'feature_whatsapp_link': feature_whatsapp_link,
         'pedido_url': pedido_url,
     })
+
+
+@login_required
+def painel_pix_keys(request):
+    restaurante = _restaurante_do_usuario(request)
+    if not restaurante:
+        messages.error(request, 'Acesso nao autorizado.')
+        return redirect('home')
+
+    edit_form = None
+    chave_editando = None
+    chave_editando_id = request.GET.get('edit')
+    if chave_editando_id:
+        chave_editando = ChavePix.objects.filter(
+            restaurante=restaurante,
+            id=chave_editando_id,
+        ).first()
+        if chave_editando:
+            edit_form = ChavePixForm(instance=chave_editando, restaurante=restaurante)
+
+    return render(
+        request,
+        'painel/pix_keys.html',
+        _contexto_painel_pix_keys(
+            restaurante=restaurante,
+            edit_form=edit_form,
+            chave_editando=chave_editando,
+        ),
+    )
+
+
+@login_required
+def painel_pix_keys_create(request):
+    if request.method != 'POST':
+        return redirect('painel_pix_keys')
+
+    restaurante = _restaurante_do_usuario(request)
+    if not restaurante:
+        messages.error(request, 'Acesso nao autorizado.')
+        return redirect('home')
+
+    form = ChavePixForm(request.POST, restaurante=restaurante)
+    if not form.is_valid():
+        return render(request, 'painel/pix_keys.html', _contexto_painel_pix_keys(restaurante, form=form))
+
+    try:
+        with transaction.atomic():
+            chave = form.save()
+            if chave.ativo and chave.padrao:
+                ChavePix.objects.filter(
+                    restaurante=restaurante,
+                    ativo=True,
+                    padrao=True,
+                ).exclude(id=chave.id).update(padrao=False)
+            _registrar_historico(
+                chave=chave,
+                acao=ChavePixHistorico.Acao.CRIACAO,
+                ator=request.user,
+                antes=None,
+                depois=_snapshot_chave(chave),
+            )
+    except IntegrityError:
+        form.add_error('prioridade', 'Ja existe uma chave ativa com essa prioridade.')
+        return render(request, 'painel/pix_keys.html', _contexto_painel_pix_keys(restaurante, form=form))
+
+    messages.success(request, 'Chave PIX cadastrada com sucesso.')
+    return redirect('painel_pix_keys')
+
+
+@login_required
+def painel_pix_keys_edit(request, chave_id):
+    if request.method != 'POST':
+        return redirect('painel_pix_keys')
+
+    restaurante = _restaurante_do_usuario(request)
+    if not restaurante:
+        messages.error(request, 'Acesso nao autorizado.')
+        return redirect('home')
+
+    chave = get_object_or_404(ChavePix, id=chave_id, restaurante=restaurante)
+    antes = _snapshot_chave(chave)
+    form = ChavePixForm(request.POST, instance=chave, restaurante=restaurante)
+
+    if not form.is_valid():
+        return render(
+            request,
+            'painel/pix_keys.html',
+            _contexto_painel_pix_keys(
+                restaurante,
+                edit_form=form,
+                chave_editando=chave,
+            ),
+        )
+
+    try:
+        with transaction.atomic():
+            chave_atualizada = form.save()
+            if chave_atualizada.ativo and chave_atualizada.padrao:
+                ChavePix.objects.filter(
+                    restaurante=restaurante,
+                    ativo=True,
+                    padrao=True,
+                ).exclude(id=chave_atualizada.id).update(padrao=False)
+            _registrar_historico(
+                chave=chave_atualizada,
+                acao=ChavePixHistorico.Acao.EDICAO,
+                ator=request.user,
+                antes=antes,
+                depois=_snapshot_chave(chave_atualizada),
+            )
+    except IntegrityError:
+        form.add_error('prioridade', 'Ja existe uma chave ativa com essa prioridade.')
+        return render(
+            request,
+            'painel/pix_keys.html',
+            _contexto_painel_pix_keys(
+                restaurante,
+                edit_form=form,
+                chave_editando=chave,
+            ),
+        )
+
+    messages.success(request, 'Chave PIX atualizada com sucesso.')
+    return redirect('painel_pix_keys')
+
+
+@login_required
+def painel_pix_keys_activate(request, chave_id):
+    if request.method != 'POST':
+        return redirect('painel_pix_keys')
+
+    restaurante = _restaurante_do_usuario(request)
+    if not restaurante:
+        messages.error(request, 'Acesso nao autorizado.')
+        return redirect('home')
+
+    chave = get_object_or_404(ChavePix, id=chave_id, restaurante=restaurante)
+    antes = _snapshot_chave(chave)
+
+    try:
+        with transaction.atomic():
+            chave.ativo = True
+            if chave.padrao:
+                ChavePix.objects.filter(
+                    restaurante=restaurante,
+                    ativo=True,
+                    padrao=True,
+                ).exclude(id=chave.id).update(padrao=False)
+            chave.save(update_fields=['ativo', 'atualizado_em'])
+            _registrar_historico(
+                chave=chave,
+                acao=ChavePixHistorico.Acao.ATIVACAO,
+                ator=request.user,
+                antes=antes,
+                depois=_snapshot_chave(chave),
+            )
+    except IntegrityError:
+        messages.error(request, 'Nao foi possivel ativar a chave devido a conflito de prioridade ativa.')
+        return redirect('painel_pix_keys')
+
+    messages.success(request, 'Chave PIX ativada.')
+    return redirect('painel_pix_keys')
+
+
+@login_required
+def painel_pix_keys_deactivate(request, chave_id):
+    if request.method != 'POST':
+        return redirect('painel_pix_keys')
+
+    restaurante = _restaurante_do_usuario(request)
+    if not restaurante:
+        messages.error(request, 'Acesso nao autorizado.')
+        return redirect('home')
+
+    chave = get_object_or_404(ChavePix, id=chave_id, restaurante=restaurante)
+    antes = _snapshot_chave(chave)
+    with transaction.atomic():
+        chave.ativo = False
+        chave.padrao = False
+        chave.save(update_fields=['ativo', 'padrao', 'atualizado_em'])
+        _registrar_historico(
+            chave=chave,
+            acao=ChavePixHistorico.Acao.DESATIVACAO,
+            ator=request.user,
+            antes=antes,
+            depois=_snapshot_chave(chave),
+        )
+
+    messages.success(request, 'Chave PIX desativada.')
+    return redirect('painel_pix_keys')
+
+
+@login_required
+def painel_pix_keys_set_default(request, chave_id):
+    if request.method != 'POST':
+        return redirect('painel_pix_keys')
+
+    restaurante = _restaurante_do_usuario(request)
+    if not restaurante:
+        messages.error(request, 'Acesso nao autorizado.')
+        return redirect('home')
+
+    chave = get_object_or_404(ChavePix, id=chave_id, restaurante=restaurante)
+    if not chave.ativo:
+        messages.error(request, 'Ative a chave antes de defini-la como padrao.')
+        return redirect('painel_pix_keys')
+
+    antes = _snapshot_chave(chave)
+    with transaction.atomic():
+        ChavePix.objects.filter(
+            restaurante=restaurante,
+            ativo=True,
+            padrao=True,
+        ).exclude(id=chave.id).update(padrao=False)
+        chave.padrao = True
+        chave.save(update_fields=['padrao', 'atualizado_em'])
+        _registrar_historico(
+            chave=chave,
+            acao=ChavePixHistorico.Acao.PADRAO,
+            ator=request.user,
+            antes=antes,
+            depois=_snapshot_chave(chave),
+        )
+
+    messages.success(request, 'Chave PIX definida como padrao.')
+    return redirect('painel_pix_keys')
+
+
+@login_required
+def painel_pix_keys_set_priority(request, chave_id):
+    if request.method != 'POST':
+        return redirect('painel_pix_keys')
+
+    restaurante = _restaurante_do_usuario(request)
+    if not restaurante:
+        messages.error(request, 'Acesso nao autorizado.')
+        return redirect('home')
+
+    chave = get_object_or_404(ChavePix, id=chave_id, restaurante=restaurante)
+    prioridade_raw = request.POST.get('prioridade', '').strip()
+    try:
+        nova_prioridade = int(prioridade_raw)
+    except (TypeError, ValueError):
+        messages.error(request, 'Prioridade invalida.')
+        return redirect('painel_pix_keys')
+
+    if nova_prioridade < 1:
+        messages.error(request, 'Prioridade deve ser maior ou igual a 1.')
+        return redirect('painel_pix_keys')
+
+    antes = _snapshot_chave(chave)
+    chave.prioridade = nova_prioridade
+    try:
+        chave.full_clean()
+        chave.save(update_fields=['prioridade', 'valor_normalizado', 'atualizado_em'])
+    except (ValidationError, IntegrityError):
+        messages.error(request, 'Ja existe uma chave ativa com essa prioridade.')
+        return redirect('painel_pix_keys')
+
+    _registrar_historico(
+        chave=chave,
+        acao=ChavePixHistorico.Acao.PRIORIDADE,
+        ator=request.user,
+        antes=antes,
+        depois=_snapshot_chave(chave),
+    )
+    messages.success(request, 'Prioridade da chave PIX atualizada.')
+    return redirect('painel_pix_keys')
 
 
 def upload_comprovante(request, pedido_id):
