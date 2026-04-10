@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Operacao Manual PIX
-status: Defining requirements
-stopped_at: Phase 2 context gathered
-last_updated: "2026-04-10T23:15:00.000Z"
+status: Phase 2 in progress
+last_updated: "2026-04-11T00:02:00.000Z"
+last_activity: 2026-04-11
 progress:
-  total_phases: 3
-  completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
+  total_phases: 2
+  completed_phases: 0
+  total_plans: 2
+  completed_plans: 1
 ---
 
 # State: Cardapio Online
@@ -20,10 +20,10 @@ Phase 2: Gestão de Chaves PIX
 
 ## Position
 
-Phase: Not started (defining requirements)
-Plan: -
-Status: Defining requirements for v1.1
-Last activity: 2026-04-10 — Phase 2 context captured
+Phase: 02-gest-o-de-chaves-pix (in progress)
+Plan: 02-02 pending (02-01 completed)
+Status: 02-01 concluido e validado
+Last activity: 2026-04-11
 
 ## Plans
 
@@ -38,10 +38,12 @@ Last activity: 2026-04-10 — Phase 2 context captured
 - v1.0 consolidado com fluxo PIX manual estável.
 - v1.1 mantera fluxo manual (sem gateway/webhook) com multiplas chaves PIX.
 - Revisao manual tera trilha auditavel e justificativas operacionais.
+- [Phase 02]: Constraints condicionais por restaurante para chave PIX padrao/prioridade ativa.
+- [Phase 02]: Checkout passa a usar snapshot persistido de chave PIX por pagamento, sem fallback global.
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-04-10)
 
 **Core value:** Receber pedidos pagos com segurança e baixo atrito operacional.
-**Current focus:** Phase 2 — Gestão de Chaves PIX.
+**Current focus:** Phase 02 — gest-o-de-chaves-pix
