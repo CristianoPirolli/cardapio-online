@@ -18,7 +18,7 @@ Roadmap do v1.1 focado em fortalecer o fluxo PIX manual sem gateway: multiplas c
 
 </details>
 
-- [ ] **Phase 2: Gestão de Chaves PIX** - Suporte a multiplas chaves PIX e regras de selecao no checkout
+- [x] **Phase 2: Gestão de Chaves PIX** - Suporte a multiplas chaves PIX e regras de selecao no checkout
 - [ ] **Phase 3: Revisão Manual e Auditoria** - Melhorar fila manual, justificativas e historico operacional
 
 ## Phase Details
@@ -35,7 +35,7 @@ Roadmap do v1.1 focado em fortalecer o fluxo PIX manual sem gateway: multiplas c
 
 Plans:
 - [x] 02-01-PLAN.md — Base de dados/servicos para chave PIX por restaurante com selecao deterministica e snapshot no pagamento
-- [ ] 02-02-PLAN.md — Gestao completa no painel (CRUD + historico) e integracao de navegacao/regressao
+- [x] 02-02-PLAN.md — Gestao completa no painel (CRUD + historico) e integracao de navegacao/regressao
 
 ### Phase 3: Revisão Manual e Auditoria
 **Goal**: Estruturar a revisao manual de pagamentos com fila operacional, justificativas e trilha auditavel.
@@ -52,5 +52,5 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Pagamento PIX Manual | v1.0 | 5/5 | Complete | 2026-04-08 |
-| 2. Gestão de Chaves PIX | v1.1 | 1/2 | In Progress | - |
+| 2. Gestão de Chaves PIX | v1.1 | 2/2 | Complete | 2026-04-10 |
 | 3. Revisão Manual e Auditoria | v1.1 | 0/TBD | Not started | - |
