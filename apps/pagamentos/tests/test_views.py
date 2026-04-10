@@ -6,7 +6,7 @@ from django.test import TestCase, Client, override_settings
 from django.contrib.auth.models import User
 from apps.restaurantes.models import Restaurante
 from apps.pedidos.models import Pedido
-from apps.pagamentos.models import Pagamento
+from apps.pagamentos.models import ChavePix, Pagamento
 from apps.pagamentos.services import criar_pagamento_pix_manual
 
 
@@ -40,6 +40,14 @@ class PixManualViewTest(TestCase):
             taxa_entrega='5.00',
             imposto='0.00',
             total='55.00',
+        )
+        ChavePix.objects.create(
+            restaurante=self.restaurante,
+            tipo=ChavePix.Tipo.EMAIL,
+            valor='view@restaurante.com',
+            ativo=True,
+            padrao=True,
+            prioridade=1,
         )
 
     def test_pix_page_loads_with_pedido_id(self):
