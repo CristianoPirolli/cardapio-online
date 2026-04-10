@@ -1,56 +1,52 @@
 # Requirements: Cardapio Online
 
 **Defined:** 2026-04-10
-**Milestone:** v1.1 Conciliação PIX
+**Milestone:** v1.1 Operacao Manual PIX
 **Core Value:** Receber pedidos pagos com segurança e baixo atrito operacional
 
 ## v1.1 Requirements
 
-### Payments Automation
-
-- [ ] **PAY-15**: Sistema processa webhook PIX válido e marca pedido como pago automaticamente
-- [ ] **PAY-16**: Sistema impede confirmação automática quando valor/identificador do pagamento divergir
-- [ ] **PAY-17**: Sistema registra trilha de auditoria para cada evento de conciliação
-
 ### Multi-Key PIX
 
-- [ ] **PAY-18**: Restaurante cadastra múltiplas chaves PIX ativas no painel
-- [ ] **PAY-19**: Checkout seleciona chave PIX conforme regra configurada pelo restaurante
-- [ ] **PAY-20**: Restaurante consegue ativar/desativar chaves sem quebrar pedidos em andamento
+- [ ] **PAY-15**: Restaurante cadastra multiplas chaves PIX ativas no painel
+- [x] **PAY-16**: Restaurante define chave padrao e prioridade de uso no checkout
+- [x] **PAY-17**: Checkout seleciona e exibe a chave PIX correta conforme regra configurada
+- [x] **PAY-18**: Restaurante consegue ativar/desativar chaves sem quebrar pedidos em andamento
 
 ### Operations
 
-- [ ] **OPS-01**: Divergências de conciliação entram em fila de revisão manual no painel
-- [ ] **OPS-02**: Restaurante consegue aprovar/rejeitar divergência com justificativa
+- [ ] **OPS-01**: Pedidos aguardando confirmacao entram em fila de revisao manual com filtros no painel
+- [ ] **OPS-02**: Restaurante consegue aprovar/rejeitar revisao com justificativa obrigatoria
+- [ ] **OPS-03**: Sistema registra historico auditavel de decisoes manuais por pedido
 
 ## Future Requirements
 
 - **PAY-21**: Reembolso parcial/total com rastreabilidade
-- **PAY-22**: Suporte a múltiplos provedores de webhook PIX
+- **PAY-22**: Integracao futura com provedores externos de conciliacao (se estrategia mudar)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Split de pagamento | Regras de negócio e fiscais ainda não definidas |
-| Reembolso automático | Exige fluxo financeiro e antifraude não planejados para v1.1 |
+| Confirmacao automatica via gateway/webhook | Fora da estrategia do produto no v1.1 |
+| Split de pagamento | Regras de negocio e fiscais ainda nao definidas |
+| Reembolso automatico | Exige fluxo financeiro e antifraude nao planejados para v1.1 |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | PAY-15 | Phase 2 | Pending |
-| PAY-16 | Phase 2 | Pending |
-| PAY-17 | Phase 2 | Pending |
-| PAY-18 | Phase 3 | Pending |
-| PAY-19 | Phase 3 | Pending |
-| PAY-20 | Phase 3 | Pending |
+| PAY-16 | Phase 2 | Complete |
+| PAY-17 | Phase 2 | Complete |
+| PAY-18 | Phase 2 | Complete |
 | OPS-01 | Phase 3 | Pending |
 | OPS-02 | Phase 3 | Pending |
+| OPS-03 | Phase 3 | Pending |
 
 **Coverage:**
-- v1.1 requirements: 8 total
-- Mapped to phases: 8
+- v1.1 requirements: 7 total
+- Mapped to phases: 7
 - Unmapped: 0
 
 ---
