@@ -8,7 +8,7 @@
 
 ### Multi-Key PIX
 
-- [ ] **PAY-15**: Restaurante cadastra multiplas chaves PIX ativas no painel
+- [x] **PAY-15**: Restaurante cadastra multiplas chaves PIX ativas no painel
 - [x] **PAY-16**: Restaurante define chave padrao e prioridade de uso no checkout
 - [x] **PAY-17**: Checkout seleciona e exibe a chave PIX correta conforme regra configurada
 - [x] **PAY-18**: Restaurante consegue ativar/desativar chaves sem quebrar pedidos em andamento
@@ -36,7 +36,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PAY-15 | Phase 2 | Pending |
+| PAY-15 | Phase 2 | Complete |
 | PAY-16 | Phase 2 | Complete |
 | PAY-17 | Phase 2 | Complete |
 | PAY-18 | Phase 2 | Complete |
