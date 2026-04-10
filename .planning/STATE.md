@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
-milestone_name: Conciliação PIX
+milestone_name: Operacao Manual PIX
 status: Defining requirements
-stopped_at: Milestone v1.1 initialized
-last_updated: "2026-04-10T23:02:00.000Z"
+stopped_at: Phase 2 context gathered
+last_updated: "2026-04-10T23:15:00.000Z"
 progress:
   total_phases: 3
   completed_phases: 1
@@ -16,14 +16,14 @@ progress:
 
 ## Current Focus
 
-Phase 2: Conciliação Automática PIX
+Phase 2: Gestão de Chaves PIX
 
 ## Position
 
 Phase: Not started (defining requirements)
 Plan: -
 Status: Defining requirements for v1.1
-Last activity: 2026-04-10 — Milestone v1.1 started
+Last activity: 2026-04-10 — Phase 2 context captured
 
 ## Plans
 
@@ -36,12 +36,12 @@ Last activity: 2026-04-10 — Milestone v1.1 started
 ## Decisions
 
 - v1.0 consolidado com fluxo PIX manual estável.
-- v1.1 focará em conciliação automática e múltiplas chaves PIX por restaurante.
-- Divergências de conciliação seguem para revisão manual (sem auto-aprovação insegura).
+- v1.1 mantera fluxo manual (sem gateway/webhook) com multiplas chaves PIX.
+- Revisao manual tera trilha auditavel e justificativas operacionais.
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-04-10)
 
 **Core value:** Receber pedidos pagos com segurança e baixo atrito operacional.
-**Current focus:** Phase 2 — Conciliação Automática PIX.
+**Current focus:** Phase 2 — Gestão de Chaves PIX.
