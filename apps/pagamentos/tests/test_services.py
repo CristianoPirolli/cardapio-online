@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from apps.restaurantes.models import Restaurante
 from apps.pedidos.models import Pedido
-from apps.pagamentos.models import Pagamento
+from apps.pagamentos.models import ChavePix, Pagamento
 
 
 def _make_restaurante():
@@ -81,6 +81,14 @@ class PixManualServiceTest(TestCase):
     def setUp(self):
         self.restaurante = _make_restaurante()
         self.pedido = _make_pedido(self.restaurante)
+        ChavePix.objects.create(
+            restaurante=self.restaurante,
+            tipo=ChavePix.Tipo.EMAIL,
+            valor='servico@restaurante.com',
+            ativo=True,
+            padrao=True,
+            prioridade=1,
+        )
 
     def test_criar_pagamento_pix_manual_creates_record(self):
         """criar_pagamento_pix_manual must create a Pagamento with correct fields."""

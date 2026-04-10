@@ -342,3 +342,49 @@ class PainelPixKeysViewTest(TestCase):
         content = response.content.decode('utf-8')
         self.assertLess(content.find('Desativacao'), content.find('Edicao'))
         self.assertLess(content.find('Edicao'), content.find('Criacao'))
+
+    def test_painel_pix_keys_exige_login(self):
+        self.client.logout()
+        response = self.client.get('/painel/chaves-pix/')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/auth/login/', response['Location'])
+
+    def test_usuario_de_outro_restaurante_nao_pode_editar_chave(self):
+        chave = ChavePix.objects.create(
+            restaurante=self.restaurante,
+            tipo=ChavePix.Tipo.EMAIL,
+            valor='seguro@restaurante.com',
+            ativo=True,
+            padrao=True,
+            prioridade=1,
+        )
+        outro_user = User.objects.create_user(username='outro-owner', password='pass')
+        outro_restaurante = Restaurante.objects.create(
+            proprietario=outro_user,
+            nome='Outro Restaurante',
+            subdominio='outro-rest',
+            endereco='Rua B, 1',
+            cidade='Sao Paulo',
+            estado='SP',
+            cep='01002-000',
+            telefone='11998887777',
+            email='outro@example.com',
+        )
+        self.assertIsNotNone(outro_restaurante.id)
+        self.client.force_login(outro_user)
+
+        response = self.client.post(
+            f'/pagamentos/painel/chaves-pix/{chave.id}/editar/',
+            data={
+                'tipo': ChavePix.Tipo.EMAIL,
+                'valor': 'hacker@restaurante.com',
+                'ativo': 'on',
+                'padrao': 'on',
+                'prioridade': 3,
+            },
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_painel_pedidos_regressao_basica_permanece_funcional(self):
+        response = self.client.get('/painel/pedidos/')
+        self.assertEqual(response.status_code, 200)
