@@ -10,6 +10,7 @@
 # =============================================================================
 
 import logging
+import re
 
 from django.conf import settings
 from django.contrib import messages
@@ -46,14 +47,35 @@ def pagamento_pix_manual(request, pedido_id):
 
     # Cria (ou reutiliza) o registro de pagamento pendente.
     # Idempotente: o cliente pode recarregar a página sem criar duplicatas.
-    criar_pagamento_pix_manual(pedido)
+    try:
+        pagamento = criar_pagamento_pix_manual(pedido)
+    except ValueError as exc:
+        logger.warning(
+            "pagamento_pix_manual: restaurante %s sem chave ativa (%s)",
+            pedido.restaurante_id,
+            exc,
+        )
+        messages.warning(
+            request,
+            'Este restaurante está sem chave PIX ativa no momento. Tente novamente em instantes.',
+        )
+        pagamento = None
 
-    pix_key = getattr(settings, 'PIX_KEY', '')
+    pix_key = pagamento.pix_chave_valor_snapshot if pagamento else ''
+    pix_key_tipo = pagamento.pix_chave_tipo_snapshot if pagamento else ''
+    pix_key_masked = _mascarar_chave_pix(pix_key_tipo, pix_key) if pix_key else ''
+    feature_whatsapp_link = getattr(settings, 'FEATURE_WHATSAPP_LINK', False)
+
+    pedido_url = request.build_absolute_uri()
 
     return render(request, 'pagamentos/pagamento.html', {
         'pedido': pedido,
         'restaurante': pedido.restaurante,
         'pix_key': pix_key,
+        'pix_key_tipo': pix_key_tipo,
+        'pix_key_masked': pix_key_masked,
+        'feature_whatsapp_link': feature_whatsapp_link,
+        'pedido_url': pedido_url,
     })
 
 
@@ -84,7 +106,14 @@ def upload_comprovante(request, pedido_id):
     if not pagamento:
         # Segurança: se o cliente chegou aqui sem passar pela página de PIX,
         # cria o registro de pagamento agora.
-        pagamento = criar_pagamento_pix_manual(pedido)
+        try:
+            pagamento = criar_pagamento_pix_manual(pedido)
+        except ValueError:
+            messages.error(
+                request,
+                'Não foi possível iniciar o pagamento PIX porque o restaurante está sem chave ativa.',
+            )
+            return redirect('acompanhar_pedido', pedido_id=pedido.id)
 
     if request.method == 'POST':
         arquivo = request.FILES.get('comprovante')
@@ -238,3 +267,32 @@ def rejeitar_pix(request, pedido_id):
         messages.warning(request, 'Pagamento não encontrado; o pedido não foi alterado.')
 
     return redirect('painel_pedidos')
+
+
+def _mascarar_chave_pix(tipo, valor):
+    valor = (valor or '').strip()
+    if not valor:
+        return ''
+
+    if tipo == 'email':
+        usuario, separador, dominio = valor.partition('@')
+        if not separador:
+            return valor
+        if len(usuario) <= 2:
+            usuario_mask = '*' * len(usuario)
+        else:
+            usuario_mask = f"{usuario[:2]}{'*' * (len(usuario) - 2)}"
+        return f'{usuario_mask}@{dominio}'
+
+    if tipo == 'telefone':
+        if len(valor) <= 6:
+            return valor
+        return f'{valor[:4]}***{valor[-3:]}'
+
+    if tipo in {'cpf', 'cnpj'}:
+        digitos = re.sub(r'\D', '', valor)
+        if len(digitos) <= 4:
+            return digitos
+        return f"{'*' * (len(digitos) - 4)}{digitos[-4:]}"
+
+    return valor
