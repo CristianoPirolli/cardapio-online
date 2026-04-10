@@ -135,14 +135,14 @@ class ChavePixServiceTest(TestCase):
         self.restaurante = _make_restaurante("svc")
 
     def test_selecao_prioriza_padrao_ativa_e_fallback_por_prioridade(self):
-        fallback = ChavePix.objects.create(
+        ChavePix.objects.create(
             restaurante=self.restaurante,
             tipo=ChavePix.Tipo.EMAIL,
             valor="fallback@restaurante.com",
             ativo=True,
             prioridade=2,
         )
-        ChavePix.objects.create(
+        menor_prioridade = ChavePix.objects.create(
             restaurante=self.restaurante,
             tipo=ChavePix.Tipo.CNPJ,
             valor="19131243000197",
@@ -166,7 +166,7 @@ class ChavePixServiceTest(TestCase):
         padrao.save(update_fields=["ativo", "padrao", "atualizado_em"])
 
         selecionada_sem_padrao = selecionar_chave_pix_checkout(self.restaurante)
-        self.assertEqual(selecionada_sem_padrao.id, fallback.id)
+        self.assertEqual(selecionada_sem_padrao.id, menor_prioridade.id)
 
     def test_quando_nao_ha_chave_ativa_gera_falha_controlada(self):
         with self.assertRaisesRegex(ValueError, "Nenhuma chave PIX ativa"):
