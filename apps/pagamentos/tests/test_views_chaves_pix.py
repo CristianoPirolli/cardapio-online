@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 
-from apps.pagamentos.models import ChavePix
+from apps.pagamentos.models import ChavePix, ChavePixHistorico
 from apps.pagamentos.services import criar_pagamento_pix_manual
 from apps.pedidos.models import Pedido
 from apps.restaurantes.models import Restaurante
@@ -242,3 +242,103 @@ class PainelPixKeysViewTest(TestCase):
                 self.assertContains(response, 'inval')
 
         self.assertEqual(ChavePix.objects.filter(restaurante=self.restaurante).count(), 0)
+
+    def test_mutacoes_de_painel_geram_historico_com_ator_quando_acao_e_diff(self):
+        create_response = self.client.post(
+            '/pagamentos/painel/chaves-pix/criar/',
+            data={
+                'tipo': ChavePix.Tipo.EMAIL,
+                'valor': 'auditoria@restaurante.com',
+                'ativo': 'on',
+                'padrao': 'on',
+                'prioridade': 1,
+            },
+        )
+        self.assertEqual(create_response.status_code, 302)
+        chave = ChavePix.objects.get(restaurante=self.restaurante)
+
+        edit_response = self.client.post(
+            f'/pagamentos/painel/chaves-pix/{chave.id}/editar/',
+            data={
+                'tipo': ChavePix.Tipo.EMAIL,
+                'valor': 'auditoria-nova@restaurante.com',
+                'ativo': 'on',
+                'padrao': 'on',
+                'prioridade': 2,
+            },
+        )
+        self.assertEqual(edit_response.status_code, 302)
+
+        eventos = list(
+            ChavePixHistorico.objects.filter(chave_pix=chave).order_by('-criado_em', '-id')
+        )
+        self.assertEqual(len(eventos), 2)
+        self.assertEqual(eventos[0].acao, ChavePixHistorico.Acao.EDICAO)
+        self.assertEqual(eventos[0].ator_id, self.proprietario.id)
+        self.assertIsNotNone(eventos[0].criado_em)
+        self.assertEqual(eventos[0].antes.get('prioridade'), 1)
+        self.assertEqual(eventos[0].depois.get('prioridade'), 2)
+        self.assertEqual(eventos[1].acao, ChavePixHistorico.Acao.CRIACAO)
+        self.assertEqual(eventos[1].antes, {})
+        self.assertEqual(eventos[1].depois.get('tipo'), ChavePix.Tipo.EMAIL)
+
+    def test_eventos_de_checkout_nao_entram_no_historico_de_painel(self):
+        ChavePix.objects.create(
+            restaurante=self.restaurante,
+            tipo=ChavePix.Tipo.EMAIL,
+            valor='checkout@restaurante.com',
+            ativo=True,
+            padrao=True,
+            prioridade=1,
+        )
+        pedido = Pedido.objects.create(
+            restaurante=self.restaurante,
+            cliente_nome='Cliente Checkout',
+            cliente_telefone='11999999999',
+            status='aguardando',
+            pago=False,
+            subtotal='50.00',
+            taxa_entrega='5.00',
+            imposto='0.00',
+            total='55.00',
+        )
+
+        before = ChavePixHistorico.objects.count()
+        response = self.client.get(f'/pagamentos/{pedido.id}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(ChavePixHistorico.objects.count(), before)
+
+    def test_historico_aparece_na_tela_ordenado_do_mais_recente_para_antigo(self):
+        self.client.post(
+            '/pagamentos/painel/chaves-pix/criar/',
+            data={
+                'tipo': ChavePix.Tipo.EMAIL,
+                'valor': 'ordem@restaurante.com',
+                'ativo': 'on',
+                'padrao': 'on',
+                'prioridade': 1,
+            },
+        )
+        chave = ChavePix.objects.get(restaurante=self.restaurante)
+
+        self.client.post(
+            f'/pagamentos/painel/chaves-pix/{chave.id}/editar/',
+            data={
+                'tipo': ChavePix.Tipo.EMAIL,
+                'valor': 'ordem2@restaurante.com',
+                'ativo': 'on',
+                'padrao': 'on',
+                'prioridade': 2,
+            },
+        )
+        self.client.post(f'/pagamentos/painel/chaves-pix/{chave.id}/desativar/')
+
+        response = self.client.get('/painel/chaves-pix/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Desativacao')
+        self.assertContains(response, 'Edicao')
+        self.assertContains(response, 'Criacao')
+
+        content = response.content.decode('utf-8')
+        self.assertLess(content.find('Desativacao'), content.find('Edicao'))
+        self.assertLess(content.find('Edicao'), content.find('Criacao'))
