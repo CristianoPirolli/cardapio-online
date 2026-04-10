@@ -10,9 +10,54 @@
 
 import logging
 
+from django.db import transaction
+
+from .models import ChavePix
 from .models import Pagamento
 
 logger = logging.getLogger(__name__)
+
+
+def selecionar_chave_pix_checkout(restaurante):
+    """
+    Resolve a chave PIX para checkout de forma deterministica.
+
+    Regra:
+    1. chave padrao ativa do restaurante
+    2. fallback pela menor prioridade ativa
+    3. desempate por id
+    """
+    chaves_ativas = ChavePix.objects.filter(
+        restaurante=restaurante,
+        ativo=True,
+    ).order_by('prioridade', 'id')
+
+    chave_padrao = chaves_ativas.filter(padrao=True).first()
+    if chave_padrao:
+        return chave_padrao
+
+    fallback = chaves_ativas.first()
+    if fallback:
+        return fallback
+
+    raise ValueError('Nenhuma chave PIX ativa para este restaurante.')
+
+
+def _snapshot_presente(pagamento):
+    return bool(pagamento.pix_chave_id_snapshot and pagamento.pix_chave_valor_snapshot)
+
+
+def _aplicar_snapshot_chave(pagamento, chave):
+    dados_resposta = dict(pagamento.dados_resposta or {})
+    dados_resposta['pix_key'] = {
+        'id': chave.id,
+        'tipo': chave.tipo,
+        'valor': chave.valor_normalizado or chave.valor,
+    }
+    pagamento.dados_resposta = dados_resposta
+    pagamento.pix_chave_id_snapshot = chave.id
+    pagamento.pix_chave_tipo_snapshot = chave.tipo
+    pagamento.pix_chave_valor_snapshot = chave.valor_normalizado or chave.valor
 
 
 def criar_pagamento_pix_manual(pedido):
@@ -31,30 +76,46 @@ def criar_pagamento_pix_manual(pedido):
     Returns:
         instância de Pagamento com status='pendente'
     """
-    existente = Pagamento.objects.filter(
-        pedido=pedido,
-        status='pendente',
-        gateway='pix_manual',
-    ).first()
+    with transaction.atomic():
+        existente = Pagamento.objects.select_for_update().filter(
+            pedido=pedido,
+            status='pendente',
+            gateway='pix_manual',
+        ).first()
 
-    if existente:
-        logger.debug(
-            "criar_pagamento_pix_manual: reusing existing pagamento %s for pedido %s",
-            existente.id, pedido.id
+        if existente:
+            if not _snapshot_presente(existente):
+                chave = selecionar_chave_pix_checkout(pedido.restaurante)
+                _aplicar_snapshot_chave(existente, chave)
+                existente.save(update_fields=[
+                    'dados_resposta',
+                    'pix_chave_id_snapshot',
+                    'pix_chave_tipo_snapshot',
+                    'pix_chave_valor_snapshot',
+                    'atualizado_em',
+                ])
+
+            logger.debug(
+                "criar_pagamento_pix_manual: reusing existing pagamento %s for pedido %s",
+                existente.id, pedido.id
+            )
+            return existente
+
+        chave = selecionar_chave_pix_checkout(pedido.restaurante)
+        pagamento = Pagamento(
+            pedido=pedido,
+            gateway='pix_manual',
+            valor=pedido.total,
+            status='pendente',
         )
-        return existente
+        _aplicar_snapshot_chave(pagamento, chave)
+        pagamento.save()
 
-    pagamento = Pagamento.objects.create(
-        pedido=pedido,
-        gateway='pix_manual',
-        valor=pedido.total,
-        status='pendente',
-    )
-    logger.info(
-        "criar_pagamento_pix_manual: created pagamento %s for pedido %s",
-        pagamento.id, pedido.id
-    )
-    return pagamento
+        logger.info(
+            "criar_pagamento_pix_manual: created pagamento %s for pedido %s",
+            pagamento.id, pedido.id
+        )
+        return pagamento
 
 
 def confirmar_pix_manual(pagamento):
