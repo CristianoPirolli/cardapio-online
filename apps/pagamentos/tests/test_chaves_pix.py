@@ -4,6 +4,11 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from apps.pagamentos.models import ChavePix
+from apps.pagamentos.services import (
+    criar_pagamento_pix_manual,
+    selecionar_chave_pix_checkout,
+)
+from apps.pedidos.models import Pedido
 from apps.restaurantes.models import Restaurante
 
 
@@ -109,3 +114,93 @@ class ChavePixModelTest(TestCase):
                 )
                 with self.assertRaises(ValidationError):
                     chave.full_clean()
+
+
+def _make_pedido(restaurante, suffix=""):
+    return Pedido.objects.create(
+        restaurante=restaurante,
+        cliente_nome=f"Cliente {suffix}",
+        cliente_telefone="11999999999",
+        status="aguardando",
+        pago=False,
+        subtotal="50.00",
+        taxa_entrega="5.00",
+        imposto="0.00",
+        total="55.00",
+    )
+
+
+class ChavePixServiceTest(TestCase):
+    def setUp(self):
+        self.restaurante = _make_restaurante("svc")
+
+    def test_selecao_prioriza_padrao_ativa_e_fallback_por_prioridade(self):
+        fallback = ChavePix.objects.create(
+            restaurante=self.restaurante,
+            tipo=ChavePix.Tipo.EMAIL,
+            valor="fallback@restaurante.com",
+            ativo=True,
+            prioridade=2,
+        )
+        ChavePix.objects.create(
+            restaurante=self.restaurante,
+            tipo=ChavePix.Tipo.CNPJ,
+            valor="19131243000197",
+            ativo=True,
+            prioridade=1,
+        )
+        padrao = ChavePix.objects.create(
+            restaurante=self.restaurante,
+            tipo=ChavePix.Tipo.TELEFONE,
+            valor="+5511911111111",
+            ativo=True,
+            padrao=True,
+            prioridade=3,
+        )
+
+        selecionada = selecionar_chave_pix_checkout(self.restaurante)
+        self.assertEqual(selecionada.id, padrao.id)
+
+        padrao.ativo = False
+        padrao.padrao = False
+        padrao.save(update_fields=["ativo", "padrao", "atualizado_em"])
+
+        selecionada_sem_padrao = selecionar_chave_pix_checkout(self.restaurante)
+        self.assertEqual(selecionada_sem_padrao.id, fallback.id)
+
+    def test_quando_nao_ha_chave_ativa_gera_falha_controlada(self):
+        with self.assertRaisesRegex(ValueError, "Nenhuma chave PIX ativa"):
+            selecionar_chave_pix_checkout(self.restaurante)
+
+    def test_pagamento_pendente_preserva_snapshot_apos_manutencao_de_chaves(self):
+        chave_inicial = ChavePix.objects.create(
+            restaurante=self.restaurante,
+            tipo=ChavePix.Tipo.EMAIL,
+            valor="inicio@restaurante.com",
+            ativo=True,
+            padrao=True,
+            prioridade=1,
+        )
+        pedido = _make_pedido(self.restaurante, "snap")
+
+        pagamento = criar_pagamento_pix_manual(pedido)
+        self.assertEqual(pagamento.pix_chave_id_snapshot, chave_inicial.id)
+        self.assertEqual(pagamento.pix_chave_tipo_snapshot, ChavePix.Tipo.EMAIL)
+        self.assertEqual(pagamento.pix_chave_valor_snapshot, "inicio@restaurante.com")
+
+        chave_inicial.ativo = False
+        chave_inicial.padrao = False
+        chave_inicial.save(update_fields=["ativo", "padrao", "atualizado_em"])
+        ChavePix.objects.create(
+            restaurante=self.restaurante,
+            tipo=ChavePix.Tipo.TELEFONE,
+            valor="+5511998888777",
+            ativo=True,
+            padrao=True,
+            prioridade=1,
+        )
+
+        reuso = criar_pagamento_pix_manual(pedido)
+        self.assertEqual(reuso.id, pagamento.id)
+        self.assertEqual(reuso.pix_chave_id_snapshot, chave_inicial.id)
+        self.assertEqual(reuso.pix_chave_valor_snapshot, "inicio@restaurante.com")
