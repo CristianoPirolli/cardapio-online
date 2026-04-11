@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Operacao Manual PIX
-status: Contexto da Phase 3 capturado (fila operacional, justificativa obrigatoria, auditoria minima)
-last_updated: "2026-04-11T11:43:54.668Z"
+status: Milestone v1.1 arquivado; aguardando definicao do proximo milestone
+last_updated: "2026-04-11T12:50:56.492Z"
 last_activity: 2026-04-11
 progress:
   total_phases: 2
@@ -16,13 +16,13 @@ progress:
 
 ## Current Focus
 
-Phase 3: Revisão Manual e Auditoria
+Planejar proximo milestone
 
 ## Position
 
-Phase: 3
-Plan: Not started
-Status: Contexto da Phase 3 capturado (fila operacional, justificativa obrigatoria, auditoria minima)
+Phase: 03
+Plan: Complete
+Status: Milestone v1.1 arquivado; aguardando definicao do proximo milestone
 Last activity: 2026-04-11
 
 ## Plans
@@ -34,6 +34,8 @@ Last activity: 2026-04-11
 - [x] 01-05: Integracao final, limpeza e validacao E2E
 - [x] 02-01: Base de dados/servicos para chaves PIX por restaurante
 - [x] 02-02: Gestao no painel (CRUD + historico) e integracao de navegacao/regressao
+- [x] 03-01: Contrato de decisao manual com justificativa obrigatoria e persistencia auditavel por pedido
+- [x] 03-02: Fila operacional com filtro por periodo e exibicao da trilha no detalhe do pedido
 
 ## Decisions
 
@@ -47,10 +49,11 @@ Last activity: 2026-04-11
 - [Phase 03-revis-o-manual-e-auditoria]: Contexto decidido com fila por recencia, filtro por periodo, justificativa obrigatoria (aprovar/rejeitar) e auditoria minima (acao + data/hora).
 - [Phase 03]: Filtro operacional aplicado apenas na fila Aguardando PIX, preservando visao padrao de pedidos.
 - [Phase 03]: Historico de revisao permanece visivel somente no detalhe e com campos minimos de exibicao.
+- [Phase 03]: Registro operacional de decisao inclui operador e timestamp para auditoria interna, com feed minimo na interface.
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-10)
+See: .planning/PROJECT.md (updated 2026-04-11)
 
 **Core value:** Receber pedidos pagos com segurança e baixo atrito operacional.
-**Current focus:** Phase 03 — revis-o-manual-e-auditoria
+**Current focus:** iniciar novo milestone com `$gsd-new-milestone`
