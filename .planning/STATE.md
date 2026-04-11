@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Operacao Manual PIX
-status: Phase 2 concluida com CRUD/historico de chaves PIX no painel
-last_updated: "2026-04-11T00:08:13.638Z"
+status: Contexto da Phase 3 capturado (fila operacional, justificativa obrigatoria, auditoria minima)
+last_updated: "2026-04-11T11:43:54.668Z"
 last_activity: 2026-04-11
 progress:
   total_phases: 2
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 4
 ---
 
 # State: Cardapio Online
@@ -22,7 +22,7 @@ Phase 3: Revisão Manual e Auditoria
 
 Phase: 3
 Plan: Not started
-Status: Phase 2 concluida com CRUD/historico de chaves PIX no painel
+Status: Contexto da Phase 3 capturado (fila operacional, justificativa obrigatoria, auditoria minima)
 Last activity: 2026-04-11
 
 ## Plans
@@ -44,10 +44,13 @@ Last activity: 2026-04-11
 - [Phase 02]: Checkout passa a usar snapshot persistido de chave PIX por pagamento, sem fallback global.
 - [Phase 02-gest-o-de-chaves-pix]: Tela principal de chaves PIX em /painel/chaves-pix/ com mutacoes via endpoints dedicados.
 - [Phase 02-gest-o-de-chaves-pix]: Historico operacional restrito a mutacoes de painel, sem incluir eventos de selecao no checkout.
+- [Phase 03-revis-o-manual-e-auditoria]: Contexto decidido com fila por recencia, filtro por periodo, justificativa obrigatoria (aprovar/rejeitar) e auditoria minima (acao + data/hora).
+- [Phase 03]: Filtro operacional aplicado apenas na fila Aguardando PIX, preservando visao padrao de pedidos.
+- [Phase 03]: Historico de revisao permanece visivel somente no detalhe e com campos minimos de exibicao.
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-04-10)
 
 **Core value:** Receber pedidos pagos com segurança e baixo atrito operacional.
-**Current focus:** Phase 03 — revisao manual e auditoria
+**Current focus:** Phase 03 — revis-o-manual-e-auditoria
