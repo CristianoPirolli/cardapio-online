@@ -49,17 +49,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if current == 'painel_pix_keys' %}active{% endif %}" href="{% url 'painel_pix_keys' %}">
-                            <i class="bi bi-key"></i> Chaves PIX
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link {% if current == 'painel_categorias' or current == 'painel_categoria_criar' or current == 'painel_categoria_editar' or current == 'painel_categoria_excluir' %}active{% endif %}" href="{% url 'painel_categorias' %}">
                             <i class="bi bi-tags"></i> Categorias
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if current == 'painel_configuracoes' %}active{% endif %}" href="{% url 'painel_configuracoes' %}">
+                        <a class="nav-link {% if current == 'painel_configuracoes' or current == 'painel_pix_keys' %}active{% endif %}" href="{% url 'painel_configuracoes' %}">
                             <i class="bi bi-gear"></i> Configurações
                         </a>
                     </li>

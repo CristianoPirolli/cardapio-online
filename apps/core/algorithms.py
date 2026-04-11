@@ -319,6 +319,63 @@ def calcular_subtotal_otimizado(itens_queryset):
     )
 
 
+# =============================================================================
+# 6. HAVERSINE - Distância geodésica entre dois pontos (coordenadas GPS)
+#
+# Fórmula de Haversine: calcula a distância em linha reta sobre a superfície
+# da Terra usando latitudes e longitudes.
+# Complexidade: O(1) — operações trigonométricas constantes.
+# =============================================================================
+
+import math
+
+
+def calcular_distancia_km(lat1, lon1, lat2, lon2):
+    """
+    Calcula a distância em quilômetros entre dois pontos geográficos
+    usando a fórmula de Haversine.
+
+    Args:
+        lat1, lon1: Latitude e longitude do ponto de origem (restaurante)
+        lat2, lon2: Latitude e longitude do ponto de destino (cliente)
+
+    Returns:
+        float: Distância em quilômetros
+    """
+    R = 6371.0  # Raio médio da Terra em km
+
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(dlon / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+
+def zona_entrega_para_distancia(zonas, distancia_km):
+    """
+    Encontra a zona de entrega adequada para uma dada distância.
+
+    As zonas devem estar ordenadas por raio_max_km crescente.
+    Usa pesquisa linear (O(n)), geralmente ≤ 5 zonas por restaurante.
+
+    Args:
+        zonas: QuerySet ou lista de ZonaEntrega ordenadas por raio_max_km
+        distancia_km: Distância calculada do cliente ao restaurante
+
+    Returns:
+        ZonaEntrega ou None se fora da área de entrega
+    """
+    for zona in zonas:
+        if distancia_km <= float(zona.raio_max_km):
+            return zona
+    return None
+
+
 def agrupar_por_categoria_hash(produtos):
     """
     Agrupa produtos por categoria usando tabela hash (dicionário).

@@ -125,6 +125,20 @@ class Restaurante(models.Model):
         default='23:00',
         verbose_name='Horário de Fechamento'
     )
+    # Coordenadas para cálculo de zonas de entrega
+    latitude = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name='Latitude',
+        help_text='Latitude do restaurante (ex: -23.5505). Necessária para zonas de entrega por raio.'
+    )
+    longitude = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name='Longitude',
+        help_text='Longitude do restaurante (ex: -46.6333). Necessária para zonas de entrega por raio.'
+    )
+
     ativo = models.BooleanField(default=True, verbose_name='Ativo')
     criado_em = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
     atualizado_em = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
@@ -227,6 +241,66 @@ class Restaurante(models.Model):
         # Invalida cache ao salvar (Tabela Hash - invalidação O(1))
         cache_restaurante.invalidate(f"aberto:{self.id}")
         cache_restaurante.invalidate(f"tenant:{self.subdominio}")
+
+
+class ZonaEntrega(models.Model):
+    """
+    Zona de entrega por raio de distância para um restaurante.
+
+    Permite definir faixas de entrega com taxas diferentes baseadas na
+    distância entre o restaurante e o endereço do cliente.
+
+    Exemplo:
+    - Zona 1: até 3 km → R$ 5,00
+    - Zona 2: até 7 km → R$ 10,00
+    - Zona 3: até 15 km → R$ 18,00
+
+    Regra: a primeira zona cujo raio_max_km >= distância calculada é aplicada.
+    Se o cliente estiver fora de todas as zonas, o delivery não é disponível.
+
+    Requer que o restaurante tenha latitude/longitude configurados.
+    """
+
+    restaurante = models.ForeignKey(
+        Restaurante,
+        on_delete=models.CASCADE,
+        related_name='zonas_entrega',
+        verbose_name='Restaurante'
+    )
+    nome = models.CharField(
+        max_length=80,
+        verbose_name='Nome da Zona',
+        help_text='Ex: Zona Centro, Zona Bairros, Zona Rural'
+    )
+    raio_max_km = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        validators=[MinValueValidator(0.1)],
+        verbose_name='Raio Máximo (km)',
+        help_text='Distância máxima em km do restaurante para esta zona'
+    )
+    taxa_entrega = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name='Taxa de Entrega (R$)'
+    )
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+    ordem = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Ordem',
+        help_text='Menor raio primeiro (será ordenado automaticamente)'
+    )
+
+    class Meta:
+        verbose_name = 'Zona de Entrega'
+        verbose_name_plural = 'Zonas de Entrega'
+        ordering = ['raio_max_km']
+        unique_together = ['restaurante', 'nome']
+
+    def __str__(self):
+        return f'{self.restaurante.nome} — {self.nome} (até {self.raio_max_km} km)'
 
 
 class TamanhoPizza(models.Model):

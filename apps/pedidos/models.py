@@ -218,7 +218,7 @@ class Pedido(models.Model):
     # Recursão + Memoização (Cap. 3 e 8) / Big O (Cap. 1)
     # -------------------------------------------------------------------
 
-    def calcular_totais(self, itens_prefetched=None):
+    def calcular_totais(self, itens_prefetched=None, taxa_entrega_override=None):
         """
         Calcula subtotal, imposto e total do pedido com base nos itens.
 
@@ -235,6 +235,12 @@ class Pedido(models.Model):
 
         3. Tabela Hash (Cap. 5):
            Ao salvar, invalida o cache se implementado.
+
+        Args:
+            itens_prefetched: Lista de itens já carregados (evita query extra).
+            taxa_entrega_override: Se fornecida, usa este valor em vez de calcular
+                                   pela zona ou taxa padrão do restaurante.
+                                   Usado quando as zonas já foram calculadas.
         """
         # Se recebeu itens pré-carregados, usa direto (0 queries extras)
         # Se não, carrega uma vez só com .all() (1 query)
@@ -243,9 +249,12 @@ class Pedido(models.Model):
         # Memoização: calcula subtotal em O(n) com uma passada
         self.subtotal = calcular_subtotal_otimizado(itens)
 
-        # Taxa de entrega (zero para retirada no local)
+        # Taxa de entrega: respeita override (zonas por raio) ou usa padrão
         if self.tipo_entrega == 'delivery':
-            self.taxa_entrega = self.restaurante.taxa_entrega
+            if taxa_entrega_override is not None:
+                self.taxa_entrega = taxa_entrega_override
+            elif not self.taxa_entrega:
+                self.taxa_entrega = self.restaurante.taxa_entrega
         else:
             self.taxa_entrega = Decimal('0')
 

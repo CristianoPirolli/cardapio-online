@@ -6,13 +6,20 @@
 # =============================================================================
 
 from django.contrib import admin
-from .models import Restaurante, TamanhoPizza
+from .models import Restaurante, TamanhoPizza, ZonaEntrega
 
 
 class TamanhoPizzaInline(admin.TabularInline):
     model = TamanhoPizza
     extra = 1
     fields = ('nome', 'fatias', 'diametro_cm', 'max_sabores', 'preco_base', 'ordem', 'ativo')
+
+
+class ZonaEntregaInline(admin.TabularInline):
+    model = ZonaEntrega
+    extra = 1
+    fields = ('nome', 'raio_max_km', 'taxa_entrega', 'ativo')
+    ordering = ('raio_max_km',)
 
 
 @admin.register(Restaurante)
@@ -36,14 +43,16 @@ class RestauranteAdmin(admin.ModelAdmin):
     list_editable = ('ativo',)
     prepopulated_fields = {'subdominio': ('nome',)}
     readonly_fields = ('criado_em', 'atualizado_em')
-    inlines = [TamanhoPizzaInline]
+    inlines = [TamanhoPizzaInline, ZonaEntregaInline]
 
     fieldsets = (
         ('Informações Básicas', {
             'fields': ('nome', 'subdominio', 'proprietario', 'descricao', 'logo')
         }),
         ('Localização', {
-            'fields': ('endereco', 'cidade', 'estado', 'cep')
+            'fields': ('endereco', 'cidade', 'estado', 'cep', 'latitude', 'longitude'),
+            'description': 'As coordenadas (latitude/longitude) são necessárias para calcular zonas de entrega por raio. '
+                           'Você pode obtê-las no Google Maps clicando com o botão direito sobre o endereço do restaurante.'
         }),
         ('Contato', {
             'fields': ('telefone', 'email')

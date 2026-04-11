@@ -32,7 +32,13 @@
                     <div class="col-md-6">
                         <p><strong>Tipo:</strong> {{ pedido.get_tipo_entrega_display }}</p>
                         {% if pedido.endereco_entrega %}
-                        <p><strong>Endereço:</strong> {{ pedido.endereco_entrega }}</p>
+                        <p class="mb-1"><strong>Endereço:</strong> {{ pedido.endereco_entrega }}</p>
+                        {% if pedido.tipo_entrega == 'delivery' %}
+                            <a href="https://www.google.com/maps/dir/?api=1&destination={{ pedido.endereco_entrega|urlencode }}"
+                               class="btn btn-sm btn-outline-success mb-2" target="_blank" rel="noopener">
+                                <i class="bi bi-map"></i> Abrir rota no Maps
+                            </a>
+                        {% endif %}
                         {% endif %}
                         {% if pedido.observacoes %}
                         <p><strong>Obs:</strong> {{ pedido.observacoes }}</p>
@@ -156,9 +162,26 @@
 
                 <!-- Aceitar -->
                 <form method="post"
+                      id="form-aceitar-pix"
                       action="{% url 'aceitar_pix' pedido.id %}"
                       hx-boost="false">
                     {% csrf_token %}
+                    <div class="mb-2">
+                        <label for="motivo-revisao" class="form-label small fw-semibold">Motivo da revisao</label>
+                        <select id="motivo-revisao" name="motivo_revisao" class="form-select form-select-sm mb-2" required>
+                            <option value="" selected disabled>Selecione</option>
+                            <option value="valido">valido</option>
+                            <option value="invalido">invalido</option>
+                            <option value="outro">outro</option>
+                        </select>
+                        <textarea
+                            name="justificativa_revisao"
+                            class="form-control form-control-sm"
+                            rows="3"
+                            minlength="10"
+                            placeholder="Justificativa (minimo 10 caracteres)"
+                            required></textarea>
+                    </div>
                     <button type="submit" class="btn btn-success w-100 mb-2">
                         <i class="bi bi-check-lg me-1"></i>Aceitar Pagamento
                     </button>
@@ -166,14 +189,47 @@
 
                 <!-- Rejeitar -->
                 <form method="post"
+                      id="form-rejeitar-pix"
                       action="{% url 'rejeitar_pix' pedido.id %}"
                       hx-boost="false"
                       onsubmit="return confirm('Tem certeza que deseja rejeitar este pedido? O pedido será cancelado.');">
                     {% csrf_token %}
+                    <div class="mb-2">
+                        <label for="motivo-revisao-rejeicao" class="form-label small fw-semibold">Motivo da revisao</label>
+                        <select id="motivo-revisao-rejeicao" name="motivo_revisao" class="form-select form-select-sm mb-2" required>
+                            <option value="" selected disabled>Selecione</option>
+                            <option value="valido">valido</option>
+                            <option value="invalido">invalido</option>
+                            <option value="outro">outro</option>
+                        </select>
+                        <textarea
+                            name="justificativa_revisao"
+                            class="form-control form-control-sm"
+                            rows="3"
+                            minlength="10"
+                            placeholder="Justificativa (minimo 10 caracteres)"
+                            required></textarea>
+                    </div>
                     <button type="submit" class="btn btn-outline-danger w-100 btn-sm">
                         <i class="bi bi-x-lg me-1"></i>Rejeitar e Cancelar
                     </button>
                 </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if historico_revisao_pagamento %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-header"><h6 class="mb-0">Histórico</h6></div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for evento in historico_revisao_pagamento %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ evento.acao }}</span>
+                        <small class="text-muted">{{ evento.criado_em|date:"d/m/Y H:i" }}</small>
+                    </li>
+                    {% endfor %}
+                </ul>
             </div>
         </div>
         {% endif %}

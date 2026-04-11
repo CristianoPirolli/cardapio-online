@@ -1,8 +1,3 @@
-<!-- ==========================================================================
-     templates/painel/configuracoes.html - Configurações do restaurante
-
-     Formulário para editar dados do restaurante.
-     ========================================================================== -->
 {% extends 'painel/base_painel.html' %}
 {% load crispy_forms_tags %}
 
@@ -26,11 +21,189 @@
         <form method="post" enctype="multipart/form-data" hx-encoding="multipart/form-data">
             {% csrf_token %}
             {{ form|crispy }}
-            <hr>
+
+            <hr class="my-4">
+
+            <!-- Zonas de Entrega por Raio -->
+            <h4 class="mb-1"><i class="bi bi-map me-2"></i>Zonas de Entrega por Raio</h4>
+            <p class="text-muted small mb-3">
+                As zonas são aplicadas quando o cliente informa o endereço no checkout.<br>
+                <strong>Pré-requisito:</strong> preencha <em>Latitude</em> e <em>Longitude</em> acima.<br>
+                As zonas são ordenadas por raio crescente: a primeira que comportar a distância do cliente será aplicada.
+            </p>
+
+            {% if not restaurante.latitude or not restaurante.longitude %}
+            <div class="alert alert-warning py-2 small">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Preencha a <strong>Latitude</strong> e <strong>Longitude</strong> do restaurante para ativar as zonas.
+                Você pode obter as coordenadas no
+                <a href="https://maps.google.com" target="_blank" rel="noopener">Google Maps</a>
+                clicando com o botão direito no endereço do restaurante.
+            </div>
+            {% endif %}
+
+            {{ zonas_formset.management_form }}
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle" id="zonas-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nome da Zona</th>
+                            <th>Raio Máx. (km)</th>
+                            <th>Taxa (R$)</th>
+                            <th>Ativo</th>
+                            <th>Remover</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for zona_form in zonas_formset %}
+                        <tr class="zona-row {% if zona_form.instance.pk and zona_form.DELETE.value %}table-danger{% endif %}">
+                            {% if zona_form.instance.pk %}{{ zona_form.id }}{% endif %}
+                            <td>{{ zona_form.nome }}</td>
+                            <td>{{ zona_form.raio_max_km }}</td>
+                            <td>{{ zona_form.taxa_entrega }}</td>
+                            <td class="text-center">{{ zona_form.ativo }}</td>
+                            <td class="text-center">{{ zona_form.DELETE }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-muted small">
+                <i class="bi bi-info-circle me-1"></i>
+                Marque <strong>Remover</strong> para excluir uma zona. A linha em vermelho confirma a remoção ao salvar.
+            </p>
+
+            <hr class="my-4">
             <button type="submit" class="btn btn-primary">
                 <i class="bi bi-check-lg"></i> Salvar Alterações
             </button>
         </form>
     </div>
 </div>
+
+<!-- Chaves PIX (seção separada, fora do form principal) -->
+<div class="card shadow-sm mt-4" id="pix">
+    <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-key fs-5"></i>
+        <strong>Chaves PIX</strong>
+    </div>
+    <div class="card-body">
+
+        <!-- Formulário de cadastro / edição -->
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-lg-5">
+                <div class="card border">
+                    <div class="card-header bg-light py-2">
+                        <strong class="small">{% if pix_chave_editando %}Editar chave PIX{% else %}Cadastrar nova chave PIX{% endif %}</strong>
+                    </div>
+                    <div class="card-body">
+                        {% if pix_chave_editando and pix_edit_form %}
+                        <form method="post" action="{% url 'painel_pix_keys_edit' pix_chave_editando.id %}">
+                            {% csrf_token %}
+                            {% for field in pix_edit_form %}
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.errors %}<div class="text-danger small">{{ field.errors|join:', ' }}</div>{% endif %}
+                            </div>
+                            {% endfor %}
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+                                <a href="{% url 'painel_configuracoes' %}#pix" class="btn btn-outline-secondary btn-sm">Cancelar</a>
+                            </div>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{% url 'painel_pix_keys_create' %}">
+                            {% csrf_token %}
+                            {% for field in pix_form %}
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.errors %}<div class="text-danger small">{{ field.errors|join:', ' }}</div>{% endif %}
+                            </div>
+                            {% endfor %}
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="bi bi-plus-circle me-1"></i>Cadastrar chave
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-7">
+                {% if chaves %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Valor</th>
+                                <th class="text-center">Ativa</th>
+                                <th class="text-center">Padrão</th>
+                                <th class="text-center">Prioridade</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for chave in chaves %}
+                            <tr>
+                                <td>{{ chave.get_tipo_display }}</td>
+                                <td class="text-break">{{ chave.valor_normalizado|default:chave.valor }}</td>
+                                <td class="text-center">
+                                    {% if chave.ativo %}<span class="badge bg-success">Sim</span>{% else %}<span class="badge bg-secondary">Não</span>{% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if chave.padrao %}<span class="badge bg-primary">Sim</span>{% else %}—{% endif %}
+                                </td>
+                                <td class="text-center">{{ chave.prioridade }}</td>
+                                <td>
+                                    <div class="d-flex gap-1 flex-wrap justify-content-end">
+                                        <a class="btn btn-sm btn-outline-primary" href="{% url 'painel_configuracoes' %}?pix_edit={{ chave.id }}#pix">Editar</a>
+                                        {% if chave.ativo %}
+                                        <form method="post" action="{% url 'painel_pix_keys_deactivate' chave.id %}">
+                                            {% csrf_token %}
+                                            <button class="btn btn-sm btn-outline-warning" type="submit">Desativar</button>
+                                        </form>
+                                        {% else %}
+                                        <form method="post" action="{% url 'painel_pix_keys_activate' chave.id %}">
+                                            {% csrf_token %}
+                                            <button class="btn btn-sm btn-outline-success" type="submit">Ativar</button>
+                                        </form>
+                                        {% endif %}
+                                        <form method="post" action="{% url 'painel_pix_keys_set_default' chave.id %}">
+                                            {% csrf_token %}
+                                            <button class="btn btn-sm btn-outline-dark" type="submit">Padrão</button>
+                                        </form>
+                                        <form method="post" action="{% url 'painel_pix_keys_set_priority' chave.id %}" class="d-flex gap-1">
+                                            {% csrf_token %}
+                                            <input class="form-control form-control-sm" style="width:70px" type="number" min="1" name="prioridade" value="{{ chave.prioridade }}">
+                                            <button class="btn btn-sm btn-outline-secondary" type="submit">OK</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-muted small p-2">Nenhuma chave PIX cadastrada.</div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // Destaca linha ao marcar DELETE
+    document.querySelectorAll('.zona-row input[type=checkbox]').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            this.closest('tr').classList.toggle('table-danger', this.checked);
+        });
+    });
+</script>
+{% endblock %}
 {% endblock %}

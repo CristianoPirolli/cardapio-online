@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.db import transaction
 
 from apps.produtos.models import Produto
+from apps.core.algorithms import calcular_distancia_km, zona_entrega_para_distancia
 
 from .models import ItemPedido, Pedido
 
@@ -29,6 +30,16 @@ def validar_dados_checkout(dados):
     if tipo_entrega == 'delivery' and not endereco_entrega:
         raise PedidoCheckoutError('Informe o endereco de entrega.')
 
+    # Coordenadas opcionais (geocoding via frontend)
+    lat_cliente = dados.get('lat_cliente')
+    lng_cliente = dados.get('lng_cliente')
+    try:
+        lat_cliente = float(lat_cliente) if lat_cliente else None
+        lng_cliente = float(lng_cliente) if lng_cliente else None
+    except (TypeError, ValueError):
+        lat_cliente = None
+        lng_cliente = None
+
     return {
         'cliente_nome': cliente_nome,
         'cliente_telefone': cliente_telefone,
@@ -36,12 +47,19 @@ def validar_dados_checkout(dados):
         'endereco_entrega': endereco_entrega,
         'tipo_entrega': tipo_entrega,
         'observacoes': observacoes,
+        'lat_cliente': lat_cliente,
+        'lng_cliente': lng_cliente,
     }
 
 
-def montar_resumo_carrinho(restaurante, itens_sessao, tipo_entrega='delivery'):
+def montar_resumo_carrinho(restaurante, itens_sessao, tipo_entrega='delivery',
+                           lat_cliente=None, lng_cliente=None):
     """
     Monta o resumo de itens/totais a partir da sessao e detecta itens invalidos.
+
+    Se tipo_entrega='delivery' e o restaurante tiver coordenadas + zonas de entrega
+    configuradas, a taxa de entrega é calculada pela zona correspondente à distância
+    do cliente. Caso contrário, usa a taxa padrão do restaurante.
     """
     itens_sessao = itens_sessao or {}
     tipo_entrega = tipo_entrega if tipo_entrega in ('delivery', 'retirada') else 'delivery'
@@ -107,7 +125,16 @@ def montar_resumo_carrinho(restaurante, itens_sessao, tipo_entrega='delivery'):
 
     taxa_entrega_restaurante = Decimal(str(restaurante.taxa_entrega or 0))
     taxa_imposto_restaurante = Decimal(str(restaurante.taxa_imposto or 0))
-    taxa_entrega = taxa_entrega_restaurante if tipo_entrega == 'delivery' else Decimal('0.00')
+
+    if tipo_entrega != 'delivery':
+        taxa_entrega = Decimal('0.00')
+        zona_nome = None
+        fora_da_area = False
+    else:
+        zona_nome, taxa_entrega, fora_da_area = _calcular_taxa_por_zona(
+            restaurante, lat_cliente, lng_cliente, taxa_entrega_restaurante
+        )
+
     imposto = round(subtotal * taxa_imposto_restaurante / Decimal('100'), 2)
     total = subtotal + taxa_entrega + imposto
 
@@ -119,6 +146,8 @@ def montar_resumo_carrinho(restaurante, itens_sessao, tipo_entrega='delivery'):
         'total': total,
         'keys_invalidas': keys_invalidas,
         'itens_removidos': itens_removidos,
+        'zona_nome': zona_nome,
+        'fora_da_area': fora_da_area,
     }
 
 
@@ -130,10 +159,17 @@ def criar_pedido_do_carrinho(restaurante, itens_sessao, dados_cliente):
         restaurante=restaurante,
         itens_sessao=itens_sessao,
         tipo_entrega=dados_cliente['tipo_entrega'],
+        lat_cliente=dados_cliente.get('lat_cliente'),
+        lng_cliente=dados_cliente.get('lng_cliente'),
     )
 
     if not resumo['itens']:
         raise PedidoCheckoutError('Os itens do carrinho ficaram indisponiveis. Revise seu carrinho.')
+
+    if dados_cliente['tipo_entrega'] == 'delivery' and resumo.get('fora_da_area'):
+        raise PedidoCheckoutError(
+            'Seu endereço está fora da área de entrega do restaurante.'
+        )
 
     with transaction.atomic():
         pedido = Pedido.objects.create(
@@ -160,13 +196,49 @@ def criar_pedido_do_carrinho(restaurante, itens_sessao, dados_cliente):
         ]
         ItemPedido.objects.bulk_create(itens_pedido)
 
-        pedido.calcular_totais(itens_prefetched=itens_pedido)
+        # Override taxa_entrega com o valor calculado pelas zonas
+        pedido.calcular_totais(
+            itens_prefetched=itens_pedido,
+            taxa_entrega_override=resumo['taxa_entrega'] if dados_cliente['tipo_entrega'] == 'delivery' else None,
+        )
 
         pedido_minimo = Decimal(str(restaurante.pedido_minimo or 0))
         if pedido.subtotal < pedido_minimo:
             raise PedidoCheckoutError(f'Pedido minimo e R$ {pedido_minimo:.2f}.')
 
     return pedido
+
+
+def _calcular_taxa_por_zona(restaurante, lat_cliente, lng_cliente, taxa_padrao):
+    """
+    Calcula a taxa de entrega usando zonas por raio, se disponíveis.
+
+    Retorna (zona_nome, taxa_entrega, fora_da_area).
+    """
+    zonas = restaurante.zonas_entrega.filter(ativo=True).order_by('raio_max_km')
+
+    if not zonas.exists():
+        # Sem zonas configuradas — usa taxa padrão
+        return None, taxa_padrao, False
+
+    if not restaurante.latitude or not restaurante.longitude:
+        # Sem coordenadas do restaurante — usa taxa padrão
+        return None, taxa_padrao, False
+
+    if lat_cliente is None or lng_cliente is None:
+        # Sem coordenadas do cliente — usa taxa padrão (será confirmado no checkout)
+        return None, taxa_padrao, False
+
+    distancia = calcular_distancia_km(
+        restaurante.latitude, restaurante.longitude,
+        lat_cliente, lng_cliente,
+    )
+    zona = zona_entrega_para_distancia(zonas, distancia)
+
+    if zona is None:
+        return None, Decimal('0.00'), True  # fora da área
+
+    return zona.nome, zona.taxa_entrega, False
 
 
 def _produto_id_do_item(item_key, item_data):

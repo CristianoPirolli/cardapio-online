@@ -187,6 +187,29 @@
                                 <textarea class="form-control" id="endereco_entrega" name="endereco_entrega"
                                           rows="3" placeholder="Rua, número, complemento, bairro, cidade..."
                                           {% if tipo_entrega_inicial != 'retirada' %}required{% endif %}></textarea>
+                                <button type="button" class="btn btn-outline-secondary" id="btn-geolocate"
+                                        title="Usar minha localização atual">
+                                    <i class="bi bi-crosshair"></i>
+                                </button>
+                            </div>
+                            <input type="hidden" id="lat_cliente" name="lat_cliente">
+                            <input type="hidden" id="lng_cliente" name="lng_cliente">
+                            <!-- Zone feedback -->
+                            <div id="zona-feedback" class="mt-2" style="display: none;">
+                                <div id="zona-ok" class="alert alert-success py-2 mb-0 small" style="display: none;">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    <strong id="zona-nome-texto"></strong>
+                                    — Taxa: <strong id="zona-taxa-texto"></strong>
+                                    <span class="text-muted ms-2" id="zona-distancia-texto"></span>
+                                </div>
+                                <div id="zona-fora" class="alert alert-danger py-2 mb-0 small" style="display: none;">
+                                    <i class="bi bi-x-circle me-1"></i>
+                                    Endereço fora da área de entrega.
+                                    <span class="text-muted ms-2" id="zona-fora-distancia"></span>
+                                </div>
+                                <div id="zona-carregando" class="text-muted small" style="display: none;">
+                                    <span class="spinner-border spinner-border-sm me-1"></span>Verificando zona de entrega...
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -315,13 +338,196 @@
         const avisoPrazo = document.getElementById('aviso-prazo');
         const taxaEntregaEl = document.getElementById('taxa-entrega-valor');
         const totalGeralEl = document.getElementById('total-geral-valor');
+        const latInput = document.getElementById('lat_cliente');
+        const lngInput = document.getElementById('lng_cliente');
+        const btnGeolocate = document.getElementById('btn-geolocate');
+        const zonaFeedback = document.getElementById('zona-feedback');
+        const zonaOk = document.getElementById('zona-ok');
+        const zonaFora = document.getElementById('zona-fora');
+        const zonaCarregando = document.getElementById('zona-carregando');
+        const zonaNomeTexto = document.getElementById('zona-nome-texto');
+        const zonaTaxaTexto = document.getElementById('zona-taxa-texto');
+        const zonaDistanciaTexto = document.getElementById('zona-distancia-texto');
+        const zonaForaDistancia = document.getElementById('zona-fora-distancia');
 
         const subtotal = parseFloat('{{ subtotal|floatformat:2 }}'.replace(',', '.')) || 0;
         const imposto = parseFloat('{{ imposto|floatformat:2 }}'.replace(',', '.')) || 0;
         const taxaEntregaBase = parseFloat('{{ restaurante.taxa_entrega|floatformat:2 }}'.replace(',', '.')) || 0;
+        const restauranteId = '{{ restaurante.id }}';
+        const temZonas = {{ tem_zonas|yesno:"true,false" }};
+
+        let taxaAtual = taxaEntregaBase;
+        let geocodeTimer = null;
 
         function formatBRL(value) {
             return 'R$ ' + value.toFixed(2).replace('.', ',');
+        }
+
+        function atualizarTotais(taxa) {
+            taxaAtual = taxa;
+            taxaEntregaEl.textContent = formatBRL(taxa);
+            totalGeralEl.textContent = formatBRL(subtotal + imposto + taxa);
+        }
+
+        function exibirZonaOk(nome, taxa, distancia) {
+            zonaFeedback.style.display = 'block';
+            zonaOk.style.display = 'block';
+            zonaFora.style.display = 'none';
+            zonaCarregando.style.display = 'none';
+            zonaNomeTexto.textContent = nome || 'Zona de entrega';
+            zonaTaxaTexto.textContent = formatBRL(taxa);
+            zonaDistanciaTexto.textContent = distancia !== null ? `(${distancia.toFixed(1)} km)` : '';
+            atualizarTotais(taxa);
+        }
+
+        function exibirZonaFora(distancia) {
+            zonaFeedback.style.display = 'block';
+            zonaOk.style.display = 'none';
+            zonaFora.style.display = 'block';
+            zonaCarregando.style.display = 'none';
+            zonaForaDistancia.textContent = distancia !== null ? `(${distancia.toFixed(1)} km do restaurante)` : '';
+            atualizarTotais(0);
+        }
+
+        function limparZonaFeedback() {
+            zonaFeedback.style.display = 'none';
+            zonaOk.style.display = 'none';
+            zonaFora.style.display = 'none';
+            zonaCarregando.style.display = 'none';
+            latInput.value = '';
+            lngInput.value = '';
+        }
+
+        function consultarZona(lat, lng) {
+            latInput.value = lat;
+            lngInput.value = lng;
+
+            if (!temZonas) {
+                atualizarTotais(taxaEntregaBase);
+                return;
+            }
+
+            zonaFeedback.style.display = 'block';
+            zonaCarregando.style.display = 'block';
+            zonaOk.style.display = 'none';
+            zonaFora.style.display = 'none';
+
+            fetch(`/api/restaurantes/${restauranteId}/zona-entrega/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
+                },
+                body: JSON.stringify({ lat: lat, lng: lng })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.fora_da_area) {
+                    exibirZonaFora(data.distancia_km);
+                } else {
+                    const taxa = parseFloat(data.taxa_entrega) || 0;
+                    exibirZonaOk(data.zona, taxa, data.distancia_km);
+                }
+            })
+            .catch(() => {
+                // Falha silenciosa: usa taxa padrão
+                zonaCarregando.style.display = 'none';
+                atualizarTotais(taxaEntregaBase);
+            });
+        }
+
+        function geocodificarEndereco(endereco) {
+            if (!endereco || endereco.length < 10) {
+                limparZonaFeedback();
+                atualizarTotais(taxaEntregaBase);
+                return;
+            }
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endereco)}&limit=1&countrycodes=br`;
+
+            zonaFeedback.style.display = 'block';
+            zonaCarregando.style.display = 'block';
+            zonaOk.style.display = 'none';
+            zonaFora.style.display = 'none';
+
+            fetch(url, { headers: { 'Accept-Language': 'pt-BR' } })
+            .then(r => r.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lng = parseFloat(data[0].lon);
+                    consultarZona(lat, lng);
+                } else {
+                    zonaCarregando.style.display = 'none';
+                    limparZonaFeedback();
+                    atualizarTotais(taxaEntregaBase);
+                }
+            })
+            .catch(() => {
+                zonaCarregando.style.display = 'none';
+                atualizarTotais(taxaEntregaBase);
+            });
+        }
+
+        // Geocodifica quando o usuário parar de digitar
+        enderecoInput.addEventListener('input', function () {
+            clearTimeout(geocodeTimer);
+            limparZonaFeedback();
+            geocodeTimer = setTimeout(() => {
+                if (tipoDelivery.checked) {
+                    geocodificarEndereco(enderecoInput.value.trim());
+                }
+            }, 1200);
+        });
+
+        // Botão de geolocalização via GPS — preenche endereço automaticamente
+        if (btnGeolocate && navigator.geolocation) {
+            btnGeolocate.addEventListener('click', function () {
+                btnGeolocate.disabled = true;
+                btnGeolocate.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+
+                        // Geocodificação reversa para preencher o campo de endereço
+                        const reverseUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+                        fetch(reverseUrl, { headers: { 'Accept-Language': 'pt-BR' } })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data && data.display_name) {
+                                    // Monta endereço legível a partir dos componentes
+                                    const addr = data.address || {};
+                                    const partes = [
+                                        addr.road || addr.pedestrian || addr.footway || '',
+                                        addr.house_number || '',
+                                        addr.neighbourhood || addr.suburb || addr.quarter || '',
+                                        addr.city || addr.town || addr.village || addr.municipality || '',
+                                        addr.state || '',
+                                    ].filter(Boolean);
+                                    enderecoInput.value = partes.join(', ');
+                                }
+                                btnGeolocate.disabled = false;
+                                btnGeolocate.innerHTML = '<i class="bi bi-crosshair text-success"></i>';
+                                consultarZona(lat, lng);
+                            })
+                            .catch(() => {
+                                btnGeolocate.disabled = false;
+                                btnGeolocate.innerHTML = '<i class="bi bi-crosshair"></i>';
+                                consultarZona(lat, lng);
+                            });
+                    },
+                    function (err) {
+                        btnGeolocate.disabled = false;
+                        btnGeolocate.innerHTML = '<i class="bi bi-crosshair"></i>';
+                        if (err.code === err.PERMISSION_DENIED) {
+                            alert('Permissão de localização negada. Por favor, permita o acesso ou preencha o endereço manualmente.');
+                        }
+                    },
+                    { enableHighAccuracy: true, timeout: 10000 }
+                );
+            });
+        } else if (btnGeolocate) {
+            btnGeolocate.style.display = 'none';
         }
 
         function toggleEndereco() {
@@ -331,12 +537,12 @@
                 cardDelivery.classList.add('border-primary');
                 cardRetirada.classList.remove('border-primary');
                 avisoPrazo.innerHTML = '<i class="bi bi-clock me-1"></i>Entrega estimada em {{ restaurante.tempo_entrega_min }}min.';
-                taxaEntregaEl.textContent = formatBRL(taxaEntregaBase);
-                totalGeralEl.textContent = formatBRL(subtotal + imposto + taxaEntregaBase);
+                atualizarTotais(taxaAtual);
             } else {
                 enderecoSection.style.display = 'none';
                 enderecoInput.removeAttribute('required');
                 enderecoInput.value = '';
+                limparZonaFeedback();
                 cardRetirada.classList.add('border-primary');
                 cardDelivery.classList.remove('border-primary');
                 avisoPrazo.innerHTML = '<i class="bi bi-clock me-1"></i>Retirada no local: pedido pronto em {{ restaurante.tempo_retirada_min }}min.';

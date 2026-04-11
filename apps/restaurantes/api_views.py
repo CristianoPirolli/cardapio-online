@@ -12,8 +12,12 @@
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework import status as drf_status
+from django.shortcuts import get_object_or_404
 from .models import Restaurante
 from .serializers import RestauranteSerializer
+from apps.core.algorithms import calcular_distancia_km, zona_entrega_para_distancia
 
 
 class IsProprietarioOrReadOnly(permissions.BasePermission):
@@ -118,4 +122,87 @@ class RestauranteViewSet(viewsets.ModelViewSet):
             'faturamento_total': f'{faturamento_total:.2f}',
             'faturamento_hoje': f'{faturamento_hoje:.2f}',
             'ticket_medio': f'{ticket_medio:.2f}',
+        })
+
+    @action(detail=True, methods=['post'], url_path='zona-entrega')
+    def zona_entrega(self, request, pk=None):
+        """
+        POST /api/restaurantes/{id}/zona-entrega/
+
+        Calcula a zona de entrega e taxa para as coordenadas do cliente.
+
+        Request body:
+        {
+            "lat": -23.5505,
+            "lng": -46.6333
+        }
+
+        Response (200):
+        {
+            "zona": "Zona Centro",
+            "taxa_entrega": "8.00",
+            "distancia_km": 2.34,
+            "fora_da_area": false
+        }
+
+        Response quando fora da área (200):
+        {
+            "fora_da_area": true,
+            "distancia_km": 25.0,
+            "mensagem": "Endereço fora da área de entrega."
+        }
+        """
+        restaurante = self.get_object()
+
+        if not restaurante.latitude or not restaurante.longitude:
+            # Sem coordenadas do restaurante, retorna taxa padrão
+            return Response({
+                'zona': None,
+                'taxa_entrega': str(restaurante.taxa_entrega),
+                'distancia_km': None,
+                'fora_da_area': False,
+                'sem_coordenadas': True,
+            })
+
+        try:
+            lat_cliente = float(request.data.get('lat', ''))
+            lng_cliente = float(request.data.get('lng', ''))
+        except (TypeError, ValueError):
+            return Response(
+                {'erro': 'Parâmetros "lat" e "lng" são obrigatórios e devem ser números.'},
+                status=drf_status.HTTP_400_BAD_REQUEST,
+            )
+
+        distancia = calcular_distancia_km(
+            restaurante.latitude, restaurante.longitude,
+            lat_cliente, lng_cliente,
+        )
+
+        zonas_ativas = restaurante.zonas_entrega.filter(ativo=True).order_by('raio_max_km')
+
+        if not zonas_ativas.exists():
+            # Sem zonas configuradas — usa raio máximo do restaurante e taxa padrão
+            fora = distancia > float(restaurante.raio_entrega_km)
+            return Response({
+                'zona': None,
+                'taxa_entrega': '0.00' if fora else str(restaurante.taxa_entrega),
+                'distancia_km': round(distancia, 2),
+                'fora_da_area': fora,
+                'sem_zonas': True,
+            })
+
+        zona = zona_entrega_para_distancia(zonas_ativas, distancia)
+
+        if zona is None:
+            return Response({
+                'fora_da_area': True,
+                'distancia_km': round(distancia, 2),
+                'mensagem': 'Endereço fora da área de entrega.',
+            })
+
+        return Response({
+            'zona': zona.nome,
+            'taxa_entrega': str(zona.taxa_entrega),
+            'distancia_km': round(distancia, 2),
+            'fora_da_area': False,
         })

@@ -52,13 +52,7 @@
                                 <i class="bi bi-plus-lg"></i>
                             </button>
                         </div>
-                        <button
-                            type="button"
-                            class="btn btn-primary w-100 mt-2 btn-adicionar-bebida"
-                            data-target="quantidade_{{ bebida.id }}"
-                        >
-                            <i class="bi bi-cart-plus me-1"></i>Adicionar
-                        </button>
+
                     </div>
                 </div>
             </div>
@@ -113,17 +107,6 @@
             });
         });
 
-        document.querySelectorAll('.btn-adicionar-bebida').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var input = getInputByTarget(btn.dataset.target);
-                if (!input) return;
-                var min = parseInt(input.min || '0', 10);
-                var max = parseInt(input.max || '20', 10);
-                var atual = parseInt(input.value || '0', 10);
-                var novo = atual > 0 ? atual + 1 : 1;
-                input.value = clamp(novo, min, max);
-            });
-        });
     });
 </script>
 {% endblock %}

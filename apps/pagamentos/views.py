@@ -19,12 +19,13 @@ from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from apps.pedidos.models import Pedido
 from apps.restaurantes.models import Restaurante
 
-from .forms import ChavePixForm
-from .models import ChavePix, Pagamento
+from .forms import ChavePixForm, RevisaoManualForm
+from .models import ChavePix, Pagamento, PagamentoRevisaoHistorico
 from .services import criar_pagamento_pix_manual, confirmar_pix_manual, rejeitar_pix_manual
 
 logger = logging.getLogger(__name__)
@@ -98,37 +99,14 @@ def pagamento_pix_manual(request, pedido_id):
 
 @login_required
 def painel_pix_keys(request):
-    restaurante = _restaurante_do_usuario(request)
-    if not restaurante:
-        messages.error(request, 'Acesso nao autorizado.')
-        return redirect('home')
-
-    edit_form = None
-    chave_editando = None
-    chave_editando_id = request.GET.get('edit')
-    if chave_editando_id:
-        chave_editando = ChavePix.objects.filter(
-            restaurante=restaurante,
-            id=chave_editando_id,
-        ).first()
-        if chave_editando:
-            edit_form = ChavePixForm(instance=chave_editando, restaurante=restaurante)
-
-    return render(
-        request,
-        'painel/pix_keys.html',
-        _contexto_painel_pix_keys(
-            restaurante=restaurante,
-            edit_form=edit_form,
-            chave_editando=chave_editando,
-        ),
-    )
+    """Redireciona para a seção PIX dentro de Configurações."""
+    return redirect('painel_configuracoes')
 
 
 @login_required
 def painel_pix_keys_create(request):
     if request.method != 'POST':
-        return redirect('painel_pix_keys')
+        return redirect('painel_configuracoes')
 
     restaurante = _restaurante_do_usuario(request)
     if not restaurante:
@@ -137,7 +115,10 @@ def painel_pix_keys_create(request):
 
     form = ChavePixForm(request.POST, restaurante=restaurante)
     if not form.is_valid():
-        return render(request, 'painel/pix_keys.html', _contexto_painel_pix_keys(restaurante, form=form))
+        for field, errs in form.errors.items():
+            for err in errs:
+                messages.error(request, err if field == '__all__' else f'{field}: {err}')
+        return redirect('painel_configuracoes')
 
     try:
         with transaction.atomic():
@@ -149,17 +130,17 @@ def painel_pix_keys_create(request):
                     padrao=True,
                 ).exclude(id=chave.id).update(padrao=False)
     except IntegrityError:
-        form.add_error('prioridade', 'Ja existe uma chave ativa com essa prioridade.')
-        return render(request, 'painel/pix_keys.html', _contexto_painel_pix_keys(restaurante, form=form))
+        messages.error(request, 'Já existe uma chave ativa com essa prioridade.')
+        return redirect('painel_configuracoes')
 
     messages.success(request, 'Chave PIX cadastrada com sucesso.')
-    return redirect('painel_pix_keys')
+    return redirect('painel_configuracoes')
 
 
 @login_required
 def painel_pix_keys_edit(request, chave_id):
     if request.method != 'POST':
-        return redirect('painel_pix_keys')
+        return redirect('painel_configuracoes')
 
     restaurante = _restaurante_do_usuario(request)
     if not restaurante:
@@ -170,15 +151,10 @@ def painel_pix_keys_edit(request, chave_id):
     form = ChavePixForm(request.POST, instance=chave, restaurante=restaurante)
 
     if not form.is_valid():
-        return render(
-            request,
-            'painel/pix_keys.html',
-            _contexto_painel_pix_keys(
-                restaurante,
-                edit_form=form,
-                chave_editando=chave,
-            ),
-        )
+        for field, errs in form.errors.items():
+            for err in errs:
+                messages.error(request, err if field == '__all__' else f'{field}: {err}')
+        return redirect(f"{reverse('painel_configuracoes')}?pix_edit={chave_id}")
 
     try:
         with transaction.atomic():
@@ -190,25 +166,17 @@ def painel_pix_keys_edit(request, chave_id):
                     padrao=True,
                 ).exclude(id=chave_atualizada.id).update(padrao=False)
     except IntegrityError:
-        form.add_error('prioridade', 'Ja existe uma chave ativa com essa prioridade.')
-        return render(
-            request,
-            'painel/pix_keys.html',
-            _contexto_painel_pix_keys(
-                restaurante,
-                edit_form=form,
-                chave_editando=chave,
-            ),
-        )
+        messages.error(request, 'Ja existe uma chave ativa com essa prioridade.')
+        return redirect('painel_configuracoes')
 
     messages.success(request, 'Chave PIX atualizada com sucesso.')
-    return redirect('painel_pix_keys')
+    return redirect('painel_configuracoes')
 
 
 @login_required
 def painel_pix_keys_activate(request, chave_id):
     if request.method != 'POST':
-        return redirect('painel_pix_keys')
+        return redirect('painel_configuracoes')
 
     restaurante = _restaurante_do_usuario(request)
     if not restaurante:
@@ -228,16 +196,16 @@ def painel_pix_keys_activate(request, chave_id):
             chave.save(update_fields=['ativo', 'atualizado_em'])
     except IntegrityError:
         messages.error(request, 'Nao foi possivel ativar a chave devido a conflito de prioridade ativa.')
-        return redirect('painel_pix_keys')
+        return redirect('painel_configuracoes')
 
     messages.success(request, 'Chave PIX ativada.')
-    return redirect('painel_pix_keys')
+    return redirect('painel_configuracoes')
 
 
 @login_required
 def painel_pix_keys_deactivate(request, chave_id):
     if request.method != 'POST':
-        return redirect('painel_pix_keys')
+        return redirect('painel_configuracoes')
 
     restaurante = _restaurante_do_usuario(request)
     if not restaurante:
@@ -251,13 +219,13 @@ def painel_pix_keys_deactivate(request, chave_id):
         chave.save(update_fields=['ativo', 'padrao', 'atualizado_em'])
 
     messages.success(request, 'Chave PIX desativada.')
-    return redirect('painel_pix_keys')
+    return redirect('painel_configuracoes')
 
 
 @login_required
 def painel_pix_keys_set_default(request, chave_id):
     if request.method != 'POST':
-        return redirect('painel_pix_keys')
+        return redirect('painel_configuracoes')
 
     restaurante = _restaurante_do_usuario(request)
     if not restaurante:
@@ -267,7 +235,7 @@ def painel_pix_keys_set_default(request, chave_id):
     chave = get_object_or_404(ChavePix, id=chave_id, restaurante=restaurante)
     if not chave.ativo:
         messages.error(request, 'Ative a chave antes de defini-la como padrao.')
-        return redirect('painel_pix_keys')
+        return redirect('painel_configuracoes')
 
     with transaction.atomic():
         ChavePix.objects.filter(
@@ -279,13 +247,13 @@ def painel_pix_keys_set_default(request, chave_id):
         chave.save(update_fields=['padrao', 'atualizado_em'])
 
     messages.success(request, 'Chave PIX definida como padrao.')
-    return redirect('painel_pix_keys')
+    return redirect('painel_configuracoes')
 
 
 @login_required
 def painel_pix_keys_set_priority(request, chave_id):
     if request.method != 'POST':
-        return redirect('painel_pix_keys')
+        return redirect('painel_configuracoes')
 
     restaurante = _restaurante_do_usuario(request)
     if not restaurante:
@@ -298,11 +266,11 @@ def painel_pix_keys_set_priority(request, chave_id):
         nova_prioridade = int(prioridade_raw)
     except (TypeError, ValueError):
         messages.error(request, 'Prioridade invalida.')
-        return redirect('painel_pix_keys')
+        return redirect('painel_configuracoes')
 
     if nova_prioridade < 1:
         messages.error(request, 'Prioridade deve ser maior ou igual a 1.')
-        return redirect('painel_pix_keys')
+        return redirect('painel_configuracoes')
 
     chave.prioridade = nova_prioridade
     try:
@@ -310,10 +278,10 @@ def painel_pix_keys_set_priority(request, chave_id):
         chave.save(update_fields=['prioridade', 'valor_normalizado', 'atualizado_em'])
     except (ValidationError, IntegrityError):
         messages.error(request, 'Ja existe uma chave ativa com essa prioridade.')
-        return redirect('painel_pix_keys')
+        return redirect('painel_configuracoes')
 
     messages.success(request, 'Prioridade da chave PIX atualizada.')
-    return redirect('painel_pix_keys')
+    return redirect('painel_configuracoes')
 
 
 def upload_comprovante(request, pedido_id):
@@ -441,9 +409,10 @@ def aceitar_pix(request, pedido_id):
     POST only. Calls confirmar_pix_manual(), then redirects to painel_pedido_detalhe.
     Only accessible to logged-in restaurant owner.
     """
-    from apps.restaurantes.models import Restaurante
+    if request.method != 'POST':
+        return redirect('painel_pedido_detalhe', pedido_id=pedido_id)
 
-    restaurante = Restaurante.objects.filter(proprietario=request.user).first()
+    restaurante = _restaurante_do_usuario(request)
     if not restaurante:
         messages.error(request, 'Acesso não autorizado.')
         return redirect('home')
@@ -461,8 +430,25 @@ def aceitar_pix(request, pedido_id):
         messages.error(request, 'Pagamento PIX não encontrado para este pedido.')
         return redirect('painel_pedido_detalhe', pedido_id=pedido.id)
 
+    form = RevisaoManualForm(request.POST)
+    if not form.is_valid():
+        messages.error(
+            request,
+            'Nao foi possivel concluir a revisao. Verifique motivo e justificativa (minimo de 10 caracteres) e tente novamente.',
+        )
+        return redirect('painel_pedido_detalhe', pedido_id=pedido.id)
+
     try:
-        confirmar_pix_manual(pagamento)
+        with transaction.atomic():
+            confirmar_pix_manual(pagamento)
+            PagamentoRevisaoHistorico.objects.create(
+                pedido=pedido,
+                pagamento=pagamento,
+                acao=PagamentoRevisaoHistorico.Acao.ACEITO,
+                motivo=form.cleaned_data['motivo_revisao'],
+                justificativa=form.cleaned_data['justificativa_revisao'],
+                operador=request.user,
+            )
         messages.success(request, f'Pedido #{pedido.id} confirmado! Entrando na fila de produção.')
     except Exception as exc:
         logger.error("aceitar_pix: %s", exc)
@@ -477,9 +463,10 @@ def rejeitar_pix(request, pedido_id):
     Restaurante rejeita o comprovante PIX.
     POST only. Calls rejeitar_pix_manual(), then redirects to painel_pedidos.
     """
-    from apps.restaurantes.models import Restaurante
+    if request.method != 'POST':
+        return redirect('painel_pedido_detalhe', pedido_id=pedido_id)
 
-    restaurante = Restaurante.objects.filter(proprietario=request.user).first()
+    restaurante = _restaurante_do_usuario(request)
     if not restaurante:
         messages.error(request, 'Acesso não autorizado.')
         return redirect('home')
@@ -493,17 +480,35 @@ def rejeitar_pix(request, pedido_id):
         pedido=pedido, gateway='pix_manual', status='pendente'
     ).first()
 
-    if pagamento:
-        try:
-            rejeitar_pix_manual(pagamento)
-            messages.success(request, f'Pedido #{pedido.id} rejeitado e cancelado.')
-        except Exception as exc:
-            logger.error("rejeitar_pix: %s", exc)
-            messages.error(request, f'Erro ao rejeitar pagamento: {exc}')
-    else:
+    if not pagamento:
         messages.warning(request, 'Pagamento não encontrado; o pedido não foi alterado.')
+        return redirect('painel_pedido_detalhe', pedido_id=pedido.id)
 
-    return redirect('painel_pedidos')
+    form = RevisaoManualForm(request.POST)
+    if not form.is_valid():
+        messages.error(
+            request,
+            'Nao foi possivel concluir a revisao. Verifique motivo e justificativa (minimo de 10 caracteres) e tente novamente.',
+        )
+        return redirect('painel_pedido_detalhe', pedido_id=pedido.id)
+
+    try:
+        with transaction.atomic():
+            rejeitar_pix_manual(pagamento)
+            PagamentoRevisaoHistorico.objects.create(
+                pedido=pedido,
+                pagamento=pagamento,
+                acao=PagamentoRevisaoHistorico.Acao.REJEITADO,
+                motivo=form.cleaned_data['motivo_revisao'],
+                justificativa=form.cleaned_data['justificativa_revisao'],
+                operador=request.user,
+            )
+        messages.success(request, f'Pedido #{pedido.id} rejeitado e cancelado.')
+    except Exception as exc:
+        logger.error("rejeitar_pix: %s", exc)
+        messages.error(request, f'Erro ao rejeitar pagamento: {exc}')
+
+    return redirect('painel_pedido_detalhe', pedido_id=pedido.id)
 
 
 def _mascarar_chave_pix(tipo, valor):

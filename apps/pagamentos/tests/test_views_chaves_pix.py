@@ -213,6 +213,7 @@ class PainelPixKeysViewTest(TestCase):
                 'ativo': 'on',
                 'prioridade': 7,
             },
+            follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -237,6 +238,7 @@ class PainelPixKeysViewTest(TestCase):
                         'ativo': 'on',
                         'prioridade': 99,
                     },
+                    follow=True,
                 )
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'inval')
@@ -293,7 +295,7 @@ class PainelPixKeysViewTest(TestCase):
         )
         self.client.post(f'/pagamentos/painel/chaves-pix/{chave.id}/desativar/')
 
-        response = self.client.get('/painel/chaves-pix/')
+        response = self.client.get('/painel/configuracoes/')
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'Historico de mutacoes')
         self.assertNotContains(response, 'Antes')

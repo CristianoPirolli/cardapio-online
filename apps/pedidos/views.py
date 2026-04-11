@@ -450,6 +450,8 @@ def checkout(request):
             'endereco_entrega': request.POST.get('endereco_entrega', ''),
             'tipo_entrega': request.POST.get('tipo_entrega', 'delivery'),
             'observacoes': request.POST.get('observacoes', ''),
+            'lat_cliente': request.POST.get('lat_cliente', ''),
+            'lng_cliente': request.POST.get('lng_cliente', ''),
         }
         try:
             dados_checkout = validar_dados_checkout(dados_checkout)
@@ -504,6 +506,8 @@ def checkout(request):
         'imposto': resumo['imposto'],
         'total': resumo['total'],
         'tipo_entrega_inicial': tipo_entrega_inicial,
+        'zona_nome': resumo.get('zona_nome'),
+        'tem_zonas': restaurante.zonas_entrega.filter(ativo=True).exists(),
     })
 
 
