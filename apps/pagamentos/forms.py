@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
-from .models import ChavePix
+from .models import ChavePix, PagamentoRevisaoHistorico
 
 
 class ChavePixForm(forms.ModelForm):
@@ -72,3 +72,22 @@ class ChavePixForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class RevisaoManualForm(forms.Form):
+    motivo_revisao = forms.ChoiceField(
+        choices=PagamentoRevisaoHistorico.Motivo.choices,
+        required=True,
+    )
+    justificativa_revisao = forms.CharField(
+        required=True,
+        min_length=10,
+        strip=True,
+        widget=forms.Textarea,
+    )
+
+    def clean_justificativa_revisao(self):
+        justificativa = (self.cleaned_data.get('justificativa_revisao') or '').strip()
+        if len(justificativa) < 10:
+            raise forms.ValidationError('Informe uma justificativa com no minimo 10 caracteres.')
+        return justificativa
