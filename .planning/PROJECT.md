@@ -8,15 +8,14 @@ Sistema de pedidos online para restaurantes com pagamento via PIX e operação a
 
 Receber pedidos pagos com segurança e baixo atrito operacional, sem quebrar o fluxo de produção do restaurante.
 
-## Current Milestone: v1.1 Operacao Manual PIX
+## Current Milestone: Planning Next Cycle
 
-**Goal:** Evoluir o fluxo PIX manual sem gateway, com multiplas chaves por restaurante e melhor operacao de revisao.
+**Goal:** Definir o proximo milestone com base no que foi validado no v1.1.
 
 **Target features:**
-- Multiplas chaves PIX por restaurante
-- Regras de selecao de chave no checkout
-- Fila de revisao manual com filtros e historico de decisoes
-- Logs operacionais de aprovacao/rejeicao
+- Priorizar backlog de operacao financeira (ex.: reembolso e conciliacao)
+- Definir proxima rodada de requisitos ativos
+- Planejar fases do novo milestone
 
 ## Requirements
 
@@ -25,12 +24,13 @@ Receber pedidos pagos com segurança e baixo atrito operacional, sem quebrar o f
 - ✓ Cliente copia chave PIX e envia comprovante — v1.0 / Phase 1
 - ✓ Restaurante valida pagamento e decide aceitar/rejeitar antes da produção — v1.0 / Phase 1
 - ✓ Pipeline existente segue intacto após confirmação — v1.0 / Phase 1
+- ✓ Cadastro e gestão de múltiplas chaves PIX por restaurante — v1.1 / Phase 2
+- ✓ Regras para escolher chave PIX por contexto de pedido/canal — v1.1 / Phase 2
+- ✓ Tratamento de revisao manual com fila, justificativa e historico operacional — v1.1 / Phase 3
 
 ### Active
 
-- [ ] Cadastro e gestão de múltiplas chaves PIX por restaurante
-- [ ] Regras para escolher chave PIX por contexto de pedido/canal
-- [ ] Tratamento de revisao manual com fila, justificativa e historico operacional
+- [ ] Definir requisitos do proximo milestone via `$gsd-new-milestone`
 
 ### Out of Scope
 
@@ -40,7 +40,13 @@ Receber pedidos pagos com segurança e baixo atrito operacional, sem quebrar o f
 
 ## Context
 
-Milestone v1.0 entregou fluxo PIX manual completo com upload de comprovante e aprovacao no painel. O proximo ciclo mantem esse modelo manual e amplia flexibilidade operacional com multiplas chaves PIX e melhor governanca de revisao.
+Milestone v1.0 entregou fluxo PIX manual completo com upload de comprovante e aprovacao no painel. O ciclo v1.1 foi concluido com suporte a multiplas chaves PIX por restaurante e revisao manual operacional com filtros, justificativa obrigatoria e trilha auditavel.
+
+## Current State
+
+- v1.1 concluido e arquivado em `.planning/milestones/v1.1-ROADMAP.md` e `.planning/milestones/v1.1-REQUIREMENTS.md`.
+- Fluxo manual PIX consolidado sem gateway/webhook.
+- Proximo passo de produto: abrir novo milestone e definir requisitos futuros.
 
 ## Constraints
 
@@ -75,4 +81,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after v1.1 milestone start*
+*Last updated: 2026-04-11 after phase 3 completion*
