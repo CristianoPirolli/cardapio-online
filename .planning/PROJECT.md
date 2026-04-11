@@ -8,15 +8,15 @@ Sistema de pedidos online para restaurantes com pagamento via PIX e operação a
 
 Receber pedidos pagos com segurança e baixo atrito operacional, sem quebrar o fluxo de produção do restaurante.
 
-## Current Milestone: v1.1 Conciliação PIX
+## Current Milestone: v1.1 Operacao Manual PIX
 
-**Goal:** Automatizar a confirmação de pagamentos PIX e suportar múltiplas chaves por restaurante.
+**Goal:** Evoluir o fluxo PIX manual sem gateway, com multiplas chaves por restaurante e melhor operacao de revisao.
 
 **Target features:**
-- Conciliação automática de PIX por webhook
-- Múltiplas chaves PIX por restaurante
-- Regras de roteamento/ativação de chave por canal
-- Fila de divergências para revisão manual
+- Multiplas chaves PIX por restaurante
+- Regras de selecao de chave no checkout
+- Fila de revisao manual com filtros e historico de decisoes
+- Logs operacionais de aprovacao/rejeicao
 
 ## Requirements
 
@@ -28,25 +28,26 @@ Receber pedidos pagos com segurança e baixo atrito operacional, sem quebrar o f
 
 ### Active
 
-- [ ] Conciliação automática de PIX via webhook com atualização de status do pedido
 - [ ] Cadastro e gestão de múltiplas chaves PIX por restaurante
 - [ ] Regras para escolher chave PIX por contexto de pedido/canal
-- [ ] Tratamento de divergências (pagamento não conciliado) com fila de revisão
+- [ ] Tratamento de revisao manual com fila, justificativa e historico operacional
 
 ### Out of Scope
 
+- Confirmacao automatica por webhook/gateway — fora do escopo do produto atual
 - Reembolso automatizado — ainda fora do escopo por impacto operacional/financeiro
 - Split de pagamento entre múltiplos recebedores — dependência de regras contábeis não definidas
 
 ## Context
 
-Milestone v1.0 entregou fluxo PIX manual completo com upload de comprovante e aprovação no painel. O próximo ciclo reduz operação manual com conciliação automática e amplia flexibilidade de cobrança para restaurantes com múltiplas contas PIX.
+Milestone v1.0 entregou fluxo PIX manual completo com upload de comprovante e aprovacao no painel. O proximo ciclo mantem esse modelo manual e amplia flexibilidade operacional com multiplas chaves PIX e melhor governanca de revisao.
 
 ## Constraints
 
 - **Tech stack**: Django monolito atual — manter consistência com arquitetura existente.
-- **Backward compatibility**: Fluxo manual atual deve continuar operando enquanto conciliação automática é introduzida.
-- **Operational safety**: Divergências de conciliação não podem confirmar pedido automaticamente sem trilha de revisão.
+- **Backward compatibility**: Fluxo manual atual deve continuar operando enquanto as melhorias entram em producao.
+- **No gateway/no webhook**: Confirmacao continua manual; nao introduzir integracao externa de pagamento.
+- **Operational safety**: Toda aprovacao/rejeicao manual deve deixar trilha auditavel.
 
 ## Key Decisions
 
@@ -54,7 +55,7 @@ Milestone v1.0 entregou fluxo PIX manual completo com upload de comprovante e ap
 |----------|-----------|---------|
 | PIX manual como base inicial | Reduzir custo e complexidade de gateway | ✓ Good |
 | `pago=True` como gate do painel/produção | Reaproveitar pipeline já estável | ✓ Good |
-| Evoluir para conciliação automática no v1.1 | Escalar operação sem perder controle | — Pending |
+| Manter modelo sem gateway no v1.1 | Preservar simplicidade operacional e evitar complexidade externa | ✓ Good |
 
 ## Evolution
 

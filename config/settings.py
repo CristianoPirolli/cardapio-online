@@ -236,6 +236,13 @@ CRISPY_TEMPLATE_PACK = 'bootstrap5'
 PIX_KEY = os.getenv('PIX_KEY', '')
 
 # ---------------------------------------------------------------------------
+# Feature Flags
+# ---------------------------------------------------------------------------
+# Exibe botão "Salvar link pelo WhatsApp" na página de pagamento PIX.
+# O cliente abre o WhatsApp com o link do pedido pré-preenchido para salvar.
+FEATURE_WHATSAPP_LINK = os.getenv('FEATURE_WHATSAPP_LINK', 'False').lower() in ('true', '1', 'yes')
+
+# ---------------------------------------------------------------------------
 # Multi-tenant
 # ---------------------------------------------------------------------------
 BASE_DOMAIN = os.getenv('BASE_DOMAIN', 'localhost')
