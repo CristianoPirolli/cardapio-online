@@ -45,7 +45,11 @@ Plans:
   1. Painel exibe fila de revisao manual com filtros operacionais
   2. Aprovar/rejeitar exige justificativa e registra operador/data
   3. Historico de decisoes fica acessivel para auditoria interna
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [x] 03-01-PLAN.md — Contrato de decisao manual com justificativa obrigatoria e persistencia auditavel por pedido
+- [x] 03-02-PLAN.md — Fila operacional com filtro por periodo e exibicao da trilha no detalhe do pedido
 
 ## Progress
 

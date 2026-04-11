@@ -15,9 +15,9 @@
 
 ### Operations
 
-- [ ] **OPS-01**: Pedidos aguardando confirmacao entram em fila de revisao manual com filtros no painel
+- [x] **OPS-01**: Pedidos aguardando confirmacao entram em fila de revisao manual com filtros no painel
 - [ ] **OPS-02**: Restaurante consegue aprovar/rejeitar revisao com justificativa obrigatoria
-- [ ] **OPS-03**: Sistema registra historico auditavel de decisoes manuais por pedido
+- [x] **OPS-03**: Sistema registra historico auditavel de decisoes manuais por pedido
 
 ## Future Requirements
 
@@ -40,9 +40,9 @@
 | PAY-16 | Phase 2 | Complete |
 | PAY-17 | Phase 2 | Complete |
 | PAY-18 | Phase 2 | Complete |
-| OPS-01 | Phase 3 | Pending |
+| OPS-01 | Phase 3 | Complete |
 | OPS-02 | Phase 3 | Pending |
-| OPS-03 | Phase 3 | Pending |
+| OPS-03 | Phase 3 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 7 total
