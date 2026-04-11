@@ -1,7 +1,10 @@
+from datetime import timedelta
+
 from django.apps import apps
 from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.pagamentos.models import ChavePix, Pagamento
 from apps.pedidos.models import Pedido
@@ -104,3 +107,71 @@ class AuditoriaRevisaoContratoTest(TestCase):
         self.assertContains(response, "Histórico")
         self.assertNotContains(response, "Operador")
         self.assertNotContains(response, "comprovante consistente com valor e dados do pedido")
+
+    def test_feed_no_detalhe_ordenado_por_mais_recente(self):
+        self.client.force_login(self.proprietario)
+        model = apps.get_model("pagamentos", "PagamentoRevisaoHistorico")
+
+        antigo = model.objects.create(
+            pedido=self.pedido,
+            pagamento=Pagamento.objects.get(pedido=self.pedido, gateway="pix_manual"),
+            acao="rejeitado",
+            motivo="invalido",
+            justificativa="primeiro evento para teste de ordenacao no detalhe",
+            operador=self.proprietario,
+        )
+        recente = model.objects.create(
+            pedido=self.pedido,
+            pagamento=Pagamento.objects.get(pedido=self.pedido, gateway="pix_manual"),
+            acao="aceito",
+            motivo="valido",
+            justificativa="segundo evento para teste de ordenacao no detalhe",
+            operador=self.proprietario,
+        )
+        model.objects.filter(pk=antigo.pk).update(criado_em=timezone.now() - timedelta(days=2))
+        model.objects.filter(pk=recente.pk).update(criado_em=timezone.now() - timedelta(days=1))
+
+        response = self.client.get(reverse("painel_pedido_detalhe", args=[self.pedido.id]))
+
+        self.assertEqual(response.status_code, 200)
+        eventos = response.context["historico_revisao_pagamento"]
+        self.assertEqual([evento.acao for evento in eventos[:2]], ["aceito", "rejeitado"])
+
+    def test_historico_so_aparece_no_detalhe_e_nao_na_lista(self):
+        self.client.force_login(self.proprietario)
+        model = apps.get_model("pagamentos", "PagamentoRevisaoHistorico")
+        model.objects.create(
+            pedido=self.pedido,
+            pagamento=Pagamento.objects.get(pedido=self.pedido, gateway="pix_manual"),
+            acao="aceito",
+            motivo="valido",
+            justificativa="evento valido para confirmar escopo de exibicao",
+            operador=self.proprietario,
+        )
+
+        response_lista = self.client.get(reverse("painel_pedidos"))
+        response_detalhe = self.client.get(reverse("painel_pedido_detalhe", args=[self.pedido.id]))
+
+        self.assertEqual(response_lista.status_code, 200)
+        self.assertNotContains(response_lista, "Histórico")
+        self.assertEqual(response_detalhe.status_code, 200)
+        self.assertContains(response_detalhe, "Histórico")
+
+    def test_historico_permanece_no_detalhe_apos_saida_da_fila(self):
+        self.client.force_login(self.proprietario)
+        model = apps.get_model("pagamentos", "PagamentoRevisaoHistorico")
+        model.objects.create(
+            pedido=self.pedido,
+            pagamento=Pagamento.objects.get(pedido=self.pedido, gateway="pix_manual"),
+            acao="aceito",
+            motivo="valido",
+            justificativa="historico deve ficar no detalhe apos pagamento confirmado",
+            operador=self.proprietario,
+        )
+        Pedido.objects.filter(pk=self.pedido.pk).update(status="recebido", pago=True)
+
+        response = self.client.get(reverse("painel_pedido_detalhe", args=[self.pedido.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Histórico")
+        self.assertContains(response, "aceito")

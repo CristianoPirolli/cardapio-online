@@ -542,19 +542,18 @@ def painel_pedido_detalhe(request, pedido_id):
     transicoes_diretas = GRAFO_STATUS_PEDIDO.get(pedido.status, [])
     caminho_conclusao = pedido.caminho_ate_status('concluido')
 
-    # Add comprovante e historico de revisao ao contexto quando aguardando PIX
+    # Add comprovante when awaiting PIX, and always expose audit trail only in detail.
+    from apps.pagamentos.models import Pagamento, PagamentoRevisaoHistorico
     pagamento_pix = None
-    historico_revisao_pagamento = []
     if pedido.status == 'aguardando_confirmacao':
-        from apps.pagamentos.models import Pagamento, PagamentoRevisaoHistorico
         pagamento_pix = Pagamento.objects.filter(
             pedido=pedido, gateway='pix_manual'
         ).first()
-        historico_revisao_pagamento = list(
-            PagamentoRevisaoHistorico.objects.filter(pedido=pedido)
-            .only('acao', 'criado_em')
-            .order_by('-criado_em', '-id')
-        )
+    historico_revisao_pagamento = list(
+        PagamentoRevisaoHistorico.objects.filter(pedido=pedido)
+        .only('acao', 'criado_em')
+        .order_by('-criado_em', '-id')
+    )
 
     return render(request, 'painel/pedido_detalhe.html', {
         'restaurante': restaurante,
