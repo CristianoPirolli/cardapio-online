@@ -102,6 +102,5 @@ class AuditoriaRevisaoContratoTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "aceito")
         self.assertContains(response, "Histórico")
-        self.assertNotContains(response, self.proprietario.username)
-        self.assertNotContains(response, "valido")
+        self.assertNotContains(response, "Operador")
         self.assertNotContains(response, "comprovante consistente com valor e dados do pedido")

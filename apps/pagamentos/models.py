@@ -256,6 +256,60 @@ class ChavePixHistorico(models.Model):
         return super().save(*args, **kwargs)
 
 
+class PagamentoRevisaoHistorico(models.Model):
+    class Acao(models.TextChoices):
+        ACEITO = 'aceito', 'Aceito'
+        REJEITADO = 'rejeitado', 'Rejeitado'
+
+    class Motivo(models.TextChoices):
+        VALIDO = 'valido', 'Valido'
+        INVALIDO = 'invalido', 'Invalido'
+        OUTRO = 'outro', 'Outro'
+
+    pedido = models.ForeignKey(
+        Pedido,
+        on_delete=models.CASCADE,
+        related_name='historico_revisao_pagamento',
+        verbose_name='Pedido',
+    )
+    pagamento = models.ForeignKey(
+        Pagamento,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='historico_revisao',
+        verbose_name='Pagamento',
+    )
+    acao = models.CharField(max_length=16, choices=Acao.choices, verbose_name='Acao')
+    motivo = models.CharField(max_length=16, choices=Motivo.choices, verbose_name='Motivo')
+    justificativa = models.TextField(verbose_name='Justificativa')
+    operador = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='historico_revisao_pagamento',
+        verbose_name='Operador',
+    )
+    criado_em = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+
+    class Meta:
+        verbose_name = 'Historico de Revisao de Pagamento'
+        verbose_name_plural = 'Historico de Revisoes de Pagamento'
+        ordering = ['-criado_em', '-id']
+        indexes = [
+            models.Index(fields=['pedido', '-criado_em'], name='idx_rev_hist_pedido_criado'),
+        ]
+
+    def __str__(self):
+        return f'Revisao #{self.id} - Pedido #{self.pedido_id} ({self.acao})'
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValidationError('Historico de revisao e append-only.')
+        return super().save(*args, **kwargs)
+
+
 def _cpf_valido(cpf):
     if len(cpf) != 11 or len(set(cpf)) == 1:
         return False
