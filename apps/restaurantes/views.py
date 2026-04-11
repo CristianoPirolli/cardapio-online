@@ -14,13 +14,15 @@ from django.contrib import messages
 from django.db.models import Sum, Count, Q, F, Avg, DurationField, ExpressionWrapper, DecimalField
 from django.utils import timezone
 from django.db.models.functions import TruncDate, ExtractHour
-from datetime import timedelta
+from datetime import datetime, timedelta
 from collections import Counter
 
 from .models import Restaurante
-from .forms import RestauranteForm, TamanhoPizzaFormSet
+from .forms import RestauranteForm, TamanhoPizzaFormSet, ZonaEntregaFormSet
 from apps.pedidos.models import Pedido, ItemPedido
 from apps.core.algorithms import GRAFO_STATUS_PEDIDO, bfs_status_alcancaveis
+from apps.pagamentos.models import ChavePix
+from apps.pagamentos.forms import ChavePixForm
 
 
 def _restaurante_do_usuario(request):
@@ -285,7 +287,7 @@ def painel_configuracoes(request):
     """
     Página de configurações do restaurante.
 
-    Permite editar informações do restaurante via formulário.
+    Permite editar informações do restaurante, gerenciar zonas de entrega e chaves PIX.
     """
     restaurante = _restaurante_do_usuario(request)
     if not restaurante:
@@ -293,16 +295,37 @@ def painel_configuracoes(request):
 
     if request.method == 'POST':
         form = RestauranteForm(request.POST, request.FILES, instance=restaurante)
-        if form.is_valid():
+        zonas_formset = ZonaEntregaFormSet(
+            request.POST, instance=restaurante, prefix='zonas'
+        )
+        if form.is_valid() and zonas_formset.is_valid():
             form.save()
+            zonas_formset.save()
             messages.success(request, 'Configurações atualizadas com sucesso!')
             return redirect('painel_configuracoes')
     else:
         form = RestauranteForm(instance=restaurante)
+        zonas_formset = ZonaEntregaFormSet(instance=restaurante, prefix='zonas')
+
+    # Contexto para chaves PIX (somente leitura + edição inline)
+    pix_edit_form = None
+    pix_chave_editando = None
+    pix_chave_editando_id = request.GET.get('pix_edit')
+    if pix_chave_editando_id:
+        pix_chave_editando = ChavePix.objects.filter(
+            restaurante=restaurante, id=pix_chave_editando_id
+        ).first()
+        if pix_chave_editando:
+            pix_edit_form = ChavePixForm(instance=pix_chave_editando, restaurante=restaurante)
 
     return render(request, 'painel/configuracoes.html', {
         'form': form,
         'restaurante': restaurante,
+        'zonas_formset': zonas_formset,
+        'chaves': ChavePix.objects.filter(restaurante=restaurante).order_by('prioridade', 'id'),
+        'pix_form': ChavePixForm(restaurante=restaurante),
+        'pix_edit_form': pix_edit_form,
+        'pix_chave_editando': pix_chave_editando,
     })
 
 
@@ -358,6 +381,74 @@ def painel_pedidos(request):
         status='aguardando_confirmacao',
     ).select_related('restaurante').order_by('-criado_em')
 
+    # Filtro operacional por período para fila de revisão manual.
+    periodo_ativo = request.GET.get('periodo', '').strip().lower()
+    data_inicio = request.GET.get('data_inicio', '').strip()
+    data_fim = request.GET.get('data_fim', '').strip()
+    periodo_session_key = 'painel_pedidos_periodo_valido'
+    filtros_periodo = {}
+
+    def _parse_data_iso(valor):
+        if not valor:
+            return None
+        try:
+            return datetime.strptime(valor, '%Y-%m-%d').date()
+        except ValueError:
+            return None
+
+    def _salvar_periodo_valido(payload):
+        request.session[periodo_session_key] = payload
+        request.session.modified = True
+
+    def _filtros_por_periodo(periodo, inicio_custom='', fim_custom=''):
+        hoje_local = timezone.localdate()
+        if periodo == 'hoje':
+            return {'criado_em__date': hoje_local}, {'periodo': 'hoje'}
+        if periodo == 'ontem':
+            return {'criado_em__date': hoje_local - timedelta(days=1)}, {'periodo': 'ontem'}
+        if periodo == '7d':
+            return {'criado_em__date__gte': hoje_local - timedelta(days=6)}, {'periodo': '7d'}
+        if periodo == '30d':
+            return {'criado_em__date__gte': hoje_local - timedelta(days=29)}, {'periodo': '30d'}
+        if periodo != 'custom':
+            return {}, None
+
+        inicio = _parse_data_iso(inicio_custom)
+        fim = _parse_data_iso(fim_custom)
+        if not inicio or not fim or fim < inicio:
+            return None, None
+        return {
+            'criado_em__date__gte': inicio,
+            'criado_em__date__lte': fim,
+        }, {
+            'periodo': 'custom',
+            'data_inicio': inicio.isoformat(),
+            'data_fim': fim.isoformat(),
+        }
+
+    filtros_periodo, periodo_payload = _filtros_por_periodo(periodo_ativo, data_inicio, data_fim)
+    if filtros_periodo is None:
+        messages.error(request, 'Periodo personalizado invalido. Mantivemos o ultimo periodo valido.')
+        ultimo_valido = request.session.get(periodo_session_key, {})
+        periodo_ativo = ultimo_valido.get('periodo', '')
+        data_inicio = ultimo_valido.get('data_inicio', '')
+        data_fim = ultimo_valido.get('data_fim', '')
+        filtros_periodo, _ = _filtros_por_periodo(periodo_ativo, data_inicio, data_fim)
+        filtros_periodo = filtros_periodo or {}
+    else:
+        if periodo_payload:
+            periodo_ativo = periodo_payload.get('periodo', periodo_ativo)
+            data_inicio = periodo_payload.get('data_inicio', '')
+            data_fim = periodo_payload.get('data_fim', '')
+            _salvar_periodo_valido(periodo_payload)
+        else:
+            periodo_ativo = ''
+            data_inicio = ''
+            data_fim = ''
+
+    if filtros_periodo:
+        pendentes_pix = pendentes_pix.filter(**filtros_periodo)
+
     # Filtro por status
     status_filtro = request.GET.get('status')
 
@@ -384,6 +475,9 @@ def painel_pedidos(request):
         'pedidos': pedidos_page,
         'pendentes_pix': pendentes_pix if not status_filtro or status_filtro == 'aguardando_confirmacao' else [],
         'status_filtro': status_filtro,
+        'periodo_ativo': periodo_ativo,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
         'paginator': paginator,
         'pendentes_pix_count': pendentes_pix.count(),
     })
@@ -448,13 +542,19 @@ def painel_pedido_detalhe(request, pedido_id):
     transicoes_diretas = GRAFO_STATUS_PEDIDO.get(pedido.status, [])
     caminho_conclusao = pedido.caminho_ate_status('concluido')
 
-    # Add comprovante to context when awaiting PIX confirmation
+    # Add comprovante e historico de revisao ao contexto quando aguardando PIX
     pagamento_pix = None
+    historico_revisao_pagamento = []
     if pedido.status == 'aguardando_confirmacao':
-        from apps.pagamentos.models import Pagamento
+        from apps.pagamentos.models import Pagamento, PagamentoRevisaoHistorico
         pagamento_pix = Pagamento.objects.filter(
             pedido=pedido, gateway='pix_manual'
         ).first()
+        historico_revisao_pagamento = list(
+            PagamentoRevisaoHistorico.objects.filter(pedido=pedido)
+            .only('acao', 'criado_em')
+            .order_by('-criado_em', '-id')
+        )
 
     return render(request, 'painel/pedido_detalhe.html', {
         'restaurante': restaurante,
@@ -469,4 +569,5 @@ def painel_pedido_detalhe(request, pedido_id):
             for s in transicoes_diretas
         ],
         'pagamento_pix': pagamento_pix,
+        'historico_revisao_pagamento': historico_revisao_pagamento,
     })

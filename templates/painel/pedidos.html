@@ -19,7 +19,7 @@
         <div class="d-flex flex-wrap gap-2">
             <a href="{% url 'painel_pedidos' %}"
                class="btn btn-sm {% if not status_filtro %}btn-dark{% else %}btn-outline-dark{% endif %}">
-                Todos
+                Todos os pedidos
             </a>
             <a href="?status=recebido"
                class="btn btn-sm {% if status_filtro == 'recebido' %}btn-primary{% else %}btn-outline-primary{% endif %}">
@@ -50,6 +50,32 @@
                 {% endif %}
             </a>
         </div>
+
+        <hr class="my-3">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="small text-muted fw-semibold me-1">Período da fila Aguardando PIX:</span>
+            <a href="?periodo=hoje" class="btn btn-sm {% if periodo_ativo == 'hoje' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}">Hoje</a>
+            <a href="?periodo=ontem" class="btn btn-sm {% if periodo_ativo == 'ontem' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}">Ontem</a>
+            <a href="?periodo=7d" class="btn btn-sm {% if periodo_ativo == '7d' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}">7 dias</a>
+            <a href="?periodo=30d" class="btn btn-sm {% if periodo_ativo == '30d' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}">30 dias</a>
+        </div>
+        <form method="get" class="row g-2 mt-2">
+            <input type="hidden" name="periodo" value="custom">
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label form-label-sm mb-1" for="data_inicio">Início</label>
+                <input id="data_inicio" type="date" name="data_inicio" value="{{ data_inicio }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label form-label-sm mb-1" for="data_fim">Fim</label>
+                <input id="data_fim" type="date" name="data_fim" value="{{ data_fim }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-sm-4 col-md-3 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-sm {% if periodo_ativo == 'custom' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}">
+                    Personalizado
+                </button>
+                <a href="{% url 'painel_pedidos' %}" class="btn btn-sm btn-outline-secondary">Limpar</a>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -59,7 +85,7 @@
     <div class="card-header bg-warning text-dark">
         <h6 class="mb-0">
             <i class="bi bi-clock-history me-2"></i>
-            Aguardando Confirmação PIX ({{ pendentes_pix|length }})
+            Aguardando PIX ({{ pendentes_pix|length }})
         </h6>
     </div>
     <div class="card-body p-0">
