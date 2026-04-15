@@ -166,22 +166,6 @@
                       action="{% url 'aceitar_pix' pedido.id %}"
                       hx-boost="false">
                     {% csrf_token %}
-                    <div class="mb-2">
-                        <label for="motivo-revisao" class="form-label small fw-semibold">Motivo da revisao</label>
-                        <select id="motivo-revisao" name="motivo_revisao" class="form-select form-select-sm mb-2" required>
-                            <option value="" selected disabled>Selecione</option>
-                            <option value="valido">valido</option>
-                            <option value="invalido">invalido</option>
-                            <option value="outro">outro</option>
-                        </select>
-                        <textarea
-                            name="justificativa_revisao"
-                            class="form-control form-control-sm"
-                            rows="3"
-                            minlength="10"
-                            placeholder="Justificativa (minimo 10 caracteres)"
-                            required></textarea>
-                    </div>
                     <button type="submit" class="btn btn-success w-100 mb-2">
                         <i class="bi bi-check-lg me-1"></i>Aceitar Pagamento
                     </button>
@@ -195,22 +179,31 @@
                       onsubmit="return confirm('Tem certeza que deseja rejeitar este pedido? O pedido será cancelado.');">
                     {% csrf_token %}
                     <div class="mb-2">
-                        <label for="motivo-revisao-rejeicao" class="form-label small fw-semibold">Motivo da revisao</label>
-                        <select id="motivo-revisao-rejeicao" name="motivo_revisao" class="form-select form-select-sm mb-2" required>
-                            <option value="" selected disabled>Selecione</option>
-                            <option value="valido">valido</option>
-                            <option value="invalido">invalido</option>
-                            <option value="outro">outro</option>
-                        </select>
-                        <textarea
-                            name="justificativa_revisao"
-                            class="form-control form-control-sm"
-                            rows="3"
-                            minlength="10"
-                            placeholder="Justificativa (minimo 10 caracteres)"
-                            required></textarea>
+                        <p class="form-label small fw-semibold mb-1">Motivo da rejeição</p>
+                        <div class="d-flex flex-column gap-1">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="motivo_rejeicao" id="motivo-comprovante-invalido" value="comprovante_invalido" required>
+                                <label class="form-check-label small" for="motivo-comprovante-invalido">Comprovante inválido</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="motivo_rejeicao" id="motivo-valor-incorreto" value="valor_incorreto">
+                                <label class="form-check-label small" for="motivo-valor-incorreto">Valor incorreto</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="motivo_rejeicao" id="motivo-comprovante-ilegivel" value="comprovante_ilegivel">
+                                <label class="form-check-label small" for="motivo-comprovante-ilegivel">Comprovante ilegível</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="motivo_rejeicao" id="motivo-pagamento-nao-identificado" value="pagamento_nao_identificado">
+                                <label class="form-check-label small" for="motivo-pagamento-nao-identificado">Pagamento não identificado</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="motivo_rejeicao" id="motivo-dados-incorretos" value="dados_destinatario_incorretos">
+                                <label class="form-check-label small" for="motivo-dados-incorretos">Dados do destinatário incorretos</label>
+                            </div>
+                        </div>
                     </div>
-                    <button type="submit" class="btn btn-outline-danger w-100 btn-sm">
+                    <button type="submit" class="btn btn-outline-danger w-100 btn-sm mt-2">
                         <i class="bi bi-x-lg me-1"></i>Rejeitar e Cancelar
                     </button>
                 </form>

@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
-from .models import ChavePix, PagamentoRevisaoHistorico
+from .models import ChavePix
 
 
 class ChavePixForm(forms.ModelForm):
@@ -74,20 +74,18 @@ class ChavePixForm(forms.ModelForm):
         return instance
 
 
-class RevisaoManualForm(forms.Form):
-    motivo_revisao = forms.ChoiceField(
-        choices=PagamentoRevisaoHistorico.Motivo.choices,
-        required=True,
-    )
-    justificativa_revisao = forms.CharField(
-        required=True,
-        min_length=10,
-        strip=True,
-        widget=forms.Textarea,
-    )
+MOTIVOS_REJEICAO = [
+    ('comprovante_invalido', 'Comprovante inválido'),
+    ('valor_incorreto', 'Valor incorreto'),
+    ('comprovante_ilegivel', 'Comprovante ilegível'),
+    ('pagamento_nao_identificado', 'Pagamento não identificado'),
+    ('dados_destinatario_incorretos', 'Dados do destinatário incorretos'),
+]
 
-    def clean_justificativa_revisao(self):
-        justificativa = (self.cleaned_data.get('justificativa_revisao') or '').strip()
-        if len(justificativa) < 10:
-            raise forms.ValidationError('Informe uma justificativa com no minimo 10 caracteres.')
-        return justificativa
+
+class RejeicaoPIXForm(forms.Form):
+    motivo_rejeicao = forms.ChoiceField(
+        choices=MOTIVOS_REJEICAO,
+        required=True,
+        widget=forms.RadioSelect,
+    )

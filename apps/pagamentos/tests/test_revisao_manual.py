@@ -64,28 +64,28 @@ class RevisaoManualContratoTest(TestCase):
         self.pedido = _criar_pedido_aguardando_confirmacao(self.restaurante)
         self.proprietario = self.restaurante.proprietario
 
-    def test_aceitar_sem_motivo_nao_altera_pedido(self):
+    def test_aceitar_sem_dados_extras_confirma_pedido(self):
         self.client.force_login(self.proprietario)
 
         response = self.client.post(
             reverse("aceitar_pix", args=[self.pedido.id]),
-            {"justificativa_revisao": "comprovante confere visualmente"},
+            {},
             follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
         self.pedido.refresh_from_db()
         pagamento = Pagamento.objects.get(pedido=self.pedido, gateway="pix_manual")
-        self.assertFalse(self.pedido.pago)
-        self.assertEqual(self.pedido.status, "aguardando_confirmacao")
-        self.assertEqual(pagamento.status, "pendente")
+        self.assertTrue(self.pedido.pago)
+        self.assertEqual(self.pedido.status, "recebido")
+        self.assertEqual(pagamento.status, "aprovado")
 
-    def test_rejeitar_sem_justificativa_nao_altera_pedido(self):
+    def test_rejeitar_sem_motivo_nao_altera_pedido(self):
         self.client.force_login(self.proprietario)
 
         response = self.client.post(
             reverse("rejeitar_pix", args=[self.pedido.id]),
-            {"motivo_revisao": "invalido"},
+            {},
             follow=True,
         )
 
@@ -96,33 +96,12 @@ class RevisaoManualContratoTest(TestCase):
         self.assertEqual(self.pedido.status, "aguardando_confirmacao")
         self.assertEqual(pagamento.status, "pendente")
 
-    def test_justificativa_com_menos_dez_caracteres_e_rejeitada(self):
+    def test_rejeitar_com_motivo_fora_da_lista_nao_altera_pedido(self):
         self.client.force_login(self.proprietario)
 
         response = self.client.post(
-            reverse("aceitar_pix", args=[self.pedido.id]),
-            {
-                "motivo_revisao": "valido",
-                "justificativa_revisao": "curta",
-            },
-            follow=True,
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.pedido.refresh_from_db()
-        pagamento = Pagamento.objects.get(pedido=self.pedido, gateway="pix_manual")
-        self.assertEqual(self.pedido.status, "aguardando_confirmacao")
-        self.assertEqual(pagamento.status, "pendente")
-
-    def test_motivo_fora_da_lista_e_rejeitado(self):
-        self.client.force_login(self.proprietario)
-
-        response = self.client.post(
-            reverse("aceitar_pix", args=[self.pedido.id]),
-            {
-                "motivo_revisao": "nao-listado",
-                "justificativa_revisao": "comprovante sem divergencia aparente",
-            },
+            reverse("rejeitar_pix", args=[self.pedido.id]),
+            {"motivo_rejeicao": "motivo_inexistente"},
             follow=True,
         )
 

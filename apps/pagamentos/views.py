@@ -24,7 +24,7 @@ from django.urls import reverse
 from apps.pedidos.models import Pedido
 from apps.restaurantes.models import Restaurante
 
-from .forms import ChavePixForm, RevisaoManualForm
+from .forms import ChavePixForm, RejeicaoPIXForm, MOTIVOS_REJEICAO
 from .models import ChavePix, Pagamento, PagamentoRevisaoHistorico
 from .services import criar_pagamento_pix_manual, confirmar_pix_manual, rejeitar_pix_manual
 
@@ -430,14 +430,6 @@ def aceitar_pix(request, pedido_id):
         messages.error(request, 'Pagamento PIX não encontrado para este pedido.')
         return redirect('painel_pedido_detalhe', pedido_id=pedido.id)
 
-    form = RevisaoManualForm(request.POST)
-    if not form.is_valid():
-        messages.error(
-            request,
-            'Nao foi possivel concluir a revisao. Verifique motivo e justificativa (minimo de 10 caracteres) e tente novamente.',
-        )
-        return redirect('painel_pedido_detalhe', pedido_id=pedido.id)
-
     try:
         with transaction.atomic():
             confirmar_pix_manual(pagamento)
@@ -445,8 +437,8 @@ def aceitar_pix(request, pedido_id):
                 pedido=pedido,
                 pagamento=pagamento,
                 acao=PagamentoRevisaoHistorico.Acao.ACEITO,
-                motivo=form.cleaned_data['motivo_revisao'],
-                justificativa=form.cleaned_data['justificativa_revisao'],
+                motivo=PagamentoRevisaoHistorico.Motivo.VALIDO,
+                justificativa='',
                 operador=request.user,
             )
         messages.success(request, f'Pedido #{pedido.id} confirmado! Entrando na fila de produção.')
@@ -484,13 +476,13 @@ def rejeitar_pix(request, pedido_id):
         messages.warning(request, 'Pagamento não encontrado; o pedido não foi alterado.')
         return redirect('painel_pedido_detalhe', pedido_id=pedido.id)
 
-    form = RevisaoManualForm(request.POST)
+    form = RejeicaoPIXForm(request.POST)
     if not form.is_valid():
-        messages.error(
-            request,
-            'Nao foi possivel concluir a revisao. Verifique motivo e justificativa (minimo de 10 caracteres) e tente novamente.',
-        )
+        messages.error(request, 'Selecione um motivo para rejeitar o pedido.')
         return redirect('painel_pedido_detalhe', pedido_id=pedido.id)
+
+    motivo_key = form.cleaned_data['motivo_rejeicao']
+    justificativa = dict(MOTIVOS_REJEICAO)[motivo_key]
 
     try:
         with transaction.atomic():
@@ -499,8 +491,8 @@ def rejeitar_pix(request, pedido_id):
                 pedido=pedido,
                 pagamento=pagamento,
                 acao=PagamentoRevisaoHistorico.Acao.REJEITADO,
-                motivo=form.cleaned_data['motivo_revisao'],
-                justificativa=form.cleaned_data['justificativa_revisao'],
+                motivo=PagamentoRevisaoHistorico.Motivo.INVALIDO,
+                justificativa=justificativa,
                 operador=request.user,
             )
         messages.success(request, f'Pedido #{pedido.id} rejeitado e cancelado.')

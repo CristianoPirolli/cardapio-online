@@ -520,10 +520,6 @@ def painel_pedido_detalhe(request, pedido_id):
     pedido = get_object_or_404(
         Pedido, id=pedido_id, restaurante=restaurante
     )
-    # Guard: only show to restaurant if the order is either paid or awaiting PIX confirmation
-    if not pedido.pago and pedido.status != 'aguardando_confirmacao':
-        from django.http import Http404
-        raise Http404("Pedido não disponível.")
 
     if request.method == 'POST':
         novo_status = request.POST.get('status')
