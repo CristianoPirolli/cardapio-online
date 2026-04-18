@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Acompanhamento de Pedido
-status: Defining requirements
+status: active
 last_updated: "2026-04-17T00:00:00.000Z"
 last_activity: 2026-04-17
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -16,18 +16,18 @@ progress:
 
 ## Current Focus
 
-Definir requisitos e roadmap para milestone v1.2
+Phase 4: Status Visual Core — definir mapeamento customer_status e corrigir barra de progresso
 
 ## Position
 
-Phase: Not started (defining requirements)
+Phase: 4 — Status Visual Core
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-17 — Milestone v1.2 started
+Status: Not started
+Last activity: 2026-04-17 — Phase 4 context gathered
 
 ## Plans
 
-_(nenhum plano ainda — milestone v1.2 em definicao)_
+_(nenhum plano ainda — Phase 4 aguarda planejamento)_
 
 ## Decisions
 
@@ -43,10 +43,12 @@ _(nenhum plano ainda — milestone v1.2 em definicao)_
 - [Phase 03]: Historico de revisao permanece visivel somente no detalhe e com campos minimos de exibicao.
 - [Phase 03]: Registro operacional de decisao inclui operador e timestamp para auditoria interna, com feed minimo na interface.
 - [v1.2]: Acompanhamento de pedido via polling (sem WebSocket); transicoes automaticas por acoes existentes no painel.
+- [v1.2]: Mapeamento customer_status (7 estados internos → 4 estados visiveis) deve ser decidido em Phase 4 antes de qualquer trabalho em template ou JS.
+- [v1.2]: Nenhuma dependencia nova — Django built-ins e vanilla JS ja presentes em acompanhar.html.
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-04-17)
 
 **Core value:** Receber pedidos pagos com segurança e baixo atrito operacional.
-**Current focus:** definir requisitos e roadmap do milestone v1.2
+**Current focus:** Phase 4 — Status Visual Core (v1.2)
