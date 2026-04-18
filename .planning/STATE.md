@@ -1,41 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Operacao Manual PIX
-status: Milestone v1.1 arquivado; aguardando definicao do proximo milestone
-last_updated: "2026-04-11T12:50:56.492Z"
-last_activity: 2026-04-11
+milestone: v1.2
+milestone_name: Acompanhamento de Pedido
+status: Defining requirements
+last_updated: "2026-04-17T00:00:00.000Z"
+last_activity: 2026-04-17
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # State: Cardapio Online
 
 ## Current Focus
 
-Planejar proximo milestone
+Definir requisitos e roadmap para milestone v1.2
 
 ## Position
 
-Phase: 03
-Plan: Complete
-Status: Milestone v1.1 arquivado; aguardando definicao do proximo milestone
-Last activity: 2026-04-11
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-17 — Milestone v1.2 started
 
 ## Plans
 
-- [x] 01-01: Pre-flight (migracoes pendentes, limpeza de referencias gateway e configuracao PIX_KEY)
-- [x] 01-02: Modelo de dados e grafo de status (aguardando_confirmacao + comprovante)
-- [x] 01-03: Fluxo cliente PIX manual (pagina, copia, upload)
-- [x] 01-04: Fluxo restaurante (filtro, visualizacao comprovante, aceitar/recusar)
-- [x] 01-05: Integracao final, limpeza e validacao E2E
-- [x] 02-01: Base de dados/servicos para chaves PIX por restaurante
-- [x] 02-02: Gestao no painel (CRUD + historico) e integracao de navegacao/regressao
-- [x] 03-01: Contrato de decisao manual com justificativa obrigatoria e persistencia auditavel por pedido
-- [x] 03-02: Fila operacional com filtro por periodo e exibicao da trilha no detalhe do pedido
+_(nenhum plano ainda — milestone v1.2 em definicao)_
 
 ## Decisions
 
@@ -50,10 +42,11 @@ Last activity: 2026-04-11
 - [Phase 03]: Filtro operacional aplicado apenas na fila Aguardando PIX, preservando visao padrao de pedidos.
 - [Phase 03]: Historico de revisao permanece visivel somente no detalhe e com campos minimos de exibicao.
 - [Phase 03]: Registro operacional de decisao inclui operador e timestamp para auditoria interna, com feed minimo na interface.
+- [v1.2]: Acompanhamento de pedido via polling (sem WebSocket); transicoes automaticas por acoes existentes no painel.
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-11)
+See: .planning/PROJECT.md (updated 2026-04-17)
 
 **Core value:** Receber pedidos pagos com segurança e baixo atrito operacional.
-**Current focus:** iniciar novo milestone com `$gsd-new-milestone`
+**Current focus:** definir requisitos e roadmap do milestone v1.2

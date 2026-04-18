@@ -8,14 +8,16 @@ Sistema de pedidos online para restaurantes com pagamento via PIX e operação a
 
 Receber pedidos pagos com segurança e baixo atrito operacional, sem quebrar o fluxo de produção do restaurante.
 
-## Current Milestone: Planning Next Cycle
+## Current Milestone: v1.2 Acompanhamento de Pedido
 
-**Goal:** Definir o proximo milestone com base no que foi validado no v1.1.
+**Goal:** Cliente acompanha o status do proprio pedido em tempo real sem precisar entrar em contato com o restaurante.
 
 **Target features:**
-- Priorizar backlog de operacao financeira (ex.: reembolso e conciliacao)
-- Definir proxima rodada de requisitos ativos
-- Planejar fases do novo milestone
+- Pagina publica de status por pedido com URL persistente (/pedido/<id>/status)
+- Atualizacao automatica via polling (sem reload manual, sem WebSocket)
+- 4 estados visiveis: Aguardando PIX → Confirmado → Pronto → Entregue
+- Transicoes de status atreladas a acoes ja existentes no painel (sem novos botoes de avanco manual)
+- Link de acompanhamento exibido na tela de confirmacao do pedido
 
 ## Requirements
 
@@ -30,7 +32,11 @@ Receber pedidos pagos com segurança e baixo atrito operacional, sem quebrar o f
 
 ### Active
 
-- [ ] Definir requisitos do proximo milestone via `$gsd-new-milestone`
+- [ ] Cliente acessa pagina publica de status do proprio pedido via URL persistente — v1.2
+- [ ] Status atualiza automaticamente via polling sem reload manual — v1.2
+- [ ] 4 estados de pedido visiveis: Aguardando PIX, Confirmado, Pronto, Entregue — v1.2
+- [ ] Transicoes de status atreladas a acoes ja existentes no painel — v1.2
+- [ ] Link de acompanhamento exibido na confirmacao do pedido — v1.2
 
 ### Out of Scope
 
@@ -81,4 +87,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-11 after phase 3 completion*
+*Last updated: 2026-04-17 — milestone v1.2 started*
