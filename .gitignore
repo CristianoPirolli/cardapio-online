@@ -44,6 +44,7 @@ nginx/certbot/
 # Runtime
 gunicorn.ctl
 *.log
+node_modules/
 
 # OS
 .DS_Store
