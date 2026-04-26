@@ -183,17 +183,6 @@ def bfs_status_alcancaveis(grafo, origem):
     return distancias
 
 
-def pode_alcancar_status(grafo, origem, destino):
-    """
-    Verifica se é possível chegar de um status a outro (direta ou indiretamente).
-
-    Exemplo: pode_alcancar_status(GRAFO_STATUS_PEDIDO, 'recebido', 'concluido')
-    → True (recebido → preparo → entrega → concluido)
-
-    Exemplo: pode_alcancar_status(GRAFO_STATUS_PEDIDO, 'cancelado', 'concluido')
-    → False (cancelado é estado terminal)
-    """
-    return len(bfs_caminho_mais_curto(grafo, origem, destino)) > 0
 
 
 def proximo_status_para_concluir(status_atual):
@@ -217,36 +206,6 @@ def proximo_status_para_concluir(status_atual):
 # Busca linear: O(n) - Pesquisa binária: O(log n)
 # =============================================================================
 
-def pesquisa_binaria_preco(produtos_ordenados, preco_alvo):
-    """
-    Pesquisa binária para encontrar o produto com preço mais próximo.
-
-    Livro Cap. 1: "A cada passo, você elimina metade dos números restantes"
-
-    Requer lista ordenada por preço.
-    Complexidade: O(log n) vs O(n) da busca linear.
-
-    Para 1000 produtos:
-    - Busca linear: até 1000 comparações
-    - Pesquisa binária: até 10 comparações (log2(1000) ≈ 10)
-    """
-    precos = [float(p.preco or 0) for p in produtos_ordenados]
-    preco_float = float(preco_alvo)
-
-    # bisect_left encontra o ponto de inserção em O(log n)
-    idx = bisect.bisect_left(precos, preco_float)
-
-    if idx == 0:
-        return produtos_ordenados[0] if produtos_ordenados else None
-    if idx == len(precos):
-        return produtos_ordenados[-1] if produtos_ordenados else None
-
-    # Compara o anterior e o atual para encontrar o mais próximo
-    antes = precos[idx - 1]
-    depois = precos[idx]
-    if preco_float - antes <= depois - preco_float:
-        return produtos_ordenados[idx - 1]
-    return produtos_ordenados[idx]
 
 
 def produtos_na_faixa_preco(produtos_ordenados, preco_min, preco_max):
@@ -272,38 +231,6 @@ def produtos_na_faixa_preco(produtos_ordenados, preco_min, preco_max):
 # Livro Cap. 8: "Programação dinâmica: resolver subproblemas e cachear"
 # =============================================================================
 
-def calcular_preco_combo_recursivo(itens, idx=0, memo=None):
-    """
-    Calcula o preço total de um combo/pedido recursivamente com memoização.
-
-    Caso base (Cap. 3): idx == len(itens) → retorna 0
-    Caso recursivo: preço do item atual + soma dos restantes
-
-    Memoização (Cap. 8): guarda resultados já calculados para evitar
-    recalcular subproblemas. Dict como cache → lookup O(1).
-
-    Sem memoização: O(2^n) no pior caso para combos com descontos
-    Com memoização: O(n) - cada subproblema calculado uma vez só
-    """
-    if memo is None:
-        memo = {}
-
-    if idx in memo:
-        return memo[idx]
-
-    # Caso base: não há mais itens
-    if idx >= len(itens):
-        return Decimal('0.00')
-
-    item = itens[idx]
-    preco_item = item['quantidade'] * item['preco_unitario']
-
-    # Recursão: preço deste item + preço dos restantes
-    total = preco_item + calcular_preco_combo_recursivo(itens, idx + 1, memo)
-
-    # Memoiza o resultado
-    memo[idx] = total
-    return total
 
 
 def calcular_subtotal_otimizado(itens_queryset):

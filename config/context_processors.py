@@ -71,8 +71,3 @@ def estabelecimento_context(request):
         'aguardando_confirmacao_count': aguardando_confirmacao_count,
         'base_domain': settings.BASE_DOMAIN,
     }
-
-
-def restaurante_context(request):
-    """Alias legado do context processor para retrocompatibilidade."""
-    return estabelecimento_context(request)

@@ -25,6 +25,14 @@ from .services import (
     validar_dados_checkout,
 )
 
+CUSTOMER_STATUS_STEP_INDEX = {
+    'aguardando_pix': 0,
+    'confirmado': 1,
+    'em_preparo': 2,
+    'saiu_entrega': 3,
+    'entregue': 4,
+}
+
 
 def _get_carrinho(request):
     """
@@ -528,11 +536,16 @@ def acompanhar_pedido(request, pedido_id):
     nomes_status = dict(Pedido.STATUS_CHOICES)
     caminho = pedido.caminho_ate_status('concluido')
 
+    customer_step = CUSTOMER_STATUS_STEP_INDEX.get(pedido.customer_status, 0)
+    customer_progress = int((customer_step / 4) * 100)
+
     return render(request, 'pedidos/acompanhar.html', {
         'pedido': pedido,
         'restaurante': pedido.restaurante,
         'passos_para_concluir': pedido.passos_para_concluir,
         'caminho_conclusao': [nomes_status.get(s, s) for s in caminho],
+        'customer_step': customer_step,
+        'customer_progress': customer_progress,
     })
 
 
@@ -551,6 +564,9 @@ def acompanhar_pedido_status(request, pedido_id):
     return JsonResponse({
         'status': pedido.status,
         'status_display': pedido.get_status_display(),
+        'customer_status': pedido.customer_status,
+        'customer_status_display': pedido.customer_status_display,
+        'terminal': pedido.customer_status_terminal,
         'proximo_passo': pedido.proximo_passo,
         'passos_para_concluir': pedido.passos_para_concluir,
     })

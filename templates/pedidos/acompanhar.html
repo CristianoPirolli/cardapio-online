@@ -6,7 +6,7 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}Acompanhar Pedido #{{ pedido.id }} - {{ restaurante.nome }}{% endblock %}
+{% block title %}{{ pedido.customer_status_display }} - Cardapio Online{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -18,29 +18,37 @@
                     <i class="bi bi-search me-2"></i>Pedido #{{ pedido.id }}
                 </h1>
                 <span class="fs-5">
-                    {% if pedido.status == 'recebido' %}
+                    {% if pedido.status == 'aguardando_confirmacao' %}
+                    <span class="badge bg-info text-dark fs-6">
+                        <i class="bi bi-hourglass-split me-1"></i>Comprovante em Análise
+                    </span>
+                    {% elif pedido.status == 'aguardando' %}
+                    <span class="badge bg-secondary fs-6">
+                        <i class="bi bi-qr-code me-1"></i>{{ pedido.customer_status_display }}
+                    </span>
+                    {% elif pedido.status == 'recebido' %}
                     <span class="badge bg-info fs-6">
-                        <i class="bi bi-inbox me-1"></i>{{ pedido.get_status_display }}
+                        <i class="bi bi-inbox me-1"></i>{{ pedido.customer_status_display }}
                     </span>
                     {% elif pedido.status == 'preparo' %}
                     <span class="badge bg-warning text-dark fs-6">
-                        <i class="bi bi-fire me-1"></i>{{ pedido.get_status_display }}
+                        <i class="bi bi-fire me-1"></i>{{ pedido.customer_status_display }}
                     </span>
                     {% elif pedido.status == 'entrega' %}
                     <span class="badge bg-primary fs-6">
-                        <i class="bi bi-truck me-1"></i>{{ pedido.get_status_display }}
+                        <i class="bi bi-truck me-1"></i>{{ pedido.customer_status_display }}
                     </span>
                     {% elif pedido.status == 'concluido' %}
                     <span class="badge bg-success fs-6">
-                        <i class="bi bi-check-circle me-1"></i>{{ pedido.get_status_display }}
+                        <i class="bi bi-check-circle me-1"></i>{{ pedido.customer_status_display }}
                     </span>
                     {% elif pedido.status == 'cancelado' %}
                     <span class="badge bg-danger fs-6">
-                        <i class="bi bi-x-circle me-1"></i>{{ pedido.get_status_display }}
+                        <i class="bi bi-x-circle me-1"></i>{{ pedido.customer_status_display }}
                     </span>
                     {% else %}
                     <span class="badge bg-secondary fs-6">
-                        {{ pedido.get_status_display }}
+                        {{ pedido.customer_status_display }}
                     </span>
                     {% endif %}
                 </span>
@@ -54,78 +62,98 @@
                         <!-- Background Track -->
                         <div class="progress mb-0" style="height: 4px;">
                             <div class="progress-bar bg-success" role="progressbar"
-                                 style="width: {% if pedido.status == 'recebido' %}0{% elif pedido.status == 'preparo' %}33{% elif pedido.status == 'entrega' %}66{% elif pedido.status == 'concluido' %}100{% else %}0{% endif %}%"
-                                 aria-valuenow="{% if pedido.status == 'recebido' %}0{% elif pedido.status == 'preparo' %}33{% elif pedido.status == 'entrega' %}66{% elif pedido.status == 'concluido' %}100{% else %}0{% endif %}"
+                                 style="width: {{ customer_progress }}%"
+                                 aria-valuenow="{{ customer_progress }}"
                                  aria-valuemin="0" aria-valuemax="100">
                             </div>
                         </div>
 
                         <!-- Step Indicators -->
                         <div class="d-flex justify-content-between" style="margin-top: -12px;">
-                            <!-- Recebido -->
-                            <div class="text-center" style="width: 25%;">
+                            <!-- Aguardando PIX -->
+                            <div class="text-center" style="width: 20%;">
                                 <div class="rounded-circle d-inline-flex align-items-center justify-content-center
-                                    {% if pedido.status == 'recebido' or pedido.status == 'preparo' or pedido.status == 'entrega' or pedido.status == 'concluido' %}
+                                    {% if customer_step >= 0 %}
                                     bg-success text-white
                                     {% else %}
                                     bg-light text-muted border
                                     {% endif %}"
                                      style="width: 28px; height: 28px;">
-                                    {% if pedido.status == 'preparo' or pedido.status == 'entrega' or pedido.status == 'concluido' %}
+                                    {% if customer_step > 0 %}
+                                    <i class="bi bi-check" style="font-size: 0.9rem;"></i>
+                                    {% else %}
+                                    <i class="bi bi-qr-code" style="font-size: 0.75rem;"></i>
+                                    {% endif %}
+                                </div>
+                                <p class="small mt-2 mb-0 fw-{% if customer_step == 0 %}bold{% else %}normal{% endif %}">
+                                    Aguardando PIX
+                                </p>
+                            </div>
+
+                            <!-- Pedido Confirmado -->
+                            <div class="text-center" style="width: 20%;">
+                                <div class="rounded-circle d-inline-flex align-items-center justify-content-center
+                                    {% if customer_step >= 1 %}
+                                    bg-success text-white
+                                    {% else %}
+                                    bg-light text-muted border
+                                    {% endif %}"
+                                     style="width: 28px; height: 28px;">
+                                    {% if customer_step > 1 %}
                                     <i class="bi bi-check" style="font-size: 0.9rem;"></i>
                                     {% else %}
                                     <i class="bi bi-inbox" style="font-size: 0.75rem;"></i>
                                     {% endif %}
                                 </div>
-                                <p class="small mt-2 mb-0 fw-{% if pedido.status == 'recebido' %}bold{% else %}normal{% endif %}">
-                                    Recebido
+                                <p class="small mt-2 mb-0 fw-{% if customer_step == 1 %}bold{% else %}normal{% endif %}">
+                                    Pedido Confirmado
                                 </p>
                             </div>
 
-                            <!-- Preparo -->
-                            <div class="text-center" style="width: 25%;">
+                            <!-- Em Preparo -->
+                            <div class="text-center" style="width: 20%;">
                                 <div class="rounded-circle d-inline-flex align-items-center justify-content-center
-                                    {% if pedido.status == 'preparo' or pedido.status == 'entrega' or pedido.status == 'concluido' %}
+                                    {% if customer_step >= 2 %}
                                     bg-success text-white
                                     {% else %}
                                     bg-light text-muted border
                                     {% endif %}"
                                      style="width: 28px; height: 28px;">
-                                    {% if pedido.status == 'entrega' or pedido.status == 'concluido' %}
+                                    {% if customer_step > 2 %}
                                     <i class="bi bi-check" style="font-size: 0.9rem;"></i>
                                     {% else %}
                                     <i class="bi bi-fire" style="font-size: 0.75rem;"></i>
                                     {% endif %}
                                 </div>
-                                <p class="small mt-2 mb-0 fw-{% if pedido.status == 'preparo' %}bold{% else %}normal{% endif %}">
+                                <p class="small mt-2 mb-0 fw-{% if customer_step == 2 %}bold{% else %}normal{% endif %}">
                                     Em Preparo
                                 </p>
                             </div>
 
-                            <!-- Entrega -->
-                            <div class="text-center" style="width: 25%;">
+                            <!-- Saiu p/ Entrega -->
+                            <div class="text-center" style="width: 20%;">
                                 <div class="rounded-circle d-inline-flex align-items-center justify-content-center
-                                    {% if pedido.status == 'entrega' or pedido.status == 'concluido' %}
+                                    {% if customer_step >= 3 %}
                                     bg-success text-white
                                     {% else %}
                                     bg-light text-muted border
                                     {% endif %}"
                                      style="width: 28px; height: 28px;">
-                                    {% if pedido.status == 'concluido' %}
+                                    {% if customer_step > 3 %}
                                     <i class="bi bi-check" style="font-size: 0.9rem;"></i>
                                     {% else %}
                                     <i class="bi bi-truck" style="font-size: 0.75rem;"></i>
                                     {% endif %}
                                 </div>
-                                <p class="small mt-2 mb-0 fw-{% if pedido.status == 'entrega' %}bold{% else %}normal{% endif %}">
+                                <p class="small mt-2 mb-0 fw-{% if customer_step == 3 %}bold{% else %}normal{% endif %}">
                                     Saiu p/ Entrega
                                 </p>
                             </div>
 
-                            <!-- Concluido -->
-                            <div class="text-center" style="width: 25%;">
+                            <!-- Entregue -->
+                            <div class="text-center" style="width: 20%;">
                                 <div class="rounded-circle d-inline-flex align-items-center justify-content-center
-                                    {% if pedido.status == 'concluido' %}
+                                    {% if customer_step >= 4 %}
                                     bg-success text-white
                                     {% else %}
                                     bg-light text-muted border
@@ -133,12 +161,18 @@
                                      style="width: 28px; height: 28px;">
                                     <i class="bi bi-check-circle" style="font-size: 0.75rem;"></i>
                                 </div>
-                                <p class="small mt-2 mb-0 fw-{% if pedido.status == 'concluido' %}bold{% else %}normal{% endif %}">
-                                    Concluído
+                                <p class="small mt-2 mb-0 fw-{% if customer_step == 4 %}bold{% else %}normal{% endif %}">
+                                    Entregue
                                 </p>
                             </div>
                         </div>
                     </div>
+                    {% if pedido.status == 'aguardando_confirmacao' %}
+                    <div class="alert alert-info mb-0 mt-3 d-flex align-items-center" role="alert">
+                        <i class="bi bi-hourglass-split me-2"></i>
+                        <span>Comprovante recebido, aguardando verificacao do restaurante.</span>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}
@@ -326,7 +360,7 @@
                 </div>
             </div>
 
-            {% if pedido.status != 'concluido' and pedido.status != 'cancelado' %}
+            {% if not pedido.customer_status_terminal %}
             <div class="text-center text-muted small mt-3">
                 <i class="bi bi-arrow-repeat me-1"></i>
                 Esta página atualiza automaticamente a cada 30 segundos.
@@ -338,11 +372,13 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if pedido.status != 'concluido' and pedido.status != 'cancelado' %}
+{% if not pedido.customer_status_terminal %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var currentStatus = '{{ pedido.status }}';
+    var currentCustomerStatus = '{{ pedido.customer_status }}';
     var pollInterval = 30000;
+    var timer = null;
 
     function checkStatus() {
         fetch('{% url "acompanhar_pedido_status" pedido.id %}')
@@ -350,6 +386,17 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(function(data) {
                 if (data.status !== currentStatus) {
                     window.location.reload();
+                    return;
+                }
+
+                if (data.customer_status !== currentCustomerStatus) {
+                    window.location.reload();
+                    return;
+                }
+
+                if (data.terminal && timer) {
+                    clearInterval(timer);
+                    timer = null;
                 }
             })
             .catch(function(err) {
@@ -357,14 +404,19 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    var timer = setInterval(checkStatus, pollInterval);
+    timer = setInterval(checkStatus, pollInterval);
 
     document.addEventListener('visibilitychange', function() {
         if (document.hidden) {
-            clearInterval(timer);
+            if (timer) {
+                clearInterval(timer);
+                timer = null;
+            }
         } else {
             checkStatus();
-            timer = setInterval(checkStatus, pollInterval);
+            if (!timer) {
+                timer = setInterval(checkStatus, pollInterval);
+            }
         }
     });
 });

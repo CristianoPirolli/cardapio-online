@@ -20,7 +20,7 @@ from collections import Counter
 from .models import Restaurante
 from .forms import RestauranteForm, TamanhoPizzaFormSet, ZonaEntregaFormSet
 from apps.pedidos.models import Pedido, ItemPedido
-from apps.core.algorithms import GRAFO_STATUS_PEDIDO, bfs_status_alcancaveis
+from apps.core.algorithms import GRAFO_STATUS_PEDIDO
 from apps.pagamentos.models import ChavePix
 from apps.pagamentos.forms import ChavePixForm
 

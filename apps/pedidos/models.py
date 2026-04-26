@@ -60,6 +60,23 @@ class Pedido(models.Model):
         ('concluido', 'Concluído'),
         ('cancelado', 'Cancelado'),
     ]
+    CUSTOMER_STATUS_MAP = {
+        'aguardando': 'aguardando_pix',
+        'aguardando_confirmacao': 'aguardando_pix',
+        'recebido': 'confirmado',
+        'preparo': 'em_preparo',
+        'entrega': 'saiu_entrega',
+        'concluido': 'entregue',
+        'cancelado': 'cancelado',
+    }
+    CUSTOMER_STATUS_CHOICES = [
+        ('aguardando_pix', 'Aguardando PIX'),
+        ('confirmado', 'Pedido Confirmado'),
+        ('em_preparo', 'Em Preparo'),
+        ('saiu_entrega', 'Saiu p/ Entrega'),
+        ('entregue', 'Entregue'),
+        ('cancelado', 'Pedido Cancelado'),
+    ]
 
     # Tabela Hash (Cap. 5): transições como dicionário para lookup O(1)
     # Antes: se fosse uma lista de tuplas, buscar seria O(n)
@@ -199,6 +216,22 @@ class Pedido(models.Model):
         """Número de passos até 'concluido' via BFS."""
         caminho = self.caminho_ate_status('concluido')
         return max(len(caminho) - 1, 0) if caminho else -1
+
+    @property
+    def customer_status(self):
+        """Status visível ao cliente para a página de acompanhamento."""
+        return self.CUSTOMER_STATUS_MAP.get(self.status, 'aguardando_pix')
+
+    @property
+    def customer_status_display(self):
+        """Label do status visível ao cliente."""
+        nomes = dict(self.CUSTOMER_STATUS_CHOICES)
+        return nomes.get(self.customer_status, 'Aguardando PIX')
+
+    @property
+    def customer_status_terminal(self):
+        """Indica se o status do cliente é terminal (para parar polling)."""
+        return self.customer_status in {'entregue', 'cancelado'}
 
     def save(self, *args, **kwargs):
         if self.pk and not getattr(self, '_skip_status_validation', False):

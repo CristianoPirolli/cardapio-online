@@ -39,16 +39,6 @@ def _restaurante_do_usuario(request):
     return Restaurante.objects.filter(proprietario=request.user).first()
 
 
-def _contexto_painel_pix_keys(restaurante, form=None, edit_form=None, chave_editando=None):
-    return {
-        'restaurante': restaurante,
-        'form': form or ChavePixForm(restaurante=restaurante),
-        'edit_form': edit_form,
-        'chave_editando': chave_editando,
-        'chaves': ChavePix.objects.filter(restaurante=restaurante).order_by('prioridade', 'id'),
-    }
-
-
 def pagamento_pix_manual(request, pedido_id):
     """
     Página principal do pagamento PIX.
@@ -95,12 +85,6 @@ def pagamento_pix_manual(request, pedido_id):
         'feature_whatsapp_link': feature_whatsapp_link,
         'pedido_url': pedido_url,
     })
-
-
-@login_required
-def painel_pix_keys(request):
-    """Redireciona para a seção PIX dentro de Configurações."""
-    return redirect('painel_configuracoes')
 
 
 @login_required
