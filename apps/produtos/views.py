@@ -26,6 +26,8 @@ from apps.core.algorithms import (
 from .models import Categoria, Produto
 from .forms import CategoriaForm, ProdutoForm
 
+DEFAULT_RESTAURANTE_ID = 1
+
 
 # ---------------------------------------------------------------------------
 # Views públicas (cardápio)
@@ -57,13 +59,8 @@ def cardapio_publico(request):
             return redirect('home')
 
     if not restaurante:
-        rest_id = request.GET.get('id')
-        if rest_id:
-            restaurante = get_object_or_404(Restaurante, id=rest_id, ativo=True)
-        else:
-            return render(request, 'produtos/selecionar_restaurante.html', {
-                'restaurantes': Restaurante.objects.filter(ativo=True)
-            })
+        rest_id = request.GET.get('id') or DEFAULT_RESTAURANTE_ID
+        restaurante = get_object_or_404(Restaurante, id=rest_id, ativo=True)
 
     # -----------------------------------------------------------------------
     # Tabela Hash (Cap. 5): tenta cache primeiro - O(1)

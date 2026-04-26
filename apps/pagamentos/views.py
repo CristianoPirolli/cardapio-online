@@ -88,6 +88,11 @@ def pagamento_pix_manual(request, pedido_id):
 
 
 @login_required
+def painel_pix_keys(request):
+    return redirect('painel_configuracoes')
+
+
+@login_required
 def painel_pix_keys_create(request):
     if request.method != 'POST':
         return redirect('painel_configuracoes')
