@@ -88,6 +88,7 @@ class Pedido(models.Model):
         ('retirada', 'Retirada no Local'),
     ]
     FORMA_PAGAMENTO_CHOICES = [
+        ('pix', 'PIX'),
         ('dinheiro', 'Dinheiro'),
         ('cartao', 'Cartão'),
     ]
@@ -112,7 +113,7 @@ class Pedido(models.Model):
     forma_pagamento = models.CharField(
         max_length=10,
         choices=FORMA_PAGAMENTO_CHOICES,
-        default='dinheiro',
+        default='pix',
         verbose_name='Forma de Pagamento'
     )
     observacoes = models.TextField(blank=True, verbose_name='Observações')

@@ -153,7 +153,7 @@ class CriarPedidoSerializer(serializers.Serializer):
         choices=Pedido.TIPO_ENTREGA_CHOICES, default='delivery'
     )
     forma_pagamento = serializers.ChoiceField(
-        choices=Pedido.FORMA_PAGAMENTO_CHOICES, default='dinheiro'
+        choices=Pedido.FORMA_PAGAMENTO_CHOICES, default='pix'
     )
     lat_cliente = serializers.FloatField(required=False, allow_null=True)
     lng_cliente = serializers.FloatField(required=False, allow_null=True)
