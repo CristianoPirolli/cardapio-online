@@ -179,7 +179,7 @@ a:hover {
 
 /* --- Descricao do estabelecimento (personalizavel) --- */
 .descricao-estabelecimento {
-    font-family: 'Karla', sans-serif;
+    font-weight: 700;
     font-size: 1.05rem;
     line-height: 1.7;
     color: var(--cor-texto);
@@ -194,6 +194,7 @@ a:hover {
         font-size: 0.95rem;
         line-height: 1.6;
         text-align: left;
+        font-weight: 700;
     }
 }
 
