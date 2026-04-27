@@ -71,6 +71,7 @@
         }
     }
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 {% endblock %}
 
 {% block content %}
@@ -194,6 +195,19 @@
                             </div>
                             <input type="hidden" id="lat_cliente" name="lat_cliente">
                             <input type="hidden" id="lng_cliente" name="lng_cliente">
+                            <!-- Map selection button -->
+                            <button type="button" id="btn-abrir-mapa" class="btn btn-outline-primary btn-sm mt-2">
+                                <i class="bi bi-map me-1"></i>Selecionar no mapa
+                            </button>
+
+                            <!-- Map container -->
+                            <div id="mapa-container" class="mt-2" style="display: none;">
+                                <div id="mapa-leaflet" style="height: 280px; border-radius: 8px; border: 1px solid #dee2e6;"></div>
+                                <p class="text-muted small mt-1 mb-0">
+                                    <i class="bi bi-info-circle me-1"></i>Clique no mapa ou arraste o marcador para selecionar seu endereço
+                                </p>
+                            </div>
+
                             <!-- Zone feedback -->
                             <div id="zona-feedback" class="mt-2" style="display: none;">
                                 <div id="zona-ok" class="alert alert-success py-2 mb-0 small" style="display: none;">
@@ -382,6 +396,7 @@
 </div>
 
 {% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const tipoDelivery = document.getElementById('tipo_delivery');
@@ -410,9 +425,15 @@
         const taxaEntregaBase = parseFloat('{{ restaurante.taxa_entrega|floatformat:2 }}'.replace(',', '.')) || 0;
         const restauranteId = '{{ restaurante.id }}';
         const temZonas = {{ tem_zonas|yesno:"true,false" }};
+        const restauranteLat = {{ restaurante.latitude|default:'null' }};
+        const restauranteLng = {{ restaurante.longitude|default:'null' }};
 
         let taxaAtual = taxaEntregaBase;
         let geocodeTimer = null;
+        let mapa = null;
+        let mapaMarker = null;
+        const btnAbrirMapa = document.getElementById('btn-abrir-mapa');
+        const mapaContainer = document.getElementById('mapa-container');
 
         function formatBRL(value) {
             return 'R$ ' + value.toFixed(2).replace('.', ',');
@@ -452,6 +473,84 @@
             latInput.value = '';
             lngInput.value = '';
         }
+
+        // Funções de mapa interativo
+        function initMapa() {
+            if (mapa !== null) return; // Já inicializado
+
+            const centerLat = restauranteLat || -15.8; // Centro do Brasil
+            const centerLng = restauranteLng || -47.9;
+
+            mapa = L.map('mapa-leaflet').setView([centerLat, centerLng], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(mapa);
+
+            // Clique no mapa para colocar marcador
+            mapa.on('click', function (e) {
+                setMarkerPosition(e.latlng.lat, e.latlng.lng);
+            });
+        }
+
+        function setMarkerPosition(lat, lng) {
+            if (mapaMarker) {
+                mapaMarker.setLatLng([lat, lng]);
+            } else {
+                mapaMarker = L.marker([lat, lng], { draggable: true }).addTo(mapa);
+                mapaMarker.on('dragend', function () {
+                    const pos = mapaMarker.getLatLng();
+                    onLocationSelected(pos.lat, pos.lng);
+                });
+            }
+            mapa.setView([lat, lng], Math.max(mapa.getZoom(), 15));
+            onLocationSelected(lat, lng);
+        }
+
+        async function onLocationSelected(lat, lng) {
+            // Reverse geocode via Nominatim
+            try {
+                const res = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pt-BR`
+                );
+                const data = await res.json();
+                if (data && data.address) {
+                    const addr = data.address;
+                    const partes = [
+                        addr.road && (addr.road + (addr.house_number ? ', ' + addr.house_number : '')),
+                        addr.neighbourhood || addr.suburb || addr.quarter,
+                        addr.city || addr.town || addr.village || addr.municipality,
+                        addr.state,
+                    ].filter(Boolean);
+                    if (partes.length > 0) {
+                        enderecoInput.value = partes.join(', ');
+                    }
+                }
+            } catch (e) {
+                // Falha na geocodificação reversa — continua mesmo assim
+            }
+            consultarZona(lat, lng);
+        }
+
+        // Toggle do botão para abrir/fechar mapa
+        btnAbrirMapa.addEventListener('click', function () {
+            if (mapaContainer.style.display === 'none') {
+                mapaContainer.style.display = 'block';
+                btnAbrirMapa.innerHTML = '<i class="bi bi-x-lg me-1"></i>Fechar mapa';
+                btnAbrirMapa.classList.remove('btn-outline-primary');
+                btnAbrirMapa.classList.add('btn-outline-secondary');
+                initMapa();
+                // Se já tem localização, posiciona o marcador
+                if (latInput.value && lngInput.value) {
+                    setMarkerPosition(parseFloat(latInput.value), parseFloat(lngInput.value));
+                }
+            } else {
+                mapaContainer.style.display = 'none';
+                btnAbrirMapa.innerHTML = '<i class="bi bi-map me-1"></i>Selecionar no mapa';
+                btnAbrirMapa.classList.remove('btn-outline-secondary');
+                btnAbrirMapa.classList.add('btn-outline-primary');
+            }
+        });
 
         function consultarZona(lat, lng) {
             latInput.value = lat;
@@ -563,12 +662,22 @@
                                 }
                                 btnGeolocate.disabled = false;
                                 btnGeolocate.innerHTML = '<i class="bi bi-crosshair text-success"></i>';
-                                consultarZona(lat, lng);
+                                // Atualiza marcador do mapa se estiver aberto
+                                if (mapa !== null) {
+                                    setMarkerPosition(lat, lng);
+                                } else {
+                                    consultarZona(lat, lng);
+                                }
                             })
                             .catch(() => {
                                 btnGeolocate.disabled = false;
                                 btnGeolocate.innerHTML = '<i class="bi bi-crosshair"></i>';
-                                consultarZona(lat, lng);
+                                // Atualiza marcador do mapa se estiver aberto
+                                if (mapa !== null) {
+                                    setMarkerPosition(lat, lng);
+                                } else {
+                                    consultarZona(lat, lng);
+                                }
                             });
                     },
                     function (err) {
@@ -598,6 +707,13 @@
                 enderecoInput.removeAttribute('required');
                 enderecoInput.value = '';
                 limparZonaFeedback();
+                // Fecha o mapa se estiver aberto
+                if (mapaContainer.style.display !== 'none') {
+                    mapaContainer.style.display = 'none';
+                    btnAbrirMapa.innerHTML = '<i class="bi bi-map me-1"></i>Selecionar no mapa';
+                    btnAbrirMapa.classList.remove('btn-outline-secondary');
+                    btnAbrirMapa.classList.add('btn-outline-primary');
+                }
                 cardRetirada.classList.add('border-primary');
                 cardDelivery.classList.remove('border-primary');
                 avisoPrazo.innerHTML = '<i class="bi bi-clock me-1"></i>Retirada no local: pedido pronto em {{ restaurante.tempo_retirada_min }}min.';
