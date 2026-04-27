@@ -10,7 +10,7 @@
 # =============================================================================
 
 from rest_framework import viewsets, permissions
-from rest_framework.decorators import action, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes as drf_permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status as drf_status
@@ -18,6 +18,13 @@ from django.shortcuts import get_object_or_404
 from .models import Restaurante
 from .serializers import RestauranteSerializer
 from apps.core.algorithms import calcular_distancia_km, zona_entrega_para_distancia
+
+
+# Test endpoint to verify public access works
+@api_view(['POST'])
+@drf_permission_classes([permissions.AllowAny])
+def test_public_endpoint(request):
+    return Response({'message': 'Public access works!'})
 
 
 class IsProprietarioOrReadOnly(permissions.BasePermission):
@@ -74,6 +81,12 @@ class RestauranteViewSet(viewsets.ModelViewSet):
     search_fields = ['nome', 'descricao', 'cidade']
     ordering_fields = ['nome', 'criado_em']
 
+    def get_permissions(self):
+        """Override permissions - zona_entrega should be public"""
+        if self.action == 'zona_entrega':
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+
     def perform_create(self, serializer):
         """Ao criar, define o proprietário como o usuário autenticado."""
         serializer.save(proprietario=self.request.user)
@@ -125,7 +138,6 @@ class RestauranteViewSet(viewsets.ModelViewSet):
         })
 
     @action(detail=True, methods=['post'], url_path='zona-entrega')
-    @permission_classes([permissions.AllowAny])
     def zona_entrega(self, request, pk=None):
         """
         POST /api/restaurantes/{id}/zona-entrega/
