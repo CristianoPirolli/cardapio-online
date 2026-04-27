@@ -104,7 +104,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
             'cliente_email': dados.get('cliente_email', ''),
             'endereco_entrega': dados.get('endereco_entrega', ''),
             'tipo_entrega': dados.get('tipo_entrega', 'delivery'),
-            'forma_pagamento': dados.get('forma_pagamento', 'dinheiro'),
+            'forma_pagamento': dados.get('forma_pagamento', 'pix'),
             'observacoes': dados.get('observacoes', ''),
             'lat_cliente': dados.get('lat_cliente'),
             'lng_cliente': dados.get('lng_cliente'),

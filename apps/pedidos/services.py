@@ -18,9 +18,9 @@ def validar_dados_checkout(dados):
     if tipo_entrega not in ('delivery', 'retirada'):
         tipo_entrega = 'delivery'
 
-    forma_pagamento = dados.get('forma_pagamento', 'dinheiro')
-    if forma_pagamento not in ('dinheiro', 'cartao'):
-        forma_pagamento = 'dinheiro'
+    forma_pagamento = dados.get('forma_pagamento', 'pix')
+    if forma_pagamento not in ('pix', 'dinheiro', 'cartao'):
+        forma_pagamento = 'pix'
 
     cliente_nome = (dados.get('cliente_nome') or '').strip()
     cliente_telefone = (dados.get('cliente_telefone') or '').strip()

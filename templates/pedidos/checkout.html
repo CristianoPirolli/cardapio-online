@@ -224,10 +224,24 @@
                     </div>
                     <div class="card-body">
                         <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-check p-3 checkout-option" id="card-pix">
+                                    <input class="form-check-input" type="radio" name="forma_pagamento"
+                                           id="forma_pix" value="pix" checked>
+                                    <label class="form-check-label d-flex align-items-center w-100 cursor-pointer"
+                                           for="forma_pix">
+                                        <i class="bi bi-qr-code fs-3 me-3 text-primary"></i>
+                                        <div>
+                                            <strong>PIX</strong>
+                                            <p class="text-muted small mb-0">Transferência instantânea</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
                             <div class="col-sm-6">
                                 <div class="form-check p-3 checkout-option" id="card-dinheiro">
                                     <input class="form-check-input" type="radio" name="forma_pagamento"
-                                           id="forma_dinheiro" value="dinheiro" checked>
+                                           id="forma_dinheiro" value="dinheiro">
                                     <label class="form-check-label d-flex align-items-center w-100 cursor-pointer"
                                            for="forma_dinheiro">
                                         <i class="bi bi-cash-coin fs-3 me-3 text-primary"></i>
@@ -621,21 +635,28 @@
         });
 
         // Payment method selection styling
+        const formaPix = document.getElementById('forma_pix');
         const formaDinheiro = document.getElementById('forma_dinheiro');
         const formaCartao = document.getElementById('forma_cartao');
+        const cardPix = document.getElementById('card-pix');
         const cardDinheiro = document.getElementById('card-dinheiro');
         const cardCartao = document.getElementById('card-cartao');
 
         function toggleFormaPagamento() {
-            if (formaDinheiro.checked) {
+            cardPix.classList.remove('border-primary');
+            cardDinheiro.classList.remove('border-primary');
+            cardCartao.classList.remove('border-primary');
+
+            if (formaPix.checked) {
+                cardPix.classList.add('border-primary');
+            } else if (formaDinheiro.checked) {
                 cardDinheiro.classList.add('border-primary');
-                cardCartao.classList.remove('border-primary');
-            } else {
-                cardDinheiro.classList.remove('border-primary');
+            } else if (formaCartao.checked) {
                 cardCartao.classList.add('border-primary');
             }
         }
 
+        formaPix.addEventListener('change', toggleFormaPagamento);
         formaDinheiro.addEventListener('change', toggleFormaPagamento);
         formaCartao.addEventListener('change', toggleFormaPagamento);
 
