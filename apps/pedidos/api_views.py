@@ -18,6 +18,11 @@ from apps.restaurantes.models import Restaurante
 from apps.produtos.models import Produto
 from .models import Pedido, ItemPedido
 from .serializers import PedidoSerializer, CriarPedidoSerializer
+from .services import (
+    PedidoCheckoutError,
+    validar_dados_checkout,
+    criar_pedido_do_carrinho,
+)
 
 
 class PedidoViewSet(viewsets.ModelViewSet):
@@ -56,10 +61,14 @@ class PedidoViewSet(viewsets.ModelViewSet):
         Cria um novo pedido com itens.
 
         Fluxo:
-        1. Valida os dados do pedido e dos itens
-        2. Verifica se todos os produtos existem e estão disponíveis
-        3. Cria o pedido e os itens (preço unitário = preço atual do produto)
-        4. Calcula totais (subtotal + taxa + imposto)
+        1. Valida os dados do pedido
+        2. Busca o restaurante e verifica se está aberto
+        3. Converte itens da API para formato de sessão
+        4. Usa criar_pedido_do_carrinho que:
+           - Valida produtos
+           - Calcula distância e taxa de zona se applicable
+           - Cria pedido e itens em transação atômica
+           - Valida pedido mínimo
         5. Retorna o pedido completo
         """
         serializer = CriarPedidoSerializer(data=request.data)
@@ -71,72 +80,45 @@ class PedidoViewSet(viewsets.ModelViewSet):
             Restaurante, id=dados['restaurante_id'], ativo=True
         )
 
-        # Verifica se o restaurante esta aberto
+        # Verifica se o restaurante está aberto
         if not restaurante.esta_aberto:
             return Response(
                 {'error': 'O restaurante está fechado no momento.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        itens_data = dados['itens']
+        # Converte itens para formato esperado por criar_pedido_do_carrinho
+        itens_sessao = {}
+        for idx, item_data in enumerate(dados['itens']):
+            item_key = f"{item_data['produto_id']}:{idx}"
+            itens_sessao[item_key] = {
+                'produto_id': item_data['produto_id'],
+                'quantidade': item_data['quantidade'],
+                'observacao': item_data.get('observacao', ''),
+            }
 
-        # Cria o pedido
-        pedido = Pedido.objects.create(
-            restaurante=restaurante,
-            cliente_nome=dados['cliente_nome'],
-            cliente_telefone=dados['cliente_telefone'],
-            cliente_email=dados.get('cliente_email', ''),
-            endereco_entrega=dados.get('endereco_entrega', ''),
-            tipo_entrega=dados.get('tipo_entrega', 'delivery'),
-            observacoes=dados.get('observacoes', ''),
-        )
+        # Prepara dados do cliente
+        dados_cliente = {
+            'cliente_nome': dados['cliente_nome'],
+            'cliente_telefone': dados['cliente_telefone'],
+            'cliente_email': dados.get('cliente_email', ''),
+            'endereco_entrega': dados.get('endereco_entrega', ''),
+            'tipo_entrega': dados.get('tipo_entrega', 'delivery'),
+            'forma_pagamento': dados.get('forma_pagamento', 'dinheiro'),
+            'observacoes': dados.get('observacoes', ''),
+            'lat_cliente': dados.get('lat_cliente'),
+            'lng_cliente': dados.get('lng_cliente'),
+        }
 
-        produto_ids = list({item['produto_id'] for item in itens_data})
-        produtos = Produto.objects.filter(
-            id__in=produto_ids,
-            restaurante=restaurante,
-            disponivel=True
-        ).select_related('categoria')
-        produtos_por_id = {produto.id: produto for produto in produtos}
-
-        ids_invalidos = [pid for pid in produto_ids if pid not in produtos_por_id]
-        if ids_invalidos:
-            pedido.delete()
+        try:
+            pedido = criar_pedido_do_carrinho(restaurante, itens_sessao, dados_cliente)
+        except PedidoCheckoutError as e:
             return Response(
-                {'error': f'Produto(s) inválido(s) ou indisponível(is): {ids_invalidos}'},
+                {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        itens_pedido = []
-        for item_data in itens_data:
-            produto = produtos_por_id[item_data['produto_id']]
-            itens_pedido.append(ItemPedido(
-                pedido=pedido,
-                produto=produto,
-                quantidade=item_data['quantidade'],
-                preco_unitario=produto.preco,
-                observacao=item_data.get('observacao', ''),
-            ))
-        ItemPedido.objects.bulk_create(itens_pedido)
-
-        # Memoização (Cap. 8) + Big O (Cap. 1):
-        # Passa itens já em memória para evitar query N+1 extra.
-        # ANTES: calcular_totais() fazia self.itens.all() = 1 query extra
-        # AGORA: passa itens_pedido direto = 0 queries extras
-        pedido.calcular_totais(itens_prefetched=itens_pedido)
-
-        # Valida pedido mínimo
-        if pedido.subtotal < restaurante.pedido_minimo:
-            pedido.delete()
-            return Response(
-                {
-                    'error': f'Pedido mínimo é R$ {restaurante.pedido_minimo:.2f}. '
-                             f'Seu subtotal: R$ {pedido.subtotal:.2f}'
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Retorna o pedido criado (independente de ainda não estar pago)
+        # Retorna o pedido criado com itens prefetched
         pedido = Pedido.objects.prefetch_related(
             Prefetch('itens', queryset=ItemPedido.objects.select_related('produto'))
         ).get(pk=pedido.pk)

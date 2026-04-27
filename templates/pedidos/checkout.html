@@ -215,6 +215,47 @@
                     </div>
                 </div>
 
+                <!-- 3) Payment Method -->
+                <div class="card shadow-sm mb-4 checkout-card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-credit-card me-2"></i>3) Forma de Pagamento
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-sm-6">
+                                <div class="form-check p-3 checkout-option" id="card-dinheiro">
+                                    <input class="form-check-input" type="radio" name="forma_pagamento"
+                                           id="forma_dinheiro" value="dinheiro" checked>
+                                    <label class="form-check-label d-flex align-items-center w-100 cursor-pointer"
+                                           for="forma_dinheiro">
+                                        <i class="bi bi-cash-coin fs-3 me-3 text-primary"></i>
+                                        <div>
+                                            <strong>Dinheiro</strong>
+                                            <p class="text-muted small mb-0">Pagar na entrega</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="form-check p-3 checkout-option" id="card-cartao">
+                                    <input class="form-check-input" type="radio" name="forma_pagamento"
+                                           id="forma_cartao" value="cartao">
+                                    <label class="form-check-label d-flex align-items-center w-100 cursor-pointer"
+                                           for="forma_cartao">
+                                        <i class="bi bi-credit-card fs-3 me-3 text-primary"></i>
+                                        <div>
+                                            <strong>Cartão</strong>
+                                            <p class="text-muted small mb-0">Débito ou Crédito</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Observations -->
                 <div class="card shadow-sm mb-4 checkout-card">
                     <div class="card-header bg-white">
@@ -578,6 +619,28 @@
             }
             e.target.value = value;
         });
+
+        // Payment method selection styling
+        const formaDinheiro = document.getElementById('forma_dinheiro');
+        const formaCartao = document.getElementById('forma_cartao');
+        const cardDinheiro = document.getElementById('card-dinheiro');
+        const cardCartao = document.getElementById('card-cartao');
+
+        function toggleFormaPagamento() {
+            if (formaDinheiro.checked) {
+                cardDinheiro.classList.add('border-primary');
+                cardCartao.classList.remove('border-primary');
+            } else {
+                cardDinheiro.classList.remove('border-primary');
+                cardCartao.classList.add('border-primary');
+            }
+        }
+
+        formaDinheiro.addEventListener('change', toggleFormaPagamento);
+        formaCartao.addEventListener('change', toggleFormaPagamento);
+
+        // Initialize payment method styling on page load
+        toggleFormaPagamento();
     });
 </script>
 {% endblock %}

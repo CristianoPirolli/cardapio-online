@@ -87,6 +87,10 @@ class Pedido(models.Model):
         ('delivery', 'Delivery'),
         ('retirada', 'Retirada no Local'),
     ]
+    FORMA_PAGAMENTO_CHOICES = [
+        ('dinheiro', 'Dinheiro'),
+        ('cartao', 'Cartão'),
+    ]
 
     restaurante = models.ForeignKey(
         Restaurante,
@@ -104,6 +108,12 @@ class Pedido(models.Model):
         choices=TIPO_ENTREGA_CHOICES,
         default='delivery',
         verbose_name='Tipo de Entrega'
+    )
+    forma_pagamento = models.CharField(
+        max_length=10,
+        choices=FORMA_PAGAMENTO_CHOICES,
+        default='dinheiro',
+        verbose_name='Forma de Pagamento'
     )
     observacoes = models.TextField(blank=True, verbose_name='Observações')
 

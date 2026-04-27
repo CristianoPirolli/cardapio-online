@@ -31,9 +31,9 @@ class PedidoAdmin(admin.ModelAdmin):
 
     list_display = (
         'id', 'cliente_nome', 'restaurante', 'status',
-        'total', 'pago', 'tipo_entrega', 'criado_em'
+        'total', 'pago', 'tipo_entrega', 'forma_pagamento', 'criado_em'
     )
-    list_filter = ('status', 'pago', 'tipo_entrega', 'restaurante', 'criado_em')
+    list_filter = ('status', 'pago', 'tipo_entrega', 'forma_pagamento', 'restaurante', 'criado_em')
     search_fields = ('cliente_nome', 'cliente_telefone', 'cliente_email')
     readonly_fields = ('subtotal', 'taxa_entrega', 'imposto', 'total', 'criado_em', 'atualizado_em')
     inlines = [ItemPedidoInline]
@@ -44,7 +44,7 @@ class PedidoAdmin(admin.ModelAdmin):
             'fields': ('cliente_nome', 'cliente_telefone', 'cliente_email')
         }),
         ('Pedido', {
-            'fields': ('restaurante', 'tipo_entrega', 'endereco_entrega', 'observacoes')
+            'fields': ('restaurante', 'tipo_entrega', 'forma_pagamento', 'endereco_entrega', 'observacoes')
         }),
         ('Valores', {
             'fields': ('subtotal', 'taxa_entrega', 'imposto', 'total')

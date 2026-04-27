@@ -18,6 +18,10 @@ def validar_dados_checkout(dados):
     if tipo_entrega not in ('delivery', 'retirada'):
         tipo_entrega = 'delivery'
 
+    forma_pagamento = dados.get('forma_pagamento', 'dinheiro')
+    if forma_pagamento not in ('dinheiro', 'cartao'):
+        forma_pagamento = 'dinheiro'
+
     cliente_nome = (dados.get('cliente_nome') or '').strip()
     cliente_telefone = (dados.get('cliente_telefone') or '').strip()
     cliente_email = (dados.get('cliente_email') or '').strip()
@@ -46,6 +50,7 @@ def validar_dados_checkout(dados):
         'cliente_email': cliente_email,
         'endereco_entrega': endereco_entrega,
         'tipo_entrega': tipo_entrega,
+        'forma_pagamento': forma_pagamento,
         'observacoes': observacoes,
         'lat_cliente': lat_cliente,
         'lng_cliente': lng_cliente,
@@ -179,6 +184,7 @@ def criar_pedido_do_carrinho(restaurante, itens_sessao, dados_cliente):
             cliente_email=dados_cliente['cliente_email'],
             endereco_entrega=dados_cliente['endereco_entrega'],
             tipo_entrega=dados_cliente['tipo_entrega'],
+            forma_pagamento=dados_cliente.get('forma_pagamento', 'dinheiro'),
             observacoes=dados_cliente['observacoes'],
         )
 

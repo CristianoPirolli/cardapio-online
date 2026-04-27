@@ -22,7 +22,7 @@
                         <input type="hidden" name="bebida_ids" value="{{ bebida.id }}">
                         <div class="d-flex gap-3">
                             {% if bebida.imagem %}
-                            <img src="{{ bebida.imagem.url }}" alt="{{ bebida.nome }}" class="rounded" width="72" height="72" style="object-fit: cover;">
+                            <img src="{{ bebida.imagem.url }}" alt="{{ bebida.nome }}" class="rounded bg-light" width="72" height="72" style="object-fit: contain;">
                             {% else %}
                             <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 72px; height: 72px;">
                                 <i class="bi bi-image text-muted"></i>
