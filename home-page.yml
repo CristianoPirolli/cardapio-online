@@ -1,0 +1,57 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - link " Cardápio Online" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e5]: 
+        - text: Cardápio Online
+      - text:  
+      - generic [ref=e6]:
+        - list
+        - list [ref=e7]:
+          - listitem [ref=e8]:
+            - link " Carrinho" [ref=e9] [cursor=pointer]:
+              - /url: /pedidos/carrinho/
+              - generic [ref=e10]: 
+              - text: Carrinho
+          - listitem [ref=e11]:
+            - link " Entrar" [ref=e12] [cursor=pointer]:
+              - /url: /auth/login/
+              - generic [ref=e13]: 
+              - text: Entrar
+  - main [ref=e14]:
+    - generic [ref=e19]:
+      - img "Panificadora Oneda" [ref=e20]
+      - generic [ref=e21]:
+        - heading "Panificadora Oneda" [level=4] [ref=e22]
+        - paragraph [ref=e23]:
+          - generic [ref=e24]: 
+          - text: Ibiam/SC
+        - generic [ref=e25]:
+          - text: Pizza Italiana de longa fermentação...
+          - text: Nossas pizzas são produzidas com
+          - text: produtos de alta qualidade.
+          - text: O molho 100% Italiano....
+          - text: Produzido com tomate pomodori pelati.
+          - text: As massas são feitas respeitando
+          - text: receitas de origens Italianas, utilizando
+          - text: processos de controle de maturação
+          - text: e fermentação em temperatura
+          - text: controlada.
+          - text: Resultando em uma pizza com massa
+          - text: leve, bordas aerada e de fácil digestão.
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - generic [ref=e28]:
+              - generic [ref=e29]: 
+              - text: R$ 5,00
+            - generic [ref=e30]:
+              - generic [ref=e31]: 
+              - text: ~45min
+          - generic [ref=e32]: Fechado
+      - link " Ver Cardapio" [ref=e34] [cursor=pointer]:
+        - /url: /cardapio/?id=1
+        - generic [ref=e35]: 
+        - text: Ver Cardapio
+  - contentinfo [ref=e36]:
+    - paragraph [ref=e40]: © 2026 Powered by Cristiano Pirolli

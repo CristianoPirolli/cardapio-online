@@ -50,6 +50,13 @@
         border-radius: 0.75rem;
     }
 
+    /* Bootstrap sticky-lg-top aplica z-index alto; isso cobria dropdowns */
+    @media (min-width: 992px) {
+        .checkout-summary.sticky-lg-top {
+            z-index: 1 !important;
+        }
+    }
+
     .checkout-summary-items {
         max-height: 20rem;
         overflow-y: auto;

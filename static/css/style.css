@@ -82,6 +82,8 @@ h5, h6 {
     border: none;
     padding-top: 0.65rem;
     padding-bottom: 0.65rem;
+    position: relative;
+    z-index: 2000;
 }
 
 .navbar-tema .navbar-brand {
@@ -590,6 +592,14 @@ footer small {
     box-shadow: var(--shadow-md);
     font-family: 'Karla', sans-serif;
     overflow: hidden;
+}
+
+.dropdown-menu.show {
+    z-index: 99999 !important;
+}
+
+.navbar-tema .dropdown-menu {
+    z-index: 2010 !important;
 }
 
 .dropdown-item {
