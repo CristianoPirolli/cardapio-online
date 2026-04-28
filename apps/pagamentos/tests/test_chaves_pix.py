@@ -20,7 +20,6 @@ def _make_restaurante(suffix=""):
     return Restaurante.objects.create(
         proprietario=user,
         nome=f"Restaurante Pix {suffix}",
-        subdominio=f"pixkeys{suffix}",
         endereco="Rua Teste, 100",
         cidade="Sao Paulo",
         estado="SP",

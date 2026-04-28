@@ -12,7 +12,6 @@ def _criar_restaurante(sufixo: str) -> Restaurante:
     return Restaurante.objects.create(
         proprietario=user,
         nome=f"Restaurante {sufixo}",
-        subdominio=f"rest-{sufixo}",
         endereco="Rua Teste, 100",
         cidade="Sao Paulo",
         estado="SP",

@@ -28,7 +28,6 @@ class PixManualViewTest(TestCase):
         self.restaurante = Restaurante.objects.create(
             proprietario=user,
             nome='Restaurante View Test',
-            subdominio='viewtest',
         )
         self.pedido = Pedido.objects.create(
             restaurante=self.restaurante,

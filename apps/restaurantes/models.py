@@ -40,10 +40,17 @@ class Restaurante(models.Model):
         verbose_name='Nome do Restaurante',
         help_text='Nome de exibição do restaurante'
     )
-    proprietario = models.OneToOneField(
+    subdominio = models.SlugField(
+        max_length=100,
+        unique=True,
+        default='',
+        verbose_name='Subdomínio',
+        help_text='Identificador único na URL (ex: pizzaria1)'
+    )
+    proprietario = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='restaurante',
+        related_name='restaurantes',
         verbose_name='Proprietário'
     )
     descricao = models.TextField(

@@ -16,7 +16,6 @@ def _restaurante(sufixo: str) -> Restaurante:
     return Restaurante.objects.create(
         proprietario=user,
         nome=f"Auditoria {sufixo}",
-        subdominio=f"aud-{sufixo}",
         endereco="Rua Teste, 123",
         cidade="Sao Paulo",
         estado="SP",
@@ -41,7 +40,7 @@ def _pedido_pix(restaurante: Restaurante) -> Pedido:
     ChavePix.objects.create(
         restaurante=restaurante,
         tipo=ChavePix.Tipo.EMAIL,
-        valor=f"{restaurante.subdominio}@example.com",
+        valor=f"{restaurante.id}@example.com",
         ativo=True,
         padrao=True,
         prioridade=1,

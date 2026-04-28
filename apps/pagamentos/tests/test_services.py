@@ -15,7 +15,6 @@ def _make_restaurante():
     return Restaurante.objects.create(
         proprietario=user,
         nome='Restaurante Teste',
-        subdominio='testrest',
     )
 
 
