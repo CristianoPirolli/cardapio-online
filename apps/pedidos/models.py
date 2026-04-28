@@ -231,6 +231,10 @@ class Pedido(models.Model):
     @property
     def customer_status(self):
         """Status visível ao cliente para a página de acompanhamento."""
+        # Para pedidos com PIX, mostra 'aguardando_pix' até confirmação
+        if self.forma_pagamento == 'pix' and self.status in ('aguardando', 'aguardando_confirmacao'):
+            return 'aguardando_pix'
+        # Para dinheiro/cartão, pula direto para 'confirmado'
         return self.CUSTOMER_STATUS_MAP.get(self.status, 'aguardando_pix')
 
     @property

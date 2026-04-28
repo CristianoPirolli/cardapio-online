@@ -177,6 +177,9 @@ def criar_pedido_do_carrinho(restaurante, itens_sessao, dados_cliente):
         )
 
     with transaction.atomic():
+        forma_pag = dados_cliente.get('forma_pagamento', 'dinheiro')
+        status_inicial = 'aguardando' if forma_pag == 'pix' else 'recebido'
+
         pedido = Pedido.objects.create(
             restaurante=restaurante,
             cliente_nome=dados_cliente['cliente_nome'],
@@ -184,7 +187,9 @@ def criar_pedido_do_carrinho(restaurante, itens_sessao, dados_cliente):
             cliente_email=dados_cliente['cliente_email'],
             endereco_entrega=dados_cliente['endereco_entrega'],
             tipo_entrega=dados_cliente['tipo_entrega'],
-            forma_pagamento=dados_cliente.get('forma_pagamento', 'dinheiro'),
+            forma_pagamento=forma_pag,
+            status=status_inicial,
+            pago=(forma_pag != 'pix'),
             observacoes=dados_cliente['observacoes'],
         )
 

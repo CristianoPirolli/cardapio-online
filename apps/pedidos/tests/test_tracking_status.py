@@ -27,7 +27,7 @@ class PedidoTrackingStatusTests(TestCase):
             ativo=True,
         )
 
-    def _criar_pedido(self, status='aguardando'):
+    def _criar_pedido(self, status='aguardando', forma_pagamento='pix'):
         return Pedido.objects.create(
             restaurante=self.restaurante,
             cliente_nome='Cliente Teste',
@@ -35,6 +35,7 @@ class PedidoTrackingStatusTests(TestCase):
             cliente_email='cliente@test.com',
             endereco_entrega='Rua B, 20',
             tipo_entrega='delivery',
+            forma_pagamento=forma_pagamento,
             subtotal=Decimal('20.00'),
             taxa_entrega=Decimal('5.00'),
             imposto=Decimal('2.00'),
@@ -45,17 +46,28 @@ class PedidoTrackingStatusTests(TestCase):
 
     def test_customer_status_mapping(self):
         casos = [
-            ('aguardando', 'aguardando_pix'),
-            ('aguardando_confirmacao', 'aguardando_pix'),
-            ('recebido', 'confirmado'),
-            ('preparo', 'em_preparo'),
-            ('entrega', 'saiu_entrega'),
-            ('concluido', 'entregue'),
-            ('cancelado', 'cancelado'),
+            ('aguardando', 'aguardando_pix', 'pix'),
+            ('aguardando_confirmacao', 'aguardando_pix', 'pix'),
+            ('recebido', 'confirmado', 'pix'),
+            ('preparo', 'em_preparo', 'pix'),
+            ('entrega', 'saiu_entrega', 'pix'),
+            ('concluido', 'entregue', 'pix'),
+            ('cancelado', 'cancelado', 'pix'),
+            # Pedidos com dinheiro não mostram 'aguardando_pix'
+            ('recebido', 'confirmado', 'dinheiro'),
+            ('preparo', 'em_preparo', 'dinheiro'),
+            ('entrega', 'saiu_entrega', 'dinheiro'),
+            ('concluido', 'entregue', 'dinheiro'),
+            # Pedidos com cartão também não mostram 'aguardando_pix'
+            ('recebido', 'confirmado', 'cartao'),
+            ('entrega', 'saiu_entrega', 'cartao'),
         ]
-        for status_interno, status_cliente in casos:
-            pedido = self._criar_pedido(status=status_interno)
-            self.assertEqual(pedido.customer_status, status_cliente)
+        for status_interno, status_cliente, forma in casos:
+            pedido = self._criar_pedido(status=status_interno, forma_pagamento=forma)
+            self.assertEqual(
+                pedido.customer_status, status_cliente,
+                f'Status interno {status_interno} com forma {forma} deveria retornar {status_cliente}'
+            )
 
     def test_endpoint_retorna_customer_status_e_terminal_false(self):
         pedido = self._criar_pedido(status='preparo')

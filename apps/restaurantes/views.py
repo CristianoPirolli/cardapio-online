@@ -378,6 +378,7 @@ def painel_pedidos(request):
     # Pedidos aguardando confirmação PIX (pago=False, status especial)
     pendentes_pix = Pedido.objects.filter(
         restaurante=restaurante,
+        forma_pagamento='pix',
         status='aguardando_confirmacao',
     ).select_related('restaurante').order_by('-criado_em')
 
