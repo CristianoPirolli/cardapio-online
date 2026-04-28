@@ -10,6 +10,9 @@
 
 from decimal import Decimal
 from urllib.parse import urlsplit, urlunsplit, parse_qs, urlencode
+import json
+
+from django.db.models import Max
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import JsonResponse
@@ -17,6 +20,7 @@ from django.views.decorators.http import require_POST
 
 from apps.restaurantes.models import Restaurante, TamanhoPizza
 from apps.produtos.models import Produto
+from .geocoding import reverse_geocode
 from .models import Pedido
 from .services import (
     PedidoCheckoutError,
@@ -451,6 +455,10 @@ def checkout(request):
         return redirect('ver_carrinho')
 
     if request.method == 'POST':
+        forma_pagamento = request.POST.get('forma_pagamento', 'pix')
+        if forma_pagamento not in ('pix', 'dinheiro', 'cartao'):
+            forma_pagamento = 'pix'
+
         dados_checkout = {
             'cliente_nome': request.POST.get('cliente_nome', ''),
             'cliente_telefone': request.POST.get('cliente_telefone', ''),
@@ -460,6 +468,7 @@ def checkout(request):
             'observacoes': request.POST.get('observacoes', ''),
             'lat_cliente': request.POST.get('lat_cliente', ''),
             'lng_cliente': request.POST.get('lng_cliente', ''),
+            'forma_pagamento': forma_pagamento,
         }
         try:
             dados_checkout = validar_dados_checkout(dados_checkout)
@@ -481,8 +490,10 @@ def checkout(request):
         request.session['carrinho'] = {'restaurante_id': None, 'itens': {}}
         request.session.modified = True
 
-        # Redireciona para pagamento
-        return redirect('pagamento_pix_manual', pedido_id=pedido.id)
+        # PIX precisa de comprovante; dinheiro e cartão vão direto para acompanhar
+        if forma_pagamento == 'pix':
+            return redirect('pagamento_pix_manual', pedido_id=pedido.id)
+        return redirect('acompanhar_pedido', pedido_id=pedido.id)
 
     # GET: exibe formulário de checkout
     tipo_entrega_inicial = request.GET.get('tipo_entrega', 'delivery')
@@ -506,6 +517,10 @@ def checkout(request):
             tipo_entrega=tipo_entrega_inicial,
         )
 
+    zonas_ativas = restaurante.zonas_entrega.filter(ativo=True)
+    raio_max_zonas = zonas_ativas.aggregate(max_raio=Max('raio_max_km'))['max_raio'] if zonas_ativas.exists() else None
+    raio_mapa_km = float(raio_max_zonas or restaurante.raio_entrega_km or 15)
+
     return render(request, 'pedidos/checkout.html', {
         'itens': resumo['itens'],
         'restaurante': restaurante,
@@ -515,7 +530,37 @@ def checkout(request):
         'total': resumo['total'],
         'tipo_entrega_inicial': tipo_entrega_inicial,
         'zona_nome': resumo.get('zona_nome'),
-        'tem_zonas': restaurante.zonas_entrega.filter(ativo=True).exists(),
+        'tem_zonas': zonas_ativas.exists(),
+        'raio_mapa_km': raio_mapa_km,
+    })
+
+
+@require_POST
+def geocode(request):
+    """
+    POST /pedidos/api/geocode/
+
+    Reverse geocoding via Nominatim (OpenStreetMap), proxy backend para
+    proteger contra bloqueio de IP por ausência de User-Agent identificável.
+
+    Body:  {"lat": -23.55, "lng": -46.63}
+    Resp:  {"valid": bool, "endereco": str, "erro": str|None}
+    """
+    try:
+        payload = json.loads(request.body or b'{}')
+        lat = float(payload.get('lat'))
+        lng = float(payload.get('lng'))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return JsonResponse(
+            {'valid': False, 'endereco': '', 'erro': 'Coordenadas inválidas.'},
+            status=400,
+        )
+
+    resultado = reverse_geocode(lat, lng)
+    return JsonResponse({
+        'valid': resultado['valid'],
+        'endereco': resultado['endereco'],
+        'erro': resultado['erro'],
     })
 
 

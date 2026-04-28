@@ -1,5 +1,5 @@
 {% extends 'painel/base_painel.html' %}
-{% load crispy_forms_tags %}
+{% load crispy_forms_tags static %}
 
 {% block title %}Configurações - {{ restaurante.nome }}{% endblock %}
 
@@ -22,23 +22,38 @@
             {% csrf_token %}
             {{ form|crispy }}
 
+            <!-- Mapa de localização do restaurante -->
+            <div class="mb-4">
+                <label class="form-label fw-semibold">
+                    <i class="bi bi-geo-alt me-1"></i>Localização no mapa
+                </label>
+                <p class="text-muted small mb-2">
+                    Clique no mapa ou arraste o alfinete para marcar a localização exata do restaurante.
+                    Os campos <strong>Latitude</strong> e <strong>Longitude</strong> acima serão preenchidos automaticamente.
+                </p>
+                <div id="mapa-restaurante" style="height: 320px; border-radius: 8px; border: 1px solid #dee2e6;"></div>
+                <p class="text-muted small mt-1 mb-0" id="mapa-coord-preview">
+                    {% if restaurante.latitude and restaurante.longitude %}
+                        <i class="bi bi-check-circle-fill text-success me-1"></i>Localização definida: {{ restaurante.latitude|floatformat:5 }}, {{ restaurante.longitude|floatformat:5 }}
+                    {% else %}
+                        <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>Localização não definida — clique no mapa para fixar.
+                    {% endif %}
+                </p>
+            </div>
+
             <hr class="my-4">
 
             <!-- Zonas de Entrega por Raio -->
             <h4 class="mb-1"><i class="bi bi-map me-2"></i>Zonas de Entrega por Raio</h4>
             <p class="text-muted small mb-3">
                 As zonas são aplicadas quando o cliente informa o endereço no checkout.<br>
-                <strong>Pré-requisito:</strong> preencha <em>Latitude</em> e <em>Longitude</em> acima.<br>
                 As zonas são ordenadas por raio crescente: a primeira que comportar a distância do cliente será aplicada.
             </p>
 
             {% if not restaurante.latitude or not restaurante.longitude %}
-            <div class="alert alert-warning py-2 small">
+            <div class="alert alert-warning py-2 small" id="aviso-sem-coords">
                 <i class="bi bi-exclamation-triangle me-1"></i>
-                Preencha a <strong>Latitude</strong> e <strong>Longitude</strong> do restaurante para ativar as zonas.
-                Você pode obter as coordenadas no
-                <a href="https://maps.google.com" target="_blank" rel="noopener">Google Maps</a>
-                clicando com o botão direito no endereço do restaurante.
+                Defina a localização no mapa acima para ativar as zonas de entrega.
             </div>
             {% endif %}
 
@@ -196,7 +211,12 @@
     </div>
 </div>
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">
+{% endblock %}
+
 {% block extra_js %}
+<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
 <script>
     // Destaca linha ao marcar DELETE
     document.querySelectorAll('.zona-row input[type=checkbox]').forEach(function(cb) {
@@ -204,6 +224,71 @@
             this.closest('tr').classList.toggle('table-danger', this.checked);
         });
     });
+
+    // ── Mapa de localização do restaurante ───────────────────────────────────
+    (function () {
+        const latInput = document.getElementById('id_latitude');
+        const lngInput = document.getElementById('id_longitude');
+        const preview = document.getElementById('mapa-coord-preview');
+        const avisoSemCoords = document.getElementById('aviso-sem-coords');
+
+        const pinIcon = L.divIcon({
+            className: '',
+            html: '<i class="bi bi-geo-alt-fill" style="font-size:2.4rem;color:#dc3545;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));display:block;line-height:1;"></i>',
+            iconSize: [40, 40],
+            iconAnchor: [20, 40],
+            popupAnchor: [0, -40],
+        });
+
+        const latInicial = parseFloat(latInput.value) || null;
+        const lngInicial = parseFloat(lngInput.value) || null;
+        const centerLat = latInicial || -15.8;
+        const centerLng = lngInicial || -47.9;
+        const zoomInicial = latInicial ? 15 : 5;
+
+        const mapa = L.map('mapa-restaurante').setView([centerLat, centerLng], zoomInicial);
+
+        L.tileLayer(
+            'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+            {
+                subdomains: 'abcd',
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                maxZoom: 20,
+            }
+        ).addTo(mapa);
+
+        let marker = null;
+
+        function atualizarPreview(lat, lng) {
+            latInput.value = lat.toFixed(7);
+            lngInput.value = lng.toFixed(7);
+            preview.innerHTML = `<i class="bi bi-check-circle-fill text-success me-1"></i>Localização definida: ${lat.toFixed(5)}, ${lng.toFixed(5)} — lembre-se de <strong>Salvar Alterações</strong>.`;
+            if (avisoSemCoords) avisoSemCoords.style.display = 'none';
+        }
+
+        function colocarMarcador(lat, lng) {
+            if (marker) {
+                marker.setLatLng([lat, lng]);
+            } else {
+                marker = L.marker([lat, lng], { draggable: true, icon: pinIcon }).addTo(mapa);
+                marker.on('dragend', function () {
+                    const pos = marker.getLatLng();
+                    atualizarPreview(pos.lat, pos.lng);
+                });
+            }
+            mapa.setView([lat, lng], Math.max(mapa.getZoom(), 15));
+            atualizarPreview(lat, lng);
+        }
+
+        // Posiciona marcador se já há coordenadas salvas
+        if (latInicial && lngInicial) {
+            colocarMarcador(latInicial, lngInicial);
+        }
+
+        mapa.on('click', function (e) {
+            colocarMarcador(e.latlng.lat, e.latlng.lng);
+        });
+    })();
 </script>
 {% endblock %}
 {% endblock %}
