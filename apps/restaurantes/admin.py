@@ -29,25 +29,24 @@ class RestauranteAdmin(admin.ModelAdmin):
 
     Funcionalidades:
     - Lista com colunas relevantes e filtros por status/cidade
-    - Busca por nome, subdomínio e email
+    - Busca por nome e email
     - Fieldsets organizados por categoria
     - Campos read-only para timestamps
     """
 
     list_display = (
-        'nome', 'subdominio', 'cidade', 'estado',
+        'nome', 'cidade', 'estado',
         'taxa_entrega', 'ativo', 'criado_em'
     )
     list_filter = ('ativo', 'estado', 'cidade')
-    search_fields = ('nome', 'subdominio', 'email', 'endereco')
+    search_fields = ('nome', 'email', 'endereco')
     list_editable = ('ativo',)
-    prepopulated_fields = {'subdominio': ('nome',)}
     readonly_fields = ('criado_em', 'atualizado_em')
     inlines = [TamanhoPizzaInline, ZonaEntregaInline]
 
     fieldsets = (
         ('Informações Básicas', {
-            'fields': ('nome', 'subdominio', 'proprietario', 'descricao', 'logo')
+            'fields': ('nome', 'proprietario', 'descricao', 'logo')
         }),
         ('Localização', {
             'fields': ('endereco', 'cidade', 'estado', 'cep', 'latitude', 'longitude'),

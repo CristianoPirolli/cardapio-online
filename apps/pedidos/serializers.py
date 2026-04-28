@@ -103,7 +103,7 @@ class PedidoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'restaurante', 'cliente_nome', 'cliente_telefone',
             'cliente_email', 'endereco_entrega', 'tipo_entrega',
-            'observacoes', 'itens', 'subtotal', 'taxa_entrega',
+            'forma_pagamento', 'observacoes', 'itens', 'subtotal', 'taxa_entrega',
             'imposto', 'total', 'status', 'status_display',
             'pago', 'criado_em', 'atualizado_em'
         ]
@@ -125,6 +125,9 @@ class CriarPedidoSerializer(serializers.Serializer):
         "cliente_email": "maria@email.com",
         "endereco_entrega": "Rua das Flores, 123",
         "tipo_entrega": "delivery",
+        "forma_pagamento": "dinheiro",
+        "lat_cliente": -23.5505,
+        "lng_cliente": -46.6333,
         "observacoes": "Tocar a campainha",
         "itens": [
             {"produto_id": 5, "quantidade": 2, "observacao": "Sem cebola"},
@@ -149,6 +152,11 @@ class CriarPedidoSerializer(serializers.Serializer):
     tipo_entrega = serializers.ChoiceField(
         choices=Pedido.TIPO_ENTREGA_CHOICES, default='delivery'
     )
+    forma_pagamento = serializers.ChoiceField(
+        choices=Pedido.FORMA_PAGAMENTO_CHOICES, default='pix'
+    )
+    lat_cliente = serializers.FloatField(required=False, allow_null=True)
+    lng_cliente = serializers.FloatField(required=False, allow_null=True)
     observacoes = serializers.CharField(required=False, default='')
     itens = ItemPedidoCriacaoSerializer(many=True, min_length=1)
 

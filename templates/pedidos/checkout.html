@@ -71,6 +71,7 @@
         }
     }
 </style>
+<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}" />
 {% endblock %}
 
 {% block content %}
@@ -194,6 +195,12 @@
                             </div>
                             <input type="hidden" id="lat_cliente" name="lat_cliente">
                             <input type="hidden" id="lng_cliente" name="lng_cliente">
+                            <!-- Map selection button -->
+                            <button type="button" id="btn-abrir-mapa" class="btn btn-outline-primary btn-sm mt-2"
+                                    data-bs-toggle="modal" data-bs-target="#mapaModal">
+                                <i class="bi bi-map me-1"></i>Selecionar no mapa
+                            </button>
+
                             <!-- Zone feedback -->
                             <div id="zona-feedback" class="mt-2" style="display: none;">
                                 <div id="zona-ok" class="alert alert-success py-2 mb-0 small" style="display: none;">
@@ -209,6 +216,61 @@
                                 </div>
                                 <div id="zona-carregando" class="text-muted small" style="display: none;">
                                     <span class="spinner-border spinner-border-sm me-1"></span>Verificando zona de entrega...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3) Payment Method -->
+                <div class="card shadow-sm mb-4 checkout-card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-credit-card me-2"></i>3) Forma de Pagamento
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-check p-3 checkout-option" id="card-pix">
+                                    <input class="form-check-input" type="radio" name="forma_pagamento"
+                                           id="forma_pix" value="pix" checked>
+                                    <label class="form-check-label d-flex align-items-center w-100 cursor-pointer"
+                                           for="forma_pix">
+                                        <i class="bi bi-qr-code fs-3 me-3 text-primary"></i>
+                                        <div>
+                                            <strong>PIX</strong>
+                                            <p class="text-muted small mb-0">Transferência instantânea</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="form-check p-3 checkout-option" id="card-dinheiro">
+                                    <input class="form-check-input" type="radio" name="forma_pagamento"
+                                           id="forma_dinheiro" value="dinheiro">
+                                    <label class="form-check-label d-flex align-items-center w-100 cursor-pointer"
+                                           for="forma_dinheiro">
+                                        <i class="bi bi-cash-coin fs-3 me-3 text-primary"></i>
+                                        <div>
+                                            <strong>Dinheiro</strong>
+                                            <p class="text-muted small mb-0">Pagar na entrega</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="form-check p-3 checkout-option" id="card-cartao">
+                                    <input class="form-check-input" type="radio" name="forma_pagamento"
+                                           id="forma_cartao" value="cartao">
+                                    <label class="form-check-label d-flex align-items-center w-100 cursor-pointer"
+                                           for="forma_cartao">
+                                        <i class="bi bi-credit-card fs-3 me-3 text-primary"></i>
+                                        <div>
+                                            <strong>Cartão</strong>
+                                            <p class="text-muted small mb-0">Débito ou Crédito</p>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -326,7 +388,37 @@
     </form>
 </div>
 
+<!-- Map Modal -->
+<div class="modal fade" id="mapaModal" tabindex="-1" aria-labelledby="mapaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mapaModalLabel">
+                    <i class="bi bi-map me-2"></i>Selecionar localização de entrega
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="mapa-leaflet" style="height: 420px;"></div>
+                <div class="px-3 pt-2 pb-2 border-top bg-light">
+                    <p class="mb-0 small" id="mapa-endereco-preview" style="min-height: 1.4em;">
+                        <i class="bi bi-cursor me-1 text-muted"></i><span class="text-muted">Clique no mapa ou arraste o marcador para selecionar</span>
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-confirmar-mapa" disabled>
+                    <i class="bi bi-check-lg me-1"></i>Confirmar localização
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
 {% block extra_js %}
+<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const tipoDelivery = document.getElementById('tipo_delivery');
@@ -355,12 +447,39 @@
         const taxaEntregaBase = parseFloat('{{ restaurante.taxa_entrega|floatformat:2 }}'.replace(',', '.')) || 0;
         const restauranteId = '{{ restaurante.id }}';
         const temZonas = {{ tem_zonas|yesno:"true,false" }};
+        const restauranteLatRaw = '{{ restaurante.latitude|default_if_none:"" }}';
+        const restauranteLngRaw = '{{ restaurante.longitude|default_if_none:"" }}';
+        const raioMapaKm = parseFloat('{{ raio_mapa_km|default:"15"|floatformat:2 }}'.replace(',', '.')) || 15;
 
         let taxaAtual = taxaEntregaBase;
         let geocodeTimer = null;
+        let mapa = null;
+        let mapaMarker = null;
+        let leafletLoadPromise = null;
+        let pendingLat = null;
+        let pendingLng = null;
+        let pendingEndereco = '';
+        const mapaModalEl = document.getElementById('mapaModal');
+        const mapaEnderecoPreview = document.getElementById('mapa-endereco-preview');
+        const btnConfirmarMapa = document.getElementById('btn-confirmar-mapa');
+        const restauranteLat = parseCoord(restauranteLatRaw);
+        const restauranteLng = parseCoord(restauranteLngRaw);
 
         function formatBRL(value) {
             return 'R$ ' + value.toFixed(2).replace('.', ',');
+        }
+
+        function parseCoord(value) {
+            if (value === null || value === undefined) return null;
+            const normalized = String(value).trim().replace(',', '.');
+            if (!normalized) return null;
+            const parsed = parseFloat(normalized);
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        function getCsrfToken() {
+            const match = document.cookie.match(/csrftoken=([^;]+)/);
+            return match ? match[1] : '';
         }
 
         function atualizarTotais(taxa) {
@@ -398,14 +517,164 @@
             lngInput.value = '';
         }
 
+        // ── Mapa (modal Leaflet + OpenStreetMap) ──────────────────────────────
+
+        function initMapa() {
+            if (mapa !== null) return;
+            if (typeof L === 'undefined') return;
+
+            // Alfinete vetorial via Bootstrap Icons — sem arquivo de imagem extra.
+            // iconAnchor [20, 40] posiciona a ponta do alfinete exatamente no ponto clicado.
+            window._pinIcon = L.divIcon({
+                className: '',
+                html: '<i class="bi bi-geo-alt-fill" style="font-size:2.4rem;color:#dc3545;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));display:block;line-height:1;"></i>',
+                iconSize: [40, 40],
+                iconAnchor: [20, 40],
+                popupAnchor: [0, -40],
+            });
+
+            const centerLat = restauranteLat || -15.8;
+            const centerLng = restauranteLng || -47.9;
+
+            mapa = L.map('mapa-leaflet').setView([centerLat, centerLng], 15);
+
+            // Restringe pan à área de entrega quando temos coords do restaurante.
+            // 1° de latitude ≈ 111 km; 1° de longitude varia com a latitude.
+            if (restauranteLat !== null && restauranteLng !== null && raioMapaKm > 0) {
+                const latDelta = raioMapaKm / 111;
+                const lngDelta = raioMapaKm / (111 * Math.cos(restauranteLat * Math.PI / 180));
+                const bounds = L.latLngBounds(
+                    [restauranteLat - latDelta, restauranteLng - lngDelta],
+                    [restauranteLat + latDelta, restauranteLng + lngDelta]
+                );
+                mapa.setMaxBounds(bounds.pad(0.15));
+                mapa.setMinZoom(11);
+            }
+
+            const tileLayer = L.tileLayer(
+                'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+                {
+                    subdomains: 'abcd',
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    maxZoom: 20
+                }
+            ).addTo(mapa);
+
+            // Fallback para OSM padrão se CartoDB falhar
+            let tileFallbackUsado = false;
+            tileLayer.on('tileerror', function () {
+                if (tileFallbackUsado) return;
+                tileFallbackUsado = true;
+                mapa.removeLayer(tileLayer);
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                    maxZoom: 19
+                }).addTo(mapa);
+            });
+
+            mapa.on('click', function (e) {
+                onMapPick(e.latlng.lat, e.latlng.lng);
+            });
+        }
+
+        function ensureLeafletLoaded() {
+            if (typeof L !== 'undefined') return Promise.resolve();
+            if (leafletLoadPromise) return leafletLoadPromise;
+
+            leafletLoadPromise = Promise.reject(
+                new Error('Leaflet indisponivel no checkout (arquivo local nao carregado)')
+            );
+            return leafletLoadPromise;
+        }
+
+        function placeMapMarker(lat, lng) {
+            if (mapaMarker) {
+                mapaMarker.setLatLng([lat, lng]);
+            } else {
+                mapaMarker = L.marker([lat, lng], { draggable: true, icon: window._pinIcon }).addTo(mapa);
+                mapaMarker.on('dragend', function () {
+                    const pos = mapaMarker.getLatLng();
+                    onMapPick(pos.lat, pos.lng);
+                });
+            }
+            mapa.setView([lat, lng], Math.max(mapa.getZoom(), 15));
+        }
+
+        async function onMapPick(lat, lng) {
+            pendingLat = lat;
+            pendingLng = lng;
+            pendingEndereco = '';
+            btnConfirmarMapa.disabled = false;
+            placeMapMarker(lat, lng);
+
+            mapaEnderecoPreview.innerHTML =
+                '<span class="spinner-border spinner-border-sm me-1"></span>Obtendo endereço...';
+
+            try {
+                const res = await fetch('{% url "geocode" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    body: JSON.stringify({ lat: lat, lng: lng }),
+                });
+                const data = await res.json();
+                if (data && data.valid && data.endereco) {
+                    pendingEndereco = data.endereco;
+                }
+            } catch (e) { /* continua sem endereço */ }
+
+            mapaEnderecoPreview.innerHTML = pendingEndereco
+                ? `<i class="bi bi-geo-alt-fill text-danger me-1"></i>${pendingEndereco}`
+                : '<i class="bi bi-geo-alt me-1 text-muted"></i><span class="text-muted">Localização selecionada</span>';
+        }
+
+        // Abre o mapa na modal e inicializa o Leaflet sob demanda
+        mapaModalEl.addEventListener('show.bs.modal', async function () {
+            pendingLat = latInput.value ? parseFloat(latInput.value) : null;
+            pendingLng = lngInput.value ? parseFloat(lngInput.value) : null;
+            pendingEndereco = enderecoInput.value || '';
+            btnConfirmarMapa.disabled = !pendingLat;
+
+            try {
+                await ensureLeafletLoaded();
+                initMapa();
+            } catch (e) {
+                alert('Não foi possível carregar o mapa. Verifique sua conexão e tente novamente.');
+                bootstrap.Modal.getInstance(mapaModalEl)?.hide();
+                return;
+            }
+
+            if (pendingLat && pendingLng) {
+                placeMapMarker(pendingLat, pendingLng);
+                mapaEnderecoPreview.innerHTML = pendingEndereco
+                    ? `<i class="bi bi-geo-alt-fill text-danger me-1"></i>${pendingEndereco}`
+                    : '<i class="bi bi-geo-alt me-1 text-muted"></i><span class="text-muted">Localização já selecionada</span>';
+            } else {
+                mapaEnderecoPreview.innerHTML =
+                    '<i class="bi bi-cursor me-1 text-muted"></i><span class="text-muted">Clique no mapa ou arraste o marcador para selecionar</span>';
+            }
+        });
+
+        mapaModalEl.addEventListener('shown.bs.modal', function () {
+            if (mapa) mapa.invalidateSize();
+        });
+
+        mapaModalEl.addEventListener('hidden.bs.modal', function () {
+            document.getElementById('btn-abrir-mapa')?.focus();
+        });
+
+        btnConfirmarMapa.addEventListener('click', function () {
+            if (pendingLat === null) return;
+            if (pendingEndereco) enderecoInput.value = pendingEndereco;
+            consultarZona(pendingLat, pendingLng);
+            bootstrap.Modal.getInstance(mapaModalEl).hide();
+        });
+
         function consultarZona(lat, lng) {
             latInput.value = lat;
             lngInput.value = lng;
-
-            if (!temZonas) {
-                atualizarTotais(taxaEntregaBase);
-                return;
-            }
 
             zonaFeedback.style.display = 'block';
             zonaCarregando.style.display = 'block';
@@ -416,7 +685,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
+                    'X-CSRFToken': getCsrfToken()
                 },
                 body: JSON.stringify({ lat: lat, lng: lng })
             })
@@ -489,31 +758,29 @@
                         const lat = pos.coords.latitude;
                         const lng = pos.coords.longitude;
 
-                        // Geocodificação reversa para preencher o campo de endereço
-                        const reverseUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
-                        fetch(reverseUrl, { headers: { 'Accept-Language': 'pt-BR' } })
+                        fetch('{% url "geocode" %}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCsrfToken(),
+                            },
+                            body: JSON.stringify({ lat: lat, lng: lng }),
+                        })
                             .then(r => r.json())
                             .then(data => {
-                                if (data && data.display_name) {
-                                    // Monta endereço legível a partir dos componentes
-                                    const addr = data.address || {};
-                                    const partes = [
-                                        addr.road || addr.pedestrian || addr.footway || '',
-                                        addr.house_number || '',
-                                        addr.neighbourhood || addr.suburb || addr.quarter || '',
-                                        addr.city || addr.town || addr.village || addr.municipality || '',
-                                        addr.state || '',
-                                    ].filter(Boolean);
-                                    enderecoInput.value = partes.join(', ');
+                                if (data && data.valid && data.endereco) {
+                                    enderecoInput.value = data.endereco;
                                 }
                                 btnGeolocate.disabled = false;
                                 btnGeolocate.innerHTML = '<i class="bi bi-crosshair text-success"></i>';
                                 consultarZona(lat, lng);
+                                if (mapa !== null) placeMapMarker(lat, lng);
                             })
                             .catch(() => {
                                 btnGeolocate.disabled = false;
                                 btnGeolocate.innerHTML = '<i class="bi bi-crosshair"></i>';
                                 consultarZona(lat, lng);
+                                if (mapa !== null) placeMapMarker(lat, lng);
                             });
                     },
                     function (err) {
@@ -521,9 +788,13 @@
                         btnGeolocate.innerHTML = '<i class="bi bi-crosshair"></i>';
                         if (err.code === err.PERMISSION_DENIED) {
                             alert('Permissão de localização negada. Por favor, permita o acesso ou preencha o endereço manualmente.');
+                        } else if (err.code === err.TIMEOUT) {
+                            alert('Não foi possível obter sua localização no tempo esperado. Tente novamente.');
+                        } else {
+                            alert('Não foi possível obter sua localização agora. Tente novamente.');
                         }
                     },
-                    { enableHighAccuracy: true, timeout: 10000 }
+                    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
                 );
             });
         } else if (btnGeolocate) {
@@ -543,6 +814,8 @@
                 enderecoInput.removeAttribute('required');
                 enderecoInput.value = '';
                 limparZonaFeedback();
+                const modalAberta = bootstrap.Modal.getInstance(mapaModalEl);
+                if (modalAberta) modalAberta.hide();
                 cardRetirada.classList.add('border-primary');
                 cardDelivery.classList.remove('border-primary');
                 avisoPrazo.innerHTML = '<i class="bi bi-clock me-1"></i>Retirada no local: pedido pronto em {{ restaurante.tempo_retirada_min }}min.';
@@ -578,7 +851,35 @@
             }
             e.target.value = value;
         });
+
+        // Payment method selection styling
+        const formaPix = document.getElementById('forma_pix');
+        const formaDinheiro = document.getElementById('forma_dinheiro');
+        const formaCartao = document.getElementById('forma_cartao');
+        const cardPix = document.getElementById('card-pix');
+        const cardDinheiro = document.getElementById('card-dinheiro');
+        const cardCartao = document.getElementById('card-cartao');
+
+        function toggleFormaPagamento() {
+            cardPix.classList.remove('border-primary');
+            cardDinheiro.classList.remove('border-primary');
+            cardCartao.classList.remove('border-primary');
+
+            if (formaPix.checked) {
+                cardPix.classList.add('border-primary');
+            } else if (formaDinheiro.checked) {
+                cardDinheiro.classList.add('border-primary');
+            } else if (formaCartao.checked) {
+                cardCartao.classList.add('border-primary');
+            }
+        }
+
+        formaPix.addEventListener('change', toggleFormaPagamento);
+        formaDinheiro.addEventListener('change', toggleFormaPagamento);
+        formaCartao.addEventListener('change', toggleFormaPagamento);
+
+        // Initialize payment method styling on page load
+        toggleFormaPagamento();
     });
 </script>
-{% endblock %}
 {% endblock %}

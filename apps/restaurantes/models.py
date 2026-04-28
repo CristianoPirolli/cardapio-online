@@ -1,14 +1,12 @@
 # =============================================================================
 # apps/restaurantes/models.py - Models do app de restaurantes
 #
-# Contém o model Restaurante, que é o tenant principal do sistema SaaS.
-# Cada restaurante possui um subdomínio único e configurações próprias.
+# Contém o model Restaurante com configurações do restaurante.
 # =============================================================================
 
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
-from slugify import slugify
 from datetime import timedelta
 
 from apps.core.algorithms import cache_restaurante
@@ -41,12 +39,6 @@ class Restaurante(models.Model):
         max_length=200,
         verbose_name='Nome do Restaurante',
         help_text='Nome de exibição do restaurante'
-    )
-    subdominio = models.SlugField(
-        max_length=100,
-        unique=True,
-        verbose_name='Subdomínio',
-        help_text='Identificador único na URL (ex: pizzaria1)'
     )
     proprietario = models.OneToOneField(
         User,
@@ -149,7 +141,6 @@ class Restaurante(models.Model):
         ordering = ['nome']
         # Big O (Cap. 1): índices transformam busca de O(n) para O(log n)
         indexes = [
-            models.Index(fields=['subdominio'], name='idx_restaurante_subdominio'),
             models.Index(fields=['ativo'], name='idx_restaurante_ativo'),
             models.Index(fields=['proprietario'], name='idx_restaurante_proprietario'),
         ]
@@ -234,13 +225,9 @@ class Restaurante(models.Model):
         return False
 
     def save(self, *args, **kwargs):
-        """Gera o subdomínio automaticamente a partir do nome, se não fornecido."""
-        if not self.subdominio:
-            self.subdominio = slugify(self.nome)
         super().save(*args, **kwargs)
         # Invalida cache ao salvar (Tabela Hash - invalidação O(1))
         cache_restaurante.invalidate(f"aberto:{self.id}")
-        cache_restaurante.invalidate(f"tenant:{self.subdominio}")
 
 
 class ZonaEntrega(models.Model):

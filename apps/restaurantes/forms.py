@@ -44,11 +44,10 @@ class RestauranteForm(forms.ModelForm):
     class Meta:
         model = Restaurante
         fields = [
-            'nome', 'subdominio', 'descricao', 'endereco', 'cidade',
+            'nome', 'descricao', 'endereco', 'cidade',
             'estado', 'cep', 'telefone', 'email', 'logo',
             'latitude', 'longitude',
-            'taxa_entrega', 'pedido_minimo', 'raio_entrega_km',
-            'taxa_imposto', 'tempo_retirada_min', 'tempo_entrega_min',
+            'tempo_retirada_min', 'tempo_entrega_min',
             'funciona_segunda', 'funciona_terca', 'funciona_quarta',
             'funciona_quinta', 'funciona_sexta', 'funciona_sabado', 'funciona_domingo',
             'horario_abertura', 'horario_fechamento'

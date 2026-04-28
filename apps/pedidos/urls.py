@@ -18,6 +18,9 @@ urlpatterns = [
     # Checkout
     path('checkout/', views.checkout, name='checkout'),
 
+    # Reverse geocoding (Nominatim proxy com cache)
+    path('api/geocode/', views.geocode, name='geocode'),
+
     # Acompanhamento
     path('<int:pedido_id>/acompanhar/', views.acompanhar_pedido, name='acompanhar_pedido'),
     path('<int:pedido_id>/status/', views.acompanhar_pedido_status, name='acompanhar_pedido_status'),
