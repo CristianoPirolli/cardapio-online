@@ -42,10 +42,7 @@ def estabelecimento_context(request):
     ):
         restaurante = getattr(request, 'restaurante', None)
         if not restaurante:
-            try:
-                restaurante = request.user.restaurante
-            except ObjectDoesNotExist:
-                restaurante = None
+            restaurante = request.user.restaurantes.first()
 
         if restaurante:
             # Import local para evitar acoplamento no carregamento inicial.
