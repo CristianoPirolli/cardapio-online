@@ -93,10 +93,6 @@
                                 <td class="text-end">R$ {{ pedido.taxa_entrega|floatformat:2 }}</td>
                             </tr>
                             <tr>
-                                <td colspan="3" class="text-end">Imposto:</td>
-                                <td class="text-end">R$ {{ pedido.imposto|floatformat:2 }}</td>
-                            </tr>
-                            <tr>
                                 <td colspan="3" class="text-end"><strong>Total:</strong></td>
                                 <td class="text-end"><strong>R$ {{ pedido.total|floatformat:2 }}</strong></td>
                             </tr>
@@ -130,6 +126,12 @@
                     {% else %}
                         <span class="text-warning"><i class="bi bi-clock"></i> Pendente</span>
                     {% endif %}
+                </div>
+
+                <div class="mt-2">
+                    <p class="mb-0">
+                        <small><strong>Pagamento:</strong> {{ pedido.get_forma_pagamento_display }}</small>
+                    </p>
                 </div>
 
                 <hr>

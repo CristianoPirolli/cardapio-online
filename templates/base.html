@@ -27,11 +27,6 @@
     <!-- CSS customizado -->
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <style>
-        @media (max-width: 991.98px) {
-            body {
-                padding-bottom: {% if carrinho_total_itens %}5.5rem{% else %}0{% endif %};
-            }
-        }
 
         /* === Barra de progresso no topo === */
         #page-progress {
@@ -256,13 +251,6 @@
         </div>
     </footer>
 
-    {% if carrinho_total_itens %}
-    <div class="d-lg-none position-fixed start-0 end-0 bottom-0 p-3 shadow-lg" style="z-index: 1050; background: rgba(255, 248, 240, 0.95); backdrop-filter: blur(10px); border-top: 1px solid var(--cor-borda);">
-        <a href="{% url 'ver_carrinho' %}" class="btn btn-warning btn-lg w-100 fw-semibold">
-            <i class="bi bi-cart3 me-2"></i>Ir para o Carrinho ({{ carrinho_total_itens }})
-        </a>
-    </div>
-    {% endif %}
 
     <!-- Vendor scripts carregados no <head> com defer para evitar re-execução no HTMX body swap -->
 

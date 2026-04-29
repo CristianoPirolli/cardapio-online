@@ -223,6 +223,21 @@ CORS_ALLOWED_ORIGINS = [
     'https://meusistema.com',
 ]
 
+if DEBUG:
+    for origin in (
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+        'http://localhost:8080',
+        'http://127.0.0.1:8080',
+        'http://localhost:8081',
+        'http://127.0.0.1:8081',
+        'http://192.168.2.137:8000',
+        'http://192.168.2.137:8080',
+        'http://192.168.2.137:8081',
+    ):
+        if origin not in CORS_ALLOWED_ORIGINS:
+            CORS_ALLOWED_ORIGINS.append(origin)
+
 # ---------------------------------------------------------------------------
 # Crispy Forms (formulários bonitos com Bootstrap 5)
 # ---------------------------------------------------------------------------

@@ -833,10 +833,18 @@
 
         tipoDelivery.addEventListener('change', toggleEndereco);
         tipoRetirada.addEventListener('change', toggleEndereco);
-        document.getElementById('checkout-form').addEventListener('submit', function () {
+        document.getElementById('checkout-form').addEventListener('submit', function (e) {
             // Garante consistencia de validacao HTML antes do envio.
             if (!tipoDelivery.checked) {
                 enderecoInput.removeAttribute('required');
+                return;
+            }
+
+            // Se é delivery e há zonas configuradas, garante que a zona foi consultada
+            if (tipoDelivery.checked && temZonas && (!latInput.value || !lngInput.value)) {
+                e.preventDefault();
+                alert('Por favor, aguarde a validação da zona de entrega antes de confirmar o pedido.');
+                return;
             }
         });
 
