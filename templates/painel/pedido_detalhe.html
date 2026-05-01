@@ -113,6 +113,7 @@
                     {% if pedido.status == 'recebido' %}bg-primary
                     {% elif pedido.status == 'preparo' %}bg-warning text-dark
                     {% elif pedido.status == 'entrega' %}bg-info
+                    {% elif pedido.status == 'pronto_retirada' %}bg-success
                     {% elif pedido.status == 'concluido' %}bg-success
                     {% elif pedido.status == 'cancelado' %}bg-danger
                     {% elif pedido.status == 'aguardando_confirmacao' %}bg-warning text-dark
@@ -242,10 +243,20 @@
                             <i class="bi bi-fire"></i> Em Preparo
                         </button>
                         {% elif pedido.status == 'preparo' %}
-                        <button name="status" value="entrega" class="btn btn-info">
-                            <i class="bi bi-truck"></i> Saiu para Entrega
-                        </button>
+                            {% if pedido.tipo_entrega == 'retirada' %}
+                            <button name="status" value="pronto_retirada" class="btn btn-info">
+                                <i class="bi bi-check-circle"></i> Pronto para Retirada
+                            </button>
+                            {% else %}
+                            <button name="status" value="entrega" class="btn btn-info">
+                                <i class="bi bi-truck"></i> Saiu para Entrega
+                            </button>
+                            {% endif %}
                         {% elif pedido.status == 'entrega' %}
+                        <button name="status" value="concluido" class="btn btn-success">
+                            <i class="bi bi-check-lg"></i> Concluído
+                        </button>
+                        {% elif pedido.status == 'pronto_retirada' %}
                         <button name="status" value="concluido" class="btn btn-success">
                             <i class="bi bi-check-lg"></i> Concluído
                         </button>

@@ -10,3 +10,7 @@ class PedidosConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.pedidos'
     verbose_name = 'Pedidos'
+
+    def ready(self):
+        """Registra signals quando a app está pronta."""
+        import apps.pedidos.signals

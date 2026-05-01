@@ -131,6 +131,10 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
         Atualiza o status de um pedido.
 
+        Normaliza automaticamente:
+        - Retirada no local: 'entrega' → 'pronto_retirada'
+        - Delivery: 'pronto_retirada' → 'entrega'
+
         Exemplo de request:
         {"status": "preparo"}
 
@@ -145,6 +149,9 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 {'error': f'Status inválido. Opções: {list(dict(Pedido.STATUS_CHOICES).keys())}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Normaliza o status baseado no tipo de entrega
+        novo_status = pedido.normalizar_status_por_tipo_entrega(novo_status)
 
         valido, msg = pedido.validar_transicao_status(novo_status)
         if not valido:

@@ -168,14 +168,14 @@
     </div>
 </div>
 
-<!-- Pedidos recentes -->
-<div class="card panel-card">
+<!-- Pedidos Pendentes -->
+<div class="card panel-card mb-3">
     <div class="card-header bg-white d-flex justify-content-between align-items-center border-0">
-        <h6 class="mb-0">Pedidos Recentes</h6>
+        <h6 class="mb-0"><i class="bi bi-hourglass-split me-2"></i>Pedidos Pendentes</h6>
         <a href="{% url 'painel_pedidos' %}" class="btn btn-sm btn-outline-secondary">Ver Todos</a>
     </div>
     <div class="card-body p-0">
-        {% if pedidos_recentes %}
+        {% if pedidos_pendentes %}
         <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead class="table-light">
@@ -189,7 +189,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for pedido in pedidos_recentes %}
+                    {% for pedido in pedidos_pendentes %}
                     <tr>
                         <td>{{ pedido.id }}</td>
                         <td>{{ pedido.cliente_nome }}</td>
@@ -199,8 +199,8 @@
                                 {% if pedido.status == 'recebido' %}bg-primary
                                 {% elif pedido.status == 'preparo' %}bg-warning text-dark
                                 {% elif pedido.status == 'entrega' %}bg-info
-                                {% elif pedido.status == 'concluido' %}bg-success
-                                {% elif pedido.status == 'cancelado' %}bg-danger
+                                {% elif pedido.status == 'aguardando' %}bg-secondary
+                                {% elif pedido.status == 'aguardando_confirmacao' %}bg-secondary
                                 {% endif %}">
                                 {{ pedido.get_status_display }}
                             </span>
@@ -221,11 +221,72 @@
         <div class="p-3">
             <div class="empty-state">
                 <i class="bi bi-receipt-cutoff fs-3 d-block mb-2"></i>
-                <p class="mb-2">Nenhum pedido recebido ainda.</p>
+                <p class="mb-2">Nenhum pedido pendente.</p>
                 <a href="{% url 'painel_produtos' %}" class="btn btn-sm btn-outline-secondary">Revisar Cardápio</a>
             </div>
         </div>
         {% endif %}
+    </div>
+</div>
+
+<!-- Pedidos Finalizados (Colapsado) -->
+<div class="card panel-card">
+    <div class="card-header bg-white border-0" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapseFinalizados">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Pedidos Finalizados</h6>
+            <i class="bi bi-chevron-down"></i>
+        </div>
+    </div>
+    <div class="collapse" id="collapseFinalizados">
+        <div class="card-body p-0">
+            {% if pedidos_finalizados %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Data</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pedido in pedidos_finalizados %}
+                        <tr>
+                            <td>{{ pedido.id }}</td>
+                            <td>{{ pedido.cliente_nome }}</td>
+                            <td>R$ {{ pedido.total|floatformat:2 }}</td>
+                            <td>
+                                <span class="badge
+                                    {% if pedido.status == 'concluido' %}bg-success
+                                    {% elif pedido.status == 'cancelado' %}bg-danger
+                                    {% endif %}">
+                                    {{ pedido.get_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ pedido.criado_em|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <a href="{% url 'painel_pedido_detalhe' pedido.id %}"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-3">
+                <div class="empty-state">
+                    <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                    <p class="mb-0">Nenhum pedido finalizado ainda.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

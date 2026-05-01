@@ -34,6 +34,7 @@ CUSTOMER_STATUS_STEP_INDEX = {
     'confirmado': 1,
     'em_preparo': 2,
     'saiu_entrega': 3,
+    'pronto_retirada': 3,  # Mesmo passo da entrega na timeline do cliente
     'entregue': 4,
 }
 

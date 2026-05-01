@@ -33,8 +33,8 @@ COPY . .
 # Coleta arquivos estáticos (sem input interativo)
 RUN python manage.py collectstatic --noinput 2>/dev/null || true
 
-# Expõe a porta do Gunicorn
+# Expõe a porta do Daphne
 EXPOSE 8000
 
-# Comando padrão: Gunicorn servindo o WSGI do Django
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120"]
+# Comando padrão: Daphne servindo o ASGI do Django (com suporte a WebSocket)
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]

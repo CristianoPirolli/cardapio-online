@@ -96,8 +96,9 @@ GRAFO_STATUS_PEDIDO = {
     'aguardando': ['aguardando_confirmacao', 'cancelado'],
     'aguardando_confirmacao': ['recebido', 'cancelado'],
     'recebido': ['preparo', 'cancelado'],
-    'preparo': ['entrega', 'cancelado'],
+    'preparo': ['entrega', 'pronto_retirada', 'cancelado'],
     'entrega': ['concluido', 'cancelado'],
+    'pronto_retirada': ['concluido', 'cancelado'],
     'concluido': [],
     'cancelado': [],
 }

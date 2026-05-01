@@ -57,6 +57,7 @@ class Pedido(models.Model):
         ('recebido', 'Recebido'),
         ('preparo', 'Em Preparo'),
         ('entrega', 'Saiu para Entrega'),
+        ('pronto_retirada', 'Pronto para Retirada'),
         ('concluido', 'Concluído'),
         ('cancelado', 'Cancelado'),
     ]
@@ -66,6 +67,7 @@ class Pedido(models.Model):
         'recebido': 'confirmado',
         'preparo': 'em_preparo',
         'entrega': 'saiu_entrega',
+        'pronto_retirada': 'pronto_retirada',
         'concluido': 'entregue',
         'cancelado': 'cancelado',
     }
@@ -74,6 +76,7 @@ class Pedido(models.Model):
         ('confirmado', 'Pedido Confirmado'),
         ('em_preparo', 'Em Preparo'),
         ('saiu_entrega', 'Saiu p/ Entrega'),
+        ('pronto_retirada', 'Pronto para Retirada'),
         ('entregue', 'Entregue'),
         ('cancelado', 'Pedido Cancelado'),
     ]
@@ -171,6 +174,21 @@ class Pedido(models.Model):
     # -------------------------------------------------------------------
     # Pesquisa em Largura / BFS (Cap. 6)
     # -------------------------------------------------------------------
+
+    def normalizar_status_por_tipo_entrega(self, novo_status):
+        """
+        Normaliza o status baseado no tipo de entrega.
+
+        Se tipo_entrega é 'retirada':
+        - 'entrega' → 'pronto_retirada'
+        Se tipo_entrega é 'delivery':
+        - 'pronto_retirada' → 'entrega'
+        """
+        if self.tipo_entrega == 'retirada' and novo_status == 'entrega':
+            return 'pronto_retirada'
+        elif self.tipo_entrega == 'delivery' and novo_status == 'pronto_retirada':
+            return 'entrega'
+        return novo_status
 
     def validar_transicao_status(self, novo_status):
         """

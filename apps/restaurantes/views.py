@@ -246,8 +246,9 @@ def painel_dashboard(request):
     ]
     maior_categoria_faturamento = max((item['faturamento'] for item in categorias_faturamento), default=0)
 
-    # Pedidos recentes (últimos 10)
-    pedidos_recentes = pedidos.select_related('restaurante').order_by('-criado_em')[:10]
+    # Pedidos recentes: separar em pendentes e finalizados
+    pedidos_pendentes = pedidos.exclude(status__in=['concluido', 'cancelado']).select_related('restaurante').order_by('-criado_em')[:10]
+    pedidos_finalizados = pedidos.filter(status__in=['concluido', 'cancelado']).select_related('restaurante').order_by('-criado_em')[:10]
 
     context = {
         'restaurante': restaurante,
@@ -277,7 +278,8 @@ def painel_dashboard(request):
         'status_pipeline': status_pipeline,
         'categorias_faturamento': categorias_faturamento,
         'maior_categoria_faturamento': maior_categoria_faturamento,
-        'pedidos_recentes': pedidos_recentes,
+        'pedidos_pendentes': pedidos_pendentes,
+        'pedidos_finalizados': pedidos_finalizados,
     }
     return render(request, 'painel/dashboard.html', context)
 

@@ -38,6 +38,10 @@
                     <span class="badge bg-primary fs-6">
                         <i class="bi bi-truck me-1"></i>{{ pedido.customer_status_display }}
                     </span>
+                    {% elif pedido.status == 'pronto_retirada' %}
+                    <span class="badge bg-success fs-6">
+                        <i class="bi bi-shop me-1"></i>{{ pedido.customer_status_display }}
+                    </span>
                     {% elif pedido.status == 'concluido' %}
                     <span class="badge bg-success fs-6">
                         <i class="bi bi-check-circle me-1"></i>{{ pedido.customer_status_display }}
@@ -138,7 +142,7 @@
                                 </p>
                             </div>
 
-                            <!-- Saiu p/ Entrega -->
+                            <!-- Saiu p/ Entrega ou Pronto para Retirada -->
                             <div class="text-center" style="width: 20%;">
                                 <div class="rounded-circle d-inline-flex align-items-center justify-content-center
                                     {% if customer_step >= 3 %}
@@ -150,11 +154,19 @@
                                     {% if customer_step > 3 %}
                                     <i class="bi bi-check" style="font-size: 0.9rem;"></i>
                                     {% else %}
-                                    <i class="bi bi-truck" style="font-size: 0.75rem;"></i>
+                                        {% if pedido.tipo_entrega == 'retirada' %}
+                                        <i class="bi bi-shop" style="font-size: 0.75rem;"></i>
+                                        {% else %}
+                                        <i class="bi bi-truck" style="font-size: 0.75rem;"></i>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                                 <p class="small mt-2 mb-0 fw-{% if customer_step == 3 %}bold{% else %}normal{% endif %}">
+                                    {% if pedido.tipo_entrega == 'retirada' %}
+                                    Pronto para Retirar
+                                    {% else %}
                                     Saiu p/ Entrega
+                                    {% endif %}
                                 </p>
                             </div>
 
@@ -382,10 +394,6 @@
                                 <span class="text-muted">Taxa de entrega</span>
                                 <span>R$ {{ pedido.taxa_entrega|floatformat:2 }}</span>
                             </div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted">Impostos</span>
-                                <span>R$ {{ pedido.imposto|floatformat:2 }}</span>
-                            </div>
                             <hr>
                             <div class="d-flex justify-content-between">
                                 <span class="fw-bold fs-5">Total</span>
@@ -393,11 +401,16 @@
                             </div>
                         </div>
                         <div class="card-footer bg-white border-top-0 d-grid">
-                            {% if pedido.status == 'entrega' %}
+                            {% if pedido.status == 'entrega' or pedido.status == 'pronto_retirada' %}
                             <form method="post" action="{% url 'concluir_pedido_cliente' pedido.id %}" class="mb-2">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-success w-100">
-                                    <i class="bi bi-check-circle me-2"></i>Confirmar Recebimento
+                                    <i class="bi bi-check-circle me-2"></i>
+                                    {% if pedido.status == 'pronto_retirada' %}
+                                    Confirmar Retirada
+                                    {% else %}
+                                    Confirmar Recebimento
+                                    {% endif %}
                                 </button>
                             </form>
                             {% endif %}
@@ -411,8 +424,8 @@
 
             {% if not pedido.customer_status_terminal %}
             <div class="text-center text-muted small mt-3">
-                <i class="bi bi-arrow-repeat me-1"></i>
-                Esta página atualiza automaticamente a cada 30 segundos.
+                <i class="bi bi-lightning-fill me-1" style="color: #FFD700;"></i>
+                Conectado em tempo real - Atualizações instantâneas
             </div>
             {% endif %}
         </div>
@@ -424,48 +437,89 @@
 {% if not pedido.customer_status_terminal %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var pedidoId = {{ pedido.id }};
     var currentStatus = '{{ pedido.status }}';
     var currentCustomerStatus = '{{ pedido.customer_status }}';
-    var pollInterval = 30000;
-    var timer = null;
+    var wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    var wsUrl = wsScheme + '://' + window.location.host + '/ws/pedidos/' + pedidoId + '/status/';
+    var ws = null;
+    var reconnectInterval = null;
+    var reconnectDelay = 3000;
+    var maxReconnectDelay = 30000;
 
-    function checkStatus() {
-        fetch('{% url "acompanhar_pedido_status" pedido.id %}')
-            .then(function(response) { return response.json(); })
-            .then(function(data) {
-                if (data.status !== currentStatus) {
-                    window.location.reload();
-                    return;
-                }
+    function connectWebSocket() {
+        try {
+            ws = new WebSocket(wsUrl);
 
-                if (data.customer_status !== currentCustomerStatus) {
-                    window.location.reload();
-                    return;
+            ws.onopen = function(event) {
+                console.log('WebSocket conectado para pedido #' + pedidoId);
+                if (reconnectInterval) {
+                    clearInterval(reconnectInterval);
+                    reconnectInterval = null;
                 }
+            };
 
-                if (data.terminal && timer) {
-                    clearInterval(timer);
-                    timer = null;
+            ws.onmessage = function(event) {
+                var data = JSON.parse(event.data);
+
+                if (data.type === 'status_update') {
+                    if (data.status !== currentStatus || data.customer_status !== currentCustomerStatus) {
+                        console.log('Status atualizado: ' + data.status);
+                        window.location.reload();
+                    }
                 }
-            })
-            .catch(function(err) {
-                console.error('Erro ao verificar status:', err);
-            });
+            };
+
+            ws.onerror = function(error) {
+                console.error('Erro WebSocket:', error);
+            };
+
+            ws.onclose = function(event) {
+                console.log('WebSocket desconectado');
+                // Tenta reconectar com backoff exponencial
+                if (!reconnectInterval && !event.wasClean) {
+                    reconnectInterval = setInterval(function() {
+                        console.log('Tentando reconectar WebSocket...');
+                        connectWebSocket();
+                    }, Math.min(reconnectDelay, maxReconnectDelay));
+                    reconnectDelay = Math.min(reconnectDelay * 1.5, maxReconnectDelay);
+                }
+            };
+        } catch (err) {
+            console.error('Erro ao conectar WebSocket:', err);
+        }
     }
 
-    timer = setInterval(checkStatus, pollInterval);
+    // Conecta ao WebSocket
+    connectWebSocket();
 
-    document.addEventListener('visibilitychange', function() {
-        if (document.hidden) {
-            if (timer) {
-                clearInterval(timer);
-                timer = null;
-            }
-        } else {
-            checkStatus();
-            if (!timer) {
-                timer = setInterval(checkStatus, pollInterval);
-            }
+    // Fallback: polling de 60 segundos se WebSocket falhar
+    var pollInterval = 60000;
+    var pollTimer = setInterval(function() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            fetch('{% url "acompanhar_pedido_status" pedido.id %}')
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.status !== currentStatus || data.customer_status !== currentCustomerStatus) {
+                        window.location.reload();
+                    }
+                })
+                .catch(function(err) {
+                    console.error('Erro ao verificar status:', err);
+                });
+        }
+    }, pollInterval);
+
+    // Limpa conexão ao sair da página
+    window.addEventListener('beforeunload', function() {
+        if (ws) {
+            ws.close();
+        }
+        if (pollTimer) {
+            clearInterval(pollTimer);
+        }
+        if (reconnectInterval) {
+            clearInterval(reconnectInterval);
         }
     });
 });

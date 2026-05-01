@@ -60,6 +60,10 @@ if DEBUG:
 # Aplicações instaladas
 # ---------------------------------------------------------------------------
 INSTALLED_APPS = [
+    # Daphne + Channels (deve vir antes de Django)
+    'daphne',
+    'channels',
+
     # Apps do Django
     'django.contrib.admin',
     'django.contrib.auth',
@@ -281,6 +285,26 @@ if not DEBUG:
 
     SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
     CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
+
+# ---------------------------------------------------------------------------
+# Django Channels (WebSocket)
+# ---------------------------------------------------------------------------
+# Em desenvolvimento usa InMemoryChannelLayer, em produção use Redis
+if DEBUG:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer'
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [(os.getenv('REDIS_HOST', 'localhost'), int(os.getenv('REDIS_PORT', '6379')))],
+            },
+        },
+    }
 
 # ---------------------------------------------------------------------------
 # Login/Logout URLs
