@@ -5,11 +5,16 @@
 # para todos os clientes conectados ao grupo daquele pedido.
 # =============================================================================
 
+import logging
+
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .models import Pedido
+from .notifications import NotificationService
+
+logger = logging.getLogger(__name__)
 
 # Cache do status anterior para comparação em post_save
 _pedido_status_anterior = {}
@@ -72,3 +77,20 @@ def pedido_status_changed(sender, instance, created, **kwargs):
     except Exception as e:
         # Não falha se o channel layer não estiver disponível
         print(f'Erro ao enviar notificação WebSocket: {e}')
+
+
+@receiver(post_save, sender=Pedido)
+def pedido_salvo(sender, instance, created, **kwargs):
+    """
+    Dispara NotificationService para restaurante (novo pedido) e cliente (mudança de status).
+
+    Detecta mudança de status via instance._status_anterior capturado no __init__,
+    evitando query extra ao banco.
+    """
+    try:
+        if created:
+            NotificationService.novo_pedido(instance)
+        elif hasattr(instance, '_status_anterior') and instance._status_anterior != instance.status:
+            NotificationService.status_mudou(instance, instance._status_anterior)
+    except Exception as exc:
+        logger.error('Erro ao processar notificação para pedido %s: %s', instance.pk, exc)
