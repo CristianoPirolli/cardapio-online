@@ -73,3 +73,28 @@ class PedidoStatusConsumer(AsyncWebsocketConsumer):
             return Pedido.objects.get(id=self.pedido_id)
         except Pedido.DoesNotExist:
             return None
+
+
+class PainelConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket do painel do restaurante.
+
+    Restaurante conecta em: ws://host/ws/painel/{restaurante_id}/
+    Grupo de broadcast: 'painel_{restaurante_id}'
+
+    Eventos recebidos:
+    - novo_pedido: novo pedido criado no restaurante
+    """
+
+    async def connect(self):
+        self.restaurante_id = self.scope['url_route']['kwargs']['restaurante_id']
+        self.group_name = f'painel_{self.restaurante_id}'
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def novo_pedido(self, event):
+        """Recebe evento do NotificationService e repassa ao browser."""
+        await self.send(text_data=json.dumps(event))
