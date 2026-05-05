@@ -71,6 +71,27 @@
 </div>
 {% endblock %}
 
+<!-- Container de toasts para notificações de novos pedidos -->
+<div id="painel-toast-container"
+     class="toast-container position-fixed bottom-0 end-0 p-3"
+     style="z-index: 1100;"></div>
+
+<!-- Som de alerta para novo pedido -->
+<audio id="painel-alerta-som" preload="auto">
+    <source src="{% static 'sounds/new_order.mp3' %}" type="audio/mpeg">
+</audio>
+
+<!-- Banner de permissão Web Push (escondido até ser necessário) -->
+<div id="painel-push-banner" class="alert alert-info alert-dismissible d-none m-3" role="alert">
+    <i class="bi bi-bell me-2"></i>
+    <strong>Ativar notificações de pedidos?</strong>
+    Você será notificado mesmo com o navegador fechado.
+    <div class="mt-2">
+        <button id="painel-push-ativar" type="button" class="btn btn-sm btn-primary me-2">Ativar</button>
+        <button id="painel-push-dispensar" type="button" class="btn btn-sm btn-outline-secondary">Agora não</button>
+    </div>
+</div>
+
 {% block extra_js %}
 {{ block.super }}
 <script>
@@ -168,4 +189,12 @@
     window.__painelPedidosBadgePolling = setInterval(atualizarBadge, 15000);
 })();
 </script>
+<script>
+window.PAINEL_CONFIG = {
+    restauranteId: {{ restaurante_atual.id|default:0 }},
+    vapidPublicKey: "{{ vapid_public_key }}",
+    subscribeUrl: "{% url 'push_subscribe' %}"
+};
+</script>
+<script src="{% static 'js/painel_notifications.js' %}"></script>
 {% endblock %}
