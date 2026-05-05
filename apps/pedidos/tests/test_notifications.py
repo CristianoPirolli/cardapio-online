@@ -177,9 +177,9 @@ class NotificationServiceTests(TestCase):
     def test_status_mudou_envia_whatsapp_em_entrega(self, mock_layer, mock_sync, mock_wpp, mock_push):
         mock_adapter = MagicMock()
         mock_wpp.return_value = mock_adapter
-        self.pedido.status = 'entrega'
-        self.pedido._skip_status_validation = True
-        self.pedido.save()
+        # Usa update() para não acionar o signal post_save (que também chamaria status_mudou)
+        Pedido.objects.filter(pk=self.pedido.pk).update(status='entrega')
+        self.pedido.refresh_from_db()
 
         NotificationService.status_mudou(self.pedido, 'preparo')
 
@@ -195,9 +195,8 @@ class NotificationServiceTests(TestCase):
     def test_status_mudou_nao_envia_whatsapp_em_preparo(self, mock_layer, mock_sync, mock_wpp, mock_push):
         mock_adapter = MagicMock()
         mock_wpp.return_value = mock_adapter
-        self.pedido.status = 'preparo'
-        self.pedido._skip_status_validation = True
-        self.pedido.save()
+        Pedido.objects.filter(pk=self.pedido.pk).update(status='preparo')
+        self.pedido.refresh_from_db()
 
         NotificationService.status_mudou(self.pedido, 'recebido')
 
