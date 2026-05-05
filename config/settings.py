@@ -307,6 +307,23 @@ else:
     }
 
 # ---------------------------------------------------------------------------
+# Web Push (VAPID)
+# ---------------------------------------------------------------------------
+VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', '')
+VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', '')
+VAPID_ADMIN_EMAIL = os.getenv('VAPID_ADMIN_EMAIL', 'admin@meusistema.com')
+
+# ---------------------------------------------------------------------------
+# WhatsApp Adapter
+# ---------------------------------------------------------------------------
+# Em desenvolvimento usa LogWhatsAppAdapter (só loga, não envia).
+# Em produção, trocar pelo adapter do provedor desejado.
+WHATSAPP_ADAPTER = os.getenv(
+    'WHATSAPP_ADAPTER',
+    'apps.pedidos.whatsapp.LogWhatsAppAdapter',
+)
+
+# ---------------------------------------------------------------------------
 # Login/Logout URLs
 # ---------------------------------------------------------------------------
 LOGIN_URL = '/auth/login/'
