@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from apps.pedidos.models import Pedido, PushSubscription
 from apps.restaurantes.models import Restaurante
+from apps.pedidos.whatsapp import LogWhatsAppAdapter, get_whatsapp_adapter
 
 
 class PushSubscriptionModelTests(TestCase):
@@ -80,3 +81,15 @@ class PushSubscriptionModelTests(TestCase):
         pedido_recarregado = Pedido.objects.get(pk=self.pedido.pk)
         pedido_recarregado.status = 'preparo'
         self.assertEqual(pedido_recarregado._status_anterior, 'recebido')
+
+
+class WhatsAppAdapterTests(TestCase):
+    def test_log_adapter_retorna_true(self):
+        adapter = LogWhatsAppAdapter()
+        resultado = adapter.send('11999999999', 'Mensagem de teste')
+        self.assertTrue(resultado)
+
+    def test_get_whatsapp_adapter_retorna_instancia_configurada(self):
+        with self.settings(WHATSAPP_ADAPTER='apps.pedidos.whatsapp.LogWhatsAppAdapter'):
+            adapter = get_whatsapp_adapter()
+        self.assertIsInstance(adapter, LogWhatsAppAdapter)
