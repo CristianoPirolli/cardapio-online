@@ -42,17 +42,19 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 if DEBUG:
-    for origin in (
-        'http://localhost:8000',
-        'http://127.0.0.1:8000',
-        'http://localhost:8080',
-        'http://127.0.0.1:8080',
-        'http://localhost:8081',
-        'http://127.0.0.1:8081',
-        'http://192.168.2.137:8000',
-        'http://192.168.2.137:8080',
-        'http://192.168.2.137:8081',
-    ):
+    _lan_ip = os.getenv('LAN_IP', '')
+    _base_origins = [
+        'http://localhost:8000', 'http://127.0.0.1:8000',
+        'http://localhost:8080', 'http://127.0.0.1:8080',
+        'http://localhost:8081', 'http://127.0.0.1:8081',
+    ]
+    if _lan_ip:
+        _base_origins += [
+            f'http://{_lan_ip}:8000',
+            f'http://{_lan_ip}:8080',
+            f'http://{_lan_ip}:8081',
+        ]
+    for origin in _base_origins:
         if origin not in CSRF_TRUSTED_ORIGINS:
             CSRF_TRUSTED_ORIGINS.append(origin)
 
