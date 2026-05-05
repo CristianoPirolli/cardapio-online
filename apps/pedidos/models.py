@@ -168,6 +168,12 @@ class Pedido(models.Model):
             models.Index(fields=['external_payment_id'], name='idx_pedido_ext_payment'),
         ]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Snapshot do status no momento do carregamento, usado pelo signal
+        # post_save para detectar mudança sem query extra ao banco.
+        self._status_anterior = self.status
+
     def __str__(self):
         return f'Pedido #{self.id} - {self.cliente_nome} ({self.get_status_display()})'
 
@@ -399,3 +405,59 @@ class ItemPedido(models.Model):
     def subtotal(self):
         """Calcula o subtotal deste item (quantidade × preço unitário)."""
         return self.quantidade * self.preco_unitario
+
+
+class PushSubscription(models.Model):
+    """
+    Armazena uma Web Push subscription de um dispositivo/browser.
+
+    Cada subscription pertence a UM restaurante (painel) OU a UM pedido (cliente).
+    Nunca os dois ao mesmo tempo — validado em clean().
+
+    O endpoint é a URL única gerada pelo serviço push do browser (FCM, Mozilla, etc).
+    Quando o usuário revoga a permissão ou a subscription expira, o servidor recebe
+    404/410 ao tentar enviar e deve deletar este registro.
+    """
+    restaurante = models.ForeignKey(
+        Restaurante,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='push_subscriptions',
+        verbose_name='Restaurante',
+    )
+    pedido = models.ForeignKey(
+        'Pedido',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='push_subscriptions',
+        verbose_name='Pedido',
+    )
+    endpoint = models.TextField(verbose_name='Endpoint')
+    p256dh = models.CharField(max_length=255, verbose_name='Chave p256dh')
+    auth = models.CharField(max_length=255, verbose_name='Chave auth')
+    user_agent = models.CharField(max_length=255, blank=True, verbose_name='User Agent')
+    criado_em = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+
+    class Meta:
+        verbose_name = 'Push Subscription'
+        verbose_name_plural = 'Push Subscriptions'
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        tem_restaurante = bool(self.restaurante_id)
+        tem_pedido = bool(self.pedido_id)
+        if tem_restaurante and tem_pedido:
+            raise ValidationError(
+                'Uma subscription não pode pertencer a restaurante e pedido ao mesmo tempo.'
+            )
+        if not tem_restaurante and not tem_pedido:
+            raise ValidationError(
+                'Uma subscription deve pertencer a um restaurante ou a um pedido.'
+            )
+
+    def __str__(self):
+        if self.restaurante_id:
+            return f'Push [{self.restaurante}] {self.endpoint[:50]}'
+        return f'Push [Pedido #{self.pedido_id}] {self.endpoint[:50]}'
