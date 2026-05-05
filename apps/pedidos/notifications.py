@@ -118,12 +118,12 @@ class NotificationService:
         if pedido.status == 'entrega':
             mensagem = (
                 f'Olá {pedido.cliente_nome}! Seu pedido #{pedido.id} '
-                f'saiu para entrega. Acompanhe em: {acompanhar_url}'
+                f'saiu para entrega!!! 😋🍕 Acompanhe em: {acompanhar_url}'
             )
         else:
             mensagem = (
                 f'Olá {pedido.cliente_nome}! Seu pedido #{pedido.id} '
-                f'está pronto para retirada. Acompanhe em: {acompanhar_url}'
+                f'está pronto para retirada!!! 😋🍕 Acompanhe em: {acompanhar_url}'
             )
 
         try:

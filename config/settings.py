@@ -319,11 +319,15 @@ VAPID_ADMIN_EMAIL = os.getenv('VAPID_ADMIN_EMAIL', 'admin@meusistema.com')
 # WhatsApp Adapter
 # ---------------------------------------------------------------------------
 # Em desenvolvimento usa LogWhatsAppAdapter (só loga, não envia).
-# Em produção, trocar pelo adapter do provedor desejado.
+# Para produção com Evolution API, defina no .env:
+#   WHATSAPP_ADAPTER=apps.pedidos.whatsapp.EvolutionAPIAdapter
 WHATSAPP_ADAPTER = os.getenv(
     'WHATSAPP_ADAPTER',
     'apps.pedidos.whatsapp.LogWhatsAppAdapter',
 )
+EVOLUTION_API_URL = os.getenv('EVOLUTION_API_URL', '')
+EVOLUTION_API_KEY = os.getenv('EVOLUTION_API_KEY', '')
+EVOLUTION_INSTANCE = os.getenv('EVOLUTION_INSTANCE', '')
 
 # ---------------------------------------------------------------------------
 # Login/Logout URLs
