@@ -67,4 +67,5 @@ def estabelecimento_context(request):
         'painel_pedidos_abertos_count': pedidos_abertos_count,
         'aguardando_confirmacao_count': aguardando_confirmacao_count,
         'base_domain': settings.BASE_DOMAIN,
+        'vapid_public_key': getattr(settings, 'VAPID_PUBLIC_KEY', ''),
     }

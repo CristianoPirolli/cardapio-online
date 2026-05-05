@@ -17,6 +17,7 @@ from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include
+from django.views.generic import TemplateView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -56,6 +57,12 @@ urlpatterns = [
 
     # --- Autenticação (login/logout/registro) ---
     path('auth/', include('apps.restaurantes.auth_urls')),
+
+    # Service Worker — servido na raiz para ter escopo global
+    path('sw.js', TemplateView.as_view(
+        template_name='sw.js',
+        content_type='application/javascript',
+    ), name='service_worker'),
 ]
 
 # Em desenvolvimento, serve arquivos de media pelo Django
