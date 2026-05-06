@@ -11,9 +11,16 @@
 {% block painel_content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h2"><i class="bi bi-receipt"></i> Pedido #{{ pedido.id }}</h1>
-    <a href="{% url 'painel_pedidos' %}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Voltar
-    </a>
+    <div class="d-flex gap-2">
+        <a href="{% url 'painel_pedido_print' pedido.id %}"
+           target="_blank"
+           class="btn btn-outline-dark">
+            <i class="bi bi-printer"></i> Imprimir
+        </a>
+        <a href="{% url 'painel_pedidos' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+    </div>
 </div>
 
 <div class="row g-4">
@@ -50,54 +57,53 @@
 
         <!-- Itens -->
         <div class="card shadow-sm">
-            <div class="card-header"><h6 class="mb-0">Itens do Pedido</h6></div>
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-bag-check text-success"></i>
+                <h6 class="mb-0">Itens do Pedido</h6>
+            </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Produto</th>
-                                <th class="text-center">Qtd</th>
-                                <th class="text-end">Preço Unit.</th>
-                                <th class="text-end">Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in pedido.itens.all %}
-                            <tr>
-                                <td>
-                                    {{ item.produto.nome|default:"Produto removido" }}
-                                    {% if item.tamanho_nome %}
-                                    <br><small class="text-muted"><i class="bi bi-rulers me-1"></i>{{ item.tamanho_nome }}</small>
-                                    {% endif %}
-                                    {% if item.sabores_descricao %}
-                                    <br><small class="text-muted"><i class="bi bi-ui-checks me-1"></i>{{ item.sabores_descricao }}</small>
-                                    {% endif %}
-                                    {% if item.observacao %}
-                                    <br><small class="text-muted">{{ item.observacao }}</small>
-                                    {% endif %}
-                                </td>
-                                <td class="text-center">{{ item.quantidade }}</td>
-                                <td class="text-end">R$ {{ item.preco_unitario|floatformat:2 }}</td>
-                                <td class="text-end">R$ {{ item.subtotal|floatformat:2 }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                        <tfoot class="table-light">
-                            <tr>
-                                <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
-                                <td class="text-end">R$ {{ pedido.subtotal|floatformat:2 }}</td>
-                            </tr>
-                            <tr>
-                                <td colspan="3" class="text-end">Taxa de Entrega:</td>
-                                <td class="text-end">R$ {{ pedido.taxa_entrega|floatformat:2 }}</td>
-                            </tr>
-                            <tr>
-                                <td colspan="3" class="text-end"><strong>Total:</strong></td>
-                                <td class="text-end"><strong>R$ {{ pedido.total|floatformat:2 }}</strong></td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                <ul class="list-unstyled mb-0">
+                    {% for item in pedido.itens.all %}
+                    <li class="d-flex align-items-start gap-3 px-4 py-3 {% if not forloop.last %}border-bottom{% endif %}">
+                        <span class="badge bg-light text-dark border fw-bold rounded-pill px-3 py-2 fs-6" style="min-width:2.5rem; text-align:center;">
+                            {{ item.quantidade }}×
+                        </span>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold">{{ item.produto.nome|default:"Produto removido" }}</div>
+                            <div class="d-flex flex-wrap gap-2 mt-1">
+                                {% if item.tamanho_nome %}
+                                <span class="text-muted small"><i class="bi bi-rulers me-1"></i>{{ item.tamanho_nome }}</span>
+                                {% endif %}
+                                {% if item.sabores_descricao %}
+                                <span class="text-muted small"><i class="bi bi-ui-checks me-1"></i>{{ item.sabores_descricao }}</span>
+                                {% endif %}
+                                {% if item.observacao %}
+                                <span class="text-muted small fst-italic"><i class="bi bi-chat-left-text me-1"></i>{{ item.observacao }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-semibold">R$ {{ item.subtotal|floatformat:2 }}</div>
+                            {% if item.quantidade > 1 %}
+                            <div class="text-muted small">R$ {{ item.preco_unitario|floatformat:2 }} un.</div>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="border-top bg-light px-4 py-3">
+                    <div class="d-flex justify-content-between text-muted small mb-1">
+                        <span>Subtotal</span>
+                        <span>R$ {{ pedido.subtotal|floatformat:2 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small mb-2">
+                        <span>Taxa de Entrega</span>
+                        <span>R$ {{ pedido.taxa_entrega|floatformat:2 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between fw-bold border-top pt-2">
+                        <span>Total</span>
+                        <span class="text-success fs-6">R$ {{ pedido.total|floatformat:2 }}</span>
+                    </div>
                 </div>
             </div>
         </div>

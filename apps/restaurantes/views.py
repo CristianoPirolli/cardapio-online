@@ -569,3 +569,16 @@ def painel_pedido_detalhe(request, pedido_id):
         'pagamento_pix': pagamento_pix,
         'historico_revisao_pagamento': historico_revisao_pagamento,
     })
+
+
+@login_required
+def painel_pedido_print(request, pedido_id):
+    restaurante = _restaurante_do_usuario(request)
+    if not restaurante:
+        return _redirecionar_sem_restaurante(request)
+
+    pedido = get_object_or_404(Pedido, id=pedido_id, restaurante=restaurante)
+    return render(request, 'painel/pedido_print.html', {
+        'restaurante': restaurante,
+        'pedido': pedido,
+    })

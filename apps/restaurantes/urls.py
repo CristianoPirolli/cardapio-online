@@ -21,6 +21,8 @@ urlpatterns = [
     path('pedidos/abertos/count/', views.painel_pedidos_abertos_count, name='painel_pedidos_abertos_count'),
     # Detalhe de pedido no painel
     path('pedidos/<int:pedido_id>/', views.painel_pedido_detalhe, name='painel_pedido_detalhe'),
+    # Impressão térmica do pedido
+    path('pedidos/<int:pedido_id>/imprimir/', views.painel_pedido_print, name='painel_pedido_print'),
     # Gestao de chaves PIX no painel
     path('chaves-pix/', pagamentos_views.painel_pix_keys, name='painel_pix_keys'),
 ]
