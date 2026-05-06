@@ -93,6 +93,11 @@
                     tocarSom();
                     mostrarToast(data.title, data.body, data.url);
                     atualizarBadge(1);
+                    // Recarrega a lista de pedidos e o dashboard automaticamente
+                    var path = location.pathname;
+                    if (path === '/painel/' || path === '/painel/pedidos/') {
+                        setTimeout(function () { location.reload(); }, 2000);
+                    }
                 }
             };
 
