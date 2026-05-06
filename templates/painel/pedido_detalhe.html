@@ -41,7 +41,7 @@
                         {% if pedido.endereco_entrega %}
                         <p class="mb-1"><strong>Endereço:</strong> {{ pedido.endereco_entrega }}</p>
                         {% if pedido.tipo_entrega == 'delivery' %}
-                            <a href="https://www.google.com/maps/dir/?api=1&destination={{ pedido.endereco_entrega|urlencode }}"
+                            <a href="https://www.google.com/maps/dir/?api=1&origin=-27.182278,-51.236500&destination={{ pedido.endereco_entrega|urlencode }}"
                                class="btn btn-sm btn-outline-success mb-2" target="_blank" rel="noopener">
                                 <i class="bi bi-map"></i> Abrir rota no Maps
                             </a>

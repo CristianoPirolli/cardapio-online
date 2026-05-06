@@ -465,7 +465,7 @@ def painel_pedidos(request):
     elif status_filtro:
         pedidos_filtrados = pedidos.filter(status=status_filtro)
     else:
-        pedidos_filtrados = pedidos
+        pedidos_filtrados = pedidos.exclude(status__in=['concluido', 'cancelado'])
 
     # Paginação: limita a 50 pedidos por página
     from django.core.paginator import Paginator

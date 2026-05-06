@@ -19,7 +19,7 @@
         <div class="d-flex flex-wrap gap-2">
             <a href="{% url 'painel_pedidos' %}"
                class="btn btn-sm {% if not status_filtro %}btn-dark{% else %}btn-outline-dark{% endif %}">
-                Todos os pedidos
+                Em Andamento
             </a>
             <a href="?status=recebido"
                class="btn btn-sm {% if status_filtro == 'recebido' %}btn-primary{% else %}btn-outline-primary{% endif %}">
