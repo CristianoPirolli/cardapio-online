@@ -284,6 +284,10 @@ def upload_comprovante(request, pedido_id):
     """
     pedido = get_object_or_404(Pedido, id=pedido_id)
 
+    pedidos_cliente = request.session.get('pedidos_cliente', [])
+    if pedido.id not in pedidos_cliente:
+        return redirect('acompanhar_pedido', pedido_id=pedido.id)
+
     if pedido.pago:
         return redirect('acompanhar_pedido', pedido_id=pedido.id)
 
@@ -314,6 +318,13 @@ def upload_comprovante(request, pedido_id):
 
         if not arquivo:
             messages.error(request, 'Selecione um arquivo de comprovante.')
+            return render(request, 'pagamentos/pix_upload.html', {
+                'pedido': pedido,
+                'restaurante': pedido.restaurante,
+            })
+
+        if arquivo.size == 0:
+            messages.error(request, 'O arquivo enviado está vazio. Selecione um comprovante válido.')
             return render(request, 'pagamentos/pix_upload.html', {
                 'pedido': pedido,
                 'restaurante': pedido.restaurante,

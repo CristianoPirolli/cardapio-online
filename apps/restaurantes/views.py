@@ -458,7 +458,11 @@ def painel_pedidos(request):
     # Filtro por data
     data_filtro = request.GET.get('data')
     if data_filtro:
-        pedidos = pedidos.filter(criado_em__date=data_filtro)
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            pedidos = pedidos.filter(criado_em__date=data_filtro)
+        except (ValueError, DjangoValidationError):
+            pedidos = pedidos.none()
 
     if status_filtro == 'aguardando_confirmacao':
         pedidos_filtrados = pendentes_pix

@@ -487,8 +487,11 @@ def checkout(request):
             messages.error(request, str(exc))
             return redirect('ver_carrinho')
 
-        # Limpa o carrinho
+        # Limpa o carrinho e registra o pedido na sessão do cliente
         request.session['carrinho'] = {'restaurante_id': None, 'itens': {}}
+        pedidos_cliente = request.session.get('pedidos_cliente', [])
+        pedidos_cliente.append(pedido.id)
+        request.session['pedidos_cliente'] = pedidos_cliente
         request.session.modified = True
 
         # PIX precisa de comprovante; dinheiro e cartão vão direto para acompanhar
@@ -627,6 +630,10 @@ def concluir_pedido_cliente(request, pedido_id):
     - Só conclui se estiver em entrega.
     """
     pedido = get_object_or_404(Pedido, id=pedido_id)
+
+    pedidos_cliente = request.session.get('pedidos_cliente', [])
+    if pedido.id not in pedidos_cliente:
+        return redirect('acompanhar_pedido', pedido_id=pedido.id)
 
     if pedido.status != 'entrega':
         messages.warning(request, 'Este pedido ainda não está pronto para conclusão.')
