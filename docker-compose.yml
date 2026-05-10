@@ -66,6 +66,11 @@ services:
         condition: service_healthy
     expose:
       - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   # ---------------------------------------------------------------------------
   # Nginx como proxy reverso e servidor de arquivos estáticos/media
