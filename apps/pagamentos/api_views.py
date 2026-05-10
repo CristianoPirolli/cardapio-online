@@ -8,11 +8,12 @@
 # =============================================================================
 
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 
 from apps.pedidos.models import Pedido
+from apps.core.throttles import PagamentoCreateThrottle
 from .models import Pagamento
 from .serializers import PagamentoSerializer
 from .services import criar_pagamento_pix_manual
@@ -33,6 +34,7 @@ class PagamentoViewSet(viewsets.ReadOnlyModelViewSet):
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([PagamentoCreateThrottle])
 def criar_pagamento_api(request):
     """
     POST /api/pagamentos/criar/

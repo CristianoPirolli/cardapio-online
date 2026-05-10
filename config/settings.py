@@ -212,6 +212,16 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '60/minute',
+        'user': '300/minute',
+        'pedido_create': '10/minute',
+        'pagamento_create': '10/minute',
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -229,7 +239,8 @@ SIMPLE_JWT = {
 # ---------------------------------------------------------------------------
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = [
-    'https://meusistema.com',
+    'https://panificadoraoneda.com.br',
+    'https://www.panificadoraoneda.com.br',
 ]
 
 if DEBUG:
@@ -285,8 +296,8 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = "DENY"
 
-    SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
-    CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # ---------------------------------------------------------------------------
 # Django Channels (WebSocket)

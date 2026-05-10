@@ -12,6 +12,8 @@
 import logging
 import re
 
+import magic
+
 from django.conf import settings
 from django.contrib import messages
 from django.db import IntegrityError, transaction
@@ -33,6 +35,9 @@ logger = logging.getLogger(__name__)
 # Maximum comprovante file size: 10 MB
 MAX_COMPROVANTE_SIZE_BYTES = 10 * 1024 * 1024
 ALLOWED_COMPROVANTE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'pdf']
+ALLOWED_COMPROVANTE_MIME_TYPES = {
+    'image/jpeg', 'image/png', 'image/webp', 'application/pdf',
+}
 
 
 def _restaurante_do_usuario(request):
@@ -353,6 +358,21 @@ def upload_comprovante(request, pedido_id):
                 request,
                 'Tipo de arquivo não permitido. '
                 'Envie uma imagem (JPG, PNG, WEBP) ou PDF.'
+            )
+            return render(request, 'pagamentos/pix_upload.html', {
+                'pedido': pedido,
+                'restaurante': pedido.restaurante,
+            })
+
+        # Validação do conteúdo real do arquivo (não apenas extensão)
+        arquivo.seek(0)
+        mime_type = magic.from_buffer(arquivo.read(2048), mime=True)
+        arquivo.seek(0)
+        if mime_type not in ALLOWED_COMPROVANTE_MIME_TYPES:
+            messages.error(
+                request,
+                'O conteúdo do arquivo não corresponde ao tipo esperado. '
+                'Envie uma imagem (JPG, PNG, WEBP) ou PDF válido.'
             )
             return render(request, 'pagamentos/pix_upload.html', {
                 'pedido': pedido,

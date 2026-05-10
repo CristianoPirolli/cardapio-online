@@ -16,6 +16,7 @@ from django.db.models import Prefetch
 
 from apps.restaurantes.models import Restaurante
 from apps.produtos.models import Produto
+from apps.core.throttles import PedidoCreateThrottle
 from .models import Pedido, ItemPedido
 from .serializers import PedidoSerializer, CriarPedidoSerializer
 from .services import (
@@ -45,6 +46,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
     filterset_fields = ['restaurante', 'status', 'pago', 'tipo_entrega']
     ordering_fields = ['criado_em', 'total']
+
+    def get_throttles(self):
+        if self.action == 'create':
+            return [PedidoCreateThrottle()]
+        return super().get_throttles()
 
     def get_queryset(self):
         queryset = super().get_queryset()
