@@ -33,7 +33,7 @@ def _restaurante_do_usuario(request):
 def _redirecionar_sem_restaurante(request):
     messages.warning(
         request,
-        'Sua conta ainda não está vinculada a um restaurante. '
+        'Sua conta ainda não está vinculada a uma panificadora. '
         'Solicite o vínculo ao administrador master.'
     )
     return redirect('home')

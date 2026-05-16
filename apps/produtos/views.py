@@ -55,7 +55,7 @@ def cardapio_publico(request):
         if restaurante_usuario:
             restaurante = restaurante_usuario
         else:
-            messages.warning(request, 'Sua conta ainda não está vinculada a um restaurante.')
+            messages.warning(request, 'Sua conta ainda não está vinculada a uma panificadora.')
             return redirect('home')
 
     if not restaurante:
@@ -148,7 +148,7 @@ def produto_detalhe(request, produto_id):
     if request.user.is_authenticated and not request.user.is_superuser:
         restaurante_usuario = Restaurante.objects.filter(proprietario=request.user).first()
         if restaurante_usuario and produto.restaurante_id != restaurante_usuario.id:
-            messages.error(request, 'Você só pode visualizar produtos do seu restaurante.')
+            messages.error(request, 'Você só pode visualizar produtos da sua panificadora.')
             return redirect('cardapio_publico')
 
     is_pizza = bool(produto.categoria and produto.categoria.eh_pizza)

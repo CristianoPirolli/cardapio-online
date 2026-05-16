@@ -45,7 +45,7 @@ def login_view(request):
             if not Restaurante.objects.filter(proprietario=user).exists():
                 messages.warning(
                     request,
-                    'Sua conta ainda não está vinculada a um restaurante. '
+                    'Sua conta ainda não está vinculada a uma panificadora. '
                     'Solicite o vínculo ao administrador master.'
                 )
                 return redirect('home')

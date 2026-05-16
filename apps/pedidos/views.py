@@ -127,7 +127,7 @@ def adicionar_ao_carrinho(request):
                 {'success': False, 'error': 'Restaurante fechado no momento.'},
                 status=400
             )
-        messages.error(request, f'O restaurante {produto.restaurante.nome} está fechado no momento.')
+        messages.error(request, f'A panificadora {produto.restaurante.nome} está fechada no momento.')
         return redirect(request.META.get('HTTP_REFERER', '/cardapio/'))
 
     tamanhos_disponiveis = produto.restaurante.tamanhos_pizza.filter(ativo=True).order_by('ordem', 'id')
@@ -454,7 +454,7 @@ def checkout(request):
 
     # Verifica se o restaurante esta aberto
     if not restaurante.esta_aberto:
-        messages.error(request, 'O restaurante está fechado no momento. Não é possível finalizar o pedido.')
+        messages.error(request, 'A panificadora está fechada no momento. Não é possível finalizar o pedido.')
         return redirect('ver_carrinho')
 
     if request.method == 'POST':

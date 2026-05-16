@@ -512,7 +512,7 @@
             zonaOk.style.display = 'none';
             zonaFora.style.display = 'block';
             zonaCarregando.style.display = 'none';
-            zonaForaDistancia.textContent = distancia !== null ? `(${distancia.toFixed(1)} km do restaurante)` : '';
+            zonaForaDistancia.textContent = distancia !== null ? `(${distancia.toFixed(1)} km da panificadora)` : '';
             atualizarTotais(0);
         }
 
@@ -886,7 +886,7 @@
             if (formaDinheiro.checked) {
                 avisoPagamento.className += ' alert-warning';
                 avisoPagamento.innerHTML = '<i class="bi bi-cash-coin me-1"></i>Pagamento em dinheiro ' +
-                    (isRetirada ? 'na retirada no restaurante.' : 'na entrega.');
+                    (isRetirada ? 'na retirada na panificadora.' : 'na entrega.');
             } else if (formaCartao.checked) {
                 avisoPagamento.className += ' alert-info';
                 avisoPagamento.innerHTML = isRetirada

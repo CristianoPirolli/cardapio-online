@@ -190,7 +190,7 @@
                     {% if pedido.status == 'aguardando_confirmacao' %}
                     <div class="alert alert-info mb-0 mt-3 d-flex align-items-center" role="alert">
                         <i class="bi bi-hourglass-split me-2"></i>
-                        <span>Comprovante recebido, aguardando verificacao do restaurante.</span>
+                        <span>Comprovante recebido, aguardando verificacao da panificadora.</span>
                     </div>
                     {% endif %}
                 </div>
@@ -203,7 +203,7 @@
                 <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
                 <div>
                     <h6 class="alert-heading mb-1">Pedido Cancelado</h6>
-                    <p class="mb-0">Este pedido foi cancelado. Entre em contato com o restaurante para mais informações.</p>
+                    <p class="mb-0">Este pedido foi cancelado. Entre em contato com a panificadora para mais informações.</p>
                 </div>
             </div>
             {% endif %}
@@ -227,7 +227,7 @@
             <div class="alert alert-info d-flex align-items-start gap-2 mb-4" role="alert">
                 <i class="bi bi-hourglass-split fs-5 mt-1"></i>
                 <div class="w-100">
-                    <strong>Comprovante em análise.</strong> O restaurante ainda está validando seu pagamento.
+                    <strong>Comprovante em análise.</strong> A panificadora ainda está validando seu pagamento.
                     <div class="mt-2">
                         <a href="{% url 'upload_comprovante' pedido.id %}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-upload me-1"></i>Reenviar comprovante
