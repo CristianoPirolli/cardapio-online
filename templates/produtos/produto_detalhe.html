@@ -172,7 +172,7 @@
                                         </h6>
                                         {% if grupo.tipo and grupo.tipo.adicional_sabor > 0 %}
                                         <span class="badge bg-warning text-dark">
-                                            + R$ {{ grupo.tipo.adicional_sabor|floatformat:2 }} por sabor
+                                            + R$ {{ grupo.tipo.adicional_sabor|floatformat:2 }} por categoria
                                         </span>
                                         {% endif %}
                                     </div>
@@ -186,6 +186,7 @@
                                                    name="sabor_ids"
                                                    value="{{ sabor.id }}"
                                                    data-adicional="{{ sabor.categoria.adicional_sabor|default:'0' }}"
+                                                   data-categoria-id="{{ sabor.categoria.id|default:'' }}"
                                                    {% if sabor.id == produto.id %}data-principal="1"{% endif %}
                                                    disabled>
                                             <div class="position-relative">
@@ -444,9 +445,16 @@
             var tamanhoSelecionado = document.querySelector('.tamanho-radio:checked');
             if (tamanhoSelecionado && precoAtualTexto) {
                 var base = parseFloat(tamanhoSelecionado.dataset.preco || '0');
-                var adicional = selecionados.reduce(function (acc, cb) {
-                    return acc + (parseFloat(cb.dataset.adicional || '0') || 0);
-                }, 0);
+                var categoriasVistas = new Set();
+                var adicional = 0;
+                selecionados.forEach(function (cb) {
+                    var catId = cb.dataset.categoriaId;
+                    var val = parseFloat(cb.dataset.adicional || '0') || 0;
+                    if (val > 0 && catId && !categoriasVistas.has(catId)) {
+                        categoriasVistas.add(catId);
+                        adicional += val;
+                    }
+                });
                 var totalUnitario = base + adicional;
                 precoAtualTexto.textContent = 'Preço atual: R$ ' + totalUnitario.toFixed(2).replace('.', ',');
                 if (resumoPrecoSabores) {

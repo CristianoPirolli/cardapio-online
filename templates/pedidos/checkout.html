@@ -261,7 +261,7 @@
                                         <i class="bi bi-cash-coin fs-3 me-3 text-primary"></i>
                                         <div>
                                             <strong>Dinheiro</strong>
-                                            <p class="text-muted small mb-0">Pagar na entrega</p>
+                                            <p class="text-muted small mb-0">Pagar na retirada ou entrega</p>
                                         </div>
                                     </label>
                                 </div>
@@ -281,6 +281,7 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="alert py-2 mt-3 mb-0 small d-none" id="aviso-pagamento" role="alert"></div>
                     </div>
                 </div>
 
@@ -875,6 +876,29 @@
         const cardDinheiro = document.getElementById('card-dinheiro');
         const cardCartao = document.getElementById('card-cartao');
 
+        const avisoPagamento = document.getElementById('aviso-pagamento');
+
+        function atualizarAvisoPagamento() {
+            const isRetirada = tipoRetirada.checked;
+
+            avisoPagamento.className = 'alert py-2 mt-3 mb-0 small';
+
+            if (formaDinheiro.checked) {
+                avisoPagamento.className += ' alert-warning';
+                avisoPagamento.innerHTML = '<i class="bi bi-cash-coin me-1"></i>Pagamento em dinheiro ' +
+                    (isRetirada ? 'na retirada no restaurante.' : 'na entrega.');
+            } else if (formaCartao.checked) {
+                avisoPagamento.className += ' alert-info';
+                avisoPagamento.innerHTML = isRetirada
+                    ? '<i class="bi bi-credit-card me-1"></i>Pagamento na retirada — traga o cartão ou use a maquininha no local.'
+                    : '<i class="bi bi-credit-card me-1"></i>A maquininha vai junto na entrega.';
+            } else {
+                avisoPagamento.classList.add('d-none');
+                return;
+            }
+            avisoPagamento.classList.remove('d-none');
+        }
+
         function toggleFormaPagamento() {
             cardPix.classList.remove('border-primary');
             cardDinheiro.classList.remove('border-primary');
@@ -887,11 +911,15 @@
             } else if (formaCartao.checked) {
                 cardCartao.classList.add('border-primary');
             }
+
+            atualizarAvisoPagamento();
         }
 
         formaPix.addEventListener('change', toggleFormaPagamento);
         formaDinheiro.addEventListener('change', toggleFormaPagamento);
         formaCartao.addEventListener('change', toggleFormaPagamento);
+        tipoDelivery.addEventListener('change', atualizarAvisoPagamento);
+        tipoRetirada.addEventListener('change', atualizarAvisoPagamento);
 
         // Initialize payment method styling on page load
         toggleFormaPagamento();
