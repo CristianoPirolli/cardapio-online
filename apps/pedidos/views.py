@@ -191,12 +191,12 @@ def adicionar_ao_carrinho(request):
         if not sabores_escolhidos:
             sabores_escolhidos = [produto]
         sabor_ids_limpos = sorted(s.id for s in sabores_escolhidos)
-        categorias_com_adicional = {
-            s.categoria.id: s.categoria.adicional_sabor
+        adicionais_por_categoria = [
+            s.categoria.adicional_sabor
             for s in sabores_escolhidos
             if s.categoria and s.categoria.adicional_sabor
-        }
-        adicional_sabores = sum(categorias_com_adicional.values(), Decimal('0.00'))
+        ]
+        adicional_sabores = max(adicionais_por_categoria, default=Decimal('0.00'))
         preco_unitario = preco_base + adicional_sabores
     else:
         preco_base = preco_padrao
