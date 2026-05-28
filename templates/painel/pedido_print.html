@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pedido #{{ pedido.id }}</title>
-    {% load humanize %}
+    {% load humanize custom_filters %}
     <style>
         /* ── Thermal 80mm: ~72mm content area ── */
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -44,6 +44,7 @@
         .item-nome { font-weight: bold; flex: 1; }
         .item-preco { white-space: nowrap; margin-left: 4px; }
         .item-detail { font-size: 10px; padding-left: 4px; color: #333; }
+        .item-sabor  { font-size: 12px; font-weight: bold; padding-left: 4px; }
 
         /* Totais */
         .totais { margin-top: 4px; }
@@ -101,7 +102,9 @@
         <div class="item-detail">Tam: {{ item.tamanho_nome }}</div>
         {% endif %}
         {% if item.sabores_descricao %}
-        <div class="item-detail">{{ item.sabores_descricao }}</div>
+        {% for sabor in item.sabores_descricao|split:"," %}
+        <div class="item-sabor">- {{ sabor }}</div>
+        {% endfor %}
         {% endif %}
         {% if item.observacao %}
         <div class="item-detail">* {{ item.observacao }}</div>
