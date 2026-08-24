@@ -86,6 +86,7 @@ services:
       - static_volume:/app/staticfiles:ro
       - media_volume:/app/media:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/letsencrypt:/var/www/letsencrypt:ro
     depends_on:
       - web
 
